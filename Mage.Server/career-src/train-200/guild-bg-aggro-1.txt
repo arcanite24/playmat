@@ -1,0 +1,21 @@
+# name: Train200 guild-bg-aggro-1
+# archetype: aggro
+# colors: BG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Battlefly Swarm
+3 Champions of the Perfect
+1 Colossal Rattlewurm
+4 Hateful Eidolon
+3 Insidious Fungus
+3 Moonshadow
+3 Nettle Sentinel
+3 Ozai's Cruelty
+4 Pale Rider of Trostad
+2 Plague Belcher
+4 Sarkhan's Resolve
+3 Tandem Takedown
+3 Vicious Rumors
+4 Deathcap Glade
+6 Forest
+4 Hissing Quagmire
+7 Swamp

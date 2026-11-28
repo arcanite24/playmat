@@ -1,0 +1,21 @@
+# name: Train200 guild-br-bigmana-7
+# archetype: bigmana
+# colors: BR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Appendage Amalgam
+2 Combustion Man
+4 Enemy of Enlightenment
+3 Erebos, Bleak-Hearted
+3 Gadrak, the Crown-Scourge
+3 Hellspur Brute
+2 Hewed Stone Retainers
+2 Lash of Thorns
+2 Lord of the Forsaken
+3 Monoist Sentry
+3 Reinforced Ronin
+2 Tar Snare
+4 You Find Some Prisoners
+8 Mountain
+4 Stingerquill Annex
+9 Swamp
+4 Vector, Imperial Capital

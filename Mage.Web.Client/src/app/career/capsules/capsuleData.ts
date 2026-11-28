@@ -1,6 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import type { CareerMachine, CareerMachines, CareerMachineSet, CareerPullResult } from '../../../protocol/generated/views';
+import type {
+  CareerMachine,
+  CareerMachines,
+  CareerMachineSet,
+  CareerPullResult,
+  CareerSwarmRedeemResult,
+} from '../../../protocol/generated/views';
 import { api } from '../../connection';
 import { queryClient } from '../../queries';
 import { useSession } from '../../stores/session';
@@ -26,6 +32,13 @@ export async function buyTokens(count: number): Promise<void> {
   const profile = await api.careerBuyTokens(count);
   patch((shop) => ({ ...shop, tokens: profile.capsuleTokens ?? 0, coins: profile.coins ?? 0 }));
   void queryClient.invalidateQueries({ queryKey: ['career', 'state'] });
+}
+
+export async function redeemSwarmCredits(workerToken: string): Promise<CareerSwarmRedeemResult> {
+  const res = await api.careerRedeemSwarmCredits(workerToken);
+  patch((shop) => ({ ...shop, tokens: res.tokens ?? shop.tokens }));
+  void queryClient.invalidateQueries({ queryKey: ['career', 'state'] });
+  return res;
 }
 
 /** Pulls capsules; the shop learns what came out only once the sequence has shown it (see reveal). */

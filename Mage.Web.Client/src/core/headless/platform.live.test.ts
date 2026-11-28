@@ -172,7 +172,9 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
     [{ name: 'Lightning Bolt' }],
     [{ nameContains: 'bolt', uniqueNames: true, count: 12, start: 0 }],
     [{ name: 'lightning bolt', uniqueNames: true, count: 1, start: 0 }],
-    [{ name: 'Island', uniqueNames: false, count: 500, start: 0 }],
+    // the printing picker pages through a basic's 800+ printings
+    [{ name: 'Island', uniqueNames: false, count: 1000, start: 0 }],
+    [{ name: 'Plains', uniqueNames: false, count: 1000, start: 500 }],
     [{ setCodes: ['M10'], start: 0, count: 1000 }],
     [{ setCodes: ['m10'], start: 100, count: 50 }],
     [{ nameContains: 'dragon', searchNames: true, uniqueNames: true, sortBy: 'name', start: 0, count: 48 }],

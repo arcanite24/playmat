@@ -1,0 +1,37 @@
+# name: Train450 lim-t-wub-aggro-1
+# archetype: limited_aggro
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Arashin Sunshield
+2 Archaeomender
+1 Aven Gagglemaster
+2 Bontu the Glorified
+1 Brutal Expulsion
+2 Chief of the Scale
+2 Cornered by Black Mages
+2 Duskmantle Operative
+1 Enshrouding Mist
+1 Faerie Vandal
+1 Gallant Strike
+1 Gingerbrute
+2 Grizzled Angler
+2 Inquisitive Glimmer
+1 Light the Way
+1 Mage's Attendant
+1 Nesting Bot
+1 Ogre Jailbreaker
+2 Olivia's Bloodsworn
+1 Resplendent Angel
+1 Setessan Battle Priest
+1 Shimmer Dragon
+1 Silence the Echo
+2 Take Heart
+1 Timid Shieldbearer
+1 Vodalian Arcanist
+2 Vraska's Finisher
+4 Avengers Hangar
+3 Island
+4 Plains
+4 Shadowy Backstreet
+4 Swamp
+4 University Campus

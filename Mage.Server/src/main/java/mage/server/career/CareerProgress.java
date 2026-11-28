@@ -56,6 +56,8 @@ public final class CareerProgress {
         public boolean weekly;
         /** which games count, in words ("Games against people"); null for any game */
         public String counts;
+        /** optional track affinity ("commander" or "constructed"); null for universal quests */
+        public String track;
     }
 
     public static class AchievementTemplate {
@@ -380,6 +382,8 @@ public final class CareerProgress {
         public CareerModeResult mode;
         /** what helped the player in this game (a hint, a take-back), which halves its pay; null when nothing did */
         public String assisted;
+        /** bond XP awarded to the player's equipped pet after this game; null when none equipped */
+        public CareerPets.CareerPetBondResult petBond;
     }
 
     private static volatile CareerProgress instance;
@@ -538,12 +542,13 @@ public final class CareerProgress {
             used.add(row.slot);
             present.add(row.quest);
         }
+        String pref = store.questPref(user);
         for (int i = 0; i < toAdd; i++) {
             int slot = 0;
             while (used.contains(slot)) {
                 slot++;
             }
-            String quest = pickQuest(present, false, roll(store, "quest/" + CareerStore.key(user) + "/" + day + "/" + slot));
+            String quest = pickQuest(present, false, pref, roll(store, "quest/" + CareerStore.key(user) + "/" + day + "/" + slot));
             if (quest == null) {
                 break;
             }
@@ -564,7 +569,7 @@ public final class CareerProgress {
         for (CareerStore.QuestRow row : store.quests(user)) {
             present.add(row.quest);
         }
-        String quest = pickQuest(present, true, roll(store, "weekly/" + CareerStore.key(user) + "/" + week));
+        String quest = pickQuest(present, true, store.questPref(user), roll(store, "weekly/" + CareerStore.key(user) + "/" + week));
         if (quest != null) {
             store.putQuest(user, WEEKLY_SLOT, quest, 0, day());
         }
@@ -576,14 +581,25 @@ public final class CareerProgress {
         return random != null ? random : CareerDice.roll(store, purpose);
     }
 
-    private String pickQuest(Set<String> exclude, boolean weekly, Random random) {
+    private String pickQuest(Set<String> exclude, boolean weekly, String pref, Random random) {
         List<String> choices = new ArrayList<>();
         for (String id : quests.keySet()) {
-            if (!exclude.contains(id) && quests.get(id).weekly == weekly) {
+            QuestTemplate template = quests.get(id);
+            if (!exclude.contains(id) && template.weekly == weekly && matchesQuestPref(template, pref)) {
                 choices.add(id);
             }
         }
+        if (choices.isEmpty() && !"any".equals(pref)) {
+            return pickQuest(exclude, weekly, "any", random);
+        }
         return choices.isEmpty() ? null : choices.get(random.nextInt(choices.size()));
+    }
+
+    private static boolean matchesQuestPref(QuestTemplate template, String pref) {
+        if ("any".equals(pref) || pref == null || template.track == null || template.track.isEmpty()) {
+            return true;
+        }
+        return pref.equals(template.track);
     }
 
     public CareerQuests quests(String user) throws SQLException {
@@ -698,7 +714,8 @@ public final class CareerProgress {
                 if (slot == WEEKLY_SLOT) {
                     throw new SQLException(new CareerService.CareerException("The weekly quest can't be swapped."));
                 }
-                String next = pickQuest(present, false, roll(store, "reroll/" + CareerStore.key(user) + "/" + day() + "/" + slot));
+                String next = pickQuest(present, false, store.questPref(user),
+                        roll(store, "reroll/" + CareerStore.key(user) + "/" + day() + "/" + slot));
                 if (next == null) {
                     throw new SQLException(new CareerService.CareerException("There's no other quest to swap in."));
                 }
@@ -806,7 +823,11 @@ public final class CareerProgress {
         levelsIn(store, user, xpBefore, result, now);
     }
 
-    /** the color and format tracks, in the order the client lists them */
+    /** PvE mode mastery tracks (Phase 6.2): Gauntlet, Hordes, Archenemy, Two-Headed Giant. */
+    public static final List<String> MODE_TRACKS = Collections.unmodifiableList(Arrays.asList(
+            "gauntlet", "horde", "archenemy", "thg"));
+
+    /** the color, format, and PvE mode tracks, in the order the client lists them */
     public static List<String> masteryTracks() {
         List<String> tracks = new ArrayList<>();
         for (String color : Arrays.asList("W", "U", "B", "R", "G", "multicolor", "colorless")) {
@@ -814,6 +835,9 @@ public final class CareerProgress {
         }
         for (String format : CareerService.FORMATS) {
             tracks.add("format_" + format);
+        }
+        for (String mode : MODE_TRACKS) {
+            tracks.add("mode_" + mode);
         }
         return tracks;
     }
@@ -835,7 +859,7 @@ public final class CareerProgress {
         for (String track : masteryTracks()) {
             CareerMastery mastery = new CareerMastery();
             mastery.track = track;
-            mastery.kind = track.startsWith("color_") ? "color" : "format";
+            mastery.kind = track.startsWith("color_") ? "color" : track.startsWith("mode_") ? "mode" : "format";
             mastery.games = stats.getOrDefault("games_" + track, 0);
             mastery.rank = masteryRank(mastery.games);
             mastery.maxRank = ranks.size();

@@ -129,7 +129,8 @@ def build():
     plan.pop('_about', None)
     in_engine = engine_cards()
     # a game goes to Rust only with verified cards, so the decks count as covered by those
-    have = name_list('verified.txt') & in_engine
+    # less the verified cards upstream changed since (rust/tools/upstream_ledger.py): the gate leaves them out too
+    have = (name_list('verified.txt') - name_list('upstream-pending.txt')) & in_engine
     pioneer = name_list('pioneer-pool.txt')
     school = glob.glob(path('Mage.Server', 'career-src', 'pioneer', '*.txt')) + \
         glob.glob(path('Mage.Server', 'career-src', 'standard', '*.txt'))

@@ -47,13 +47,13 @@ pub fn text(game: &Game) -> String {
             i,
             player.life,
             counters(&player.counters),
-            if player.lost { " lost" } else { "" },
+            if player.lost || player.drew { " lost" } else { "" },
             if player.won { " won" } else { "" }
         ));
-        // as Java's trace sees the end: the loser's cards are gone from hand, library and graveyard (their
-        // permanents stay), though continuous effects still counted them
+        // as Java's trace sees the end: the loser's (or drawn player's) cards are gone from hand, library and
+        // graveyard (their permanents stay), though continuous effects still counted them
         let gone = |ids: &[ObjId]| -> Vec<ObjId> {
-            if game.over && player.lost {
+            if game.over && (player.lost || player.drew) {
                 Vec::new()
             } else {
                 ids.to_vec()

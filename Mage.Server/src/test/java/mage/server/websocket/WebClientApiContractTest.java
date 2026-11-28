@@ -52,7 +52,7 @@ public class WebClientApiContractTest {
             "deckImportFromUrl", "deckImportSources", // deck website import service
             "testEndGame", "testConcedeMatch", // test mode helpers on table manager
             "gameResync", // the bridge resends its own copy of the open question
-            "hostGameEnded", "hostGameTurn", // the Rust host's game end and turn saves (RustHost.ended, RustHost.turn)
+            "hostGameEnded", "hostGameTurn", "hostGameAssisted", // the Rust host's game end, turn saves and hints (RustHost)
             "setCapabilities", "gameStateResync", // bridge protocol options and game state patches
             "chatSetIgnored", "gameWatchers", // user and game managers (social/UserRelations, watcher names)
             "replayList", "replayPage", // replay store (replay/ReplayStoreTest)
@@ -62,15 +62,15 @@ public class WebClientApiContractTest {
             "adminUpdateStatus", "adminUpdateApply", "adminUpdateRollback", // the registry and GitHub, the updater's files
             "adminSelfPlayStatus", "adminSelfPlaySet", // the self-play worker's files (SelfPlayStatusTest)
             "gamePractice", // game controller practice tools, with readable errors
-            "ladderState", "ladderOpponent", "ladderPlay", "ladderResult", "leaguePlay", "leagueState", "leagueStart", "leagueSets",
+            "ladderState", "ladderOpponent", "ladderPlay", "ladderResult", "ladderGameDeck", "ladderMythicStandings", "leaguePlay", "leagueState", "leagueStart", "leagueSets",
             "leagueOpen", "leagueDecks", "leagueSaveDeck", "leagueDeleteDeck", "leagueCraftMissing", "homeLayoutGet", "homeLayoutSet", "homeActivity",
-            "careerState", "careerStarters", "careerStart", "careerCollection", "careerOpponents", "careerPlay", "careerShop",
+            "careerState", "careerStarters", "careerStart", "careerAcquirePrecon", "careerSetQuestPref", "careerCollection", "careerOpponents", "careerCommanderOpponents", "careerPlay", "careerCommanderPlay", "careerShop",
             "careerBuyPack", "careerCraft", "careerExport", "careerImport", // career store and service (career/CareerServiceTest)
             "careerQuests", "careerRerollQuest", "careerAchievements", "careerLevels", "careerWeekly", "careerGameResult",
-            "careerSetProgress", "careerShowProgress", "careerDaily", "careerDeck", "careerSaveDeck", "careerDecks", "careerSaveNamedDeck", "careerSelectDeck", "careerDeleteDeck", "careerProfileOf", "careerQuestTracker", "careerMasteries", "careerCosmetics", "careerMachines", "careerBuyTokens", "careerPull", "careerEquipStyle", "careerHall", "gameEmote", // career progress (career/CareerProgressTest)
+            "careerSetProgress", "careerShowProgress", "careerDaily", "careerDeck", "careerSaveDeck", "careerDecks", "careerSaveNamedDeck", "careerSelectDeck", "careerDeleteDeck", "careerProfileOf", "careerQuestTracker", "careerMasteries", "careerCosmetics", "careerMachines", "careerBuyTokens", "careerBuyCosmetic", "careerRedeemSwarmCredits", "careerPull", "careerEquipStyle", "careerHall", "careerPets", "careerSetPetStyle", "gameEmote", // career progress (career/CareerProgressTest)
             "careerCampaigns", "careerCampaignPlay", "careerCampaignDeck", "careerCampaignChoose", "careerPuzzles", "careerPuzzlePlay",
             "careerChallenge", "careerChallengePlay", "careerGauntlet", "careerGauntletStart", "careerGauntletPick",
-            "careerGauntletPlay", "careerGauntletAbandon", "careerGauntletMove", "careerDailyPuzzle", "careerDailyPuzzlePlay", "careerPuzzleFilePlay", "careerMinedPuzzles", "careerMinedPuzzlePlay", "gamePuzzleExport", "careerHordes", "careerHordePlay", "metaLibrary", "metaDeck", "ghostShare", "ghostMine", "ghostUnshare", "ghostDeck", "soloTableMark", "soloAdaptive", "inbox", "inboxSeen", "careerLimited", "careerLimitedStart", "careerLimitedPick",
+            "careerGauntletPlay", "careerGauntletAbandon", "careerGauntletMove", "careerDailyPuzzle", "careerDailyPuzzlePlay", "careerPuzzleFilePlay", "careerMinedPuzzles", "careerMinedPuzzlePlay", "gamePuzzleExport", "careerHordes", "careerHordePlay", "careerArchenemy", "careerArchenemyPlay", "careerThg", "careerThgPlay", "metaLibrary", "metaDeck", "ghostShare", "ghostMine", "ghostUnshare", "ghostDeck", "soloTableMark", "soloAdaptive", "inbox", "inboxSeen", "careerLimited", "careerLimitedStart", "careerLimitedPick",
             "careerLimitedDeck", "careerLimitedCoach", "careerLimitedPlay", "careerLimitedAbandon", // career modes (career/CareerModesTest)
             "authRegister", "authSendTokenToEmail", "authResetPassword", // session and AccountService, with readable errors
             "authRememberLogin", "authForgetLogin", // remembered devices in the account database

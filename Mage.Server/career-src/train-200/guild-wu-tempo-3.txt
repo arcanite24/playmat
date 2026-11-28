@@ -1,0 +1,23 @@
+# name: Train200 guild-wu-tempo-3
+# archetype: tempo
+# colors: WU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Acrobatic Maneuver
+3 Adept Watershaper
+2 Consuming Sinkhole
+3 Crashing Tide
+4 Dispel
+2 Disperse
+2 Kellan's Lightblades
+3 Minister of Inquiries
+3 Soaring Stoneglider
+4 Swooping Lookout
+1 Technodrome
+4 Triceraton Commander
+2 Wings of the Cosmos
+2 Wizard's Retort
+1 You Find the Villains' Lair
+4 Glacial Floodplain
+6 Island
+8 Plains
+4 University Campus

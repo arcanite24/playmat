@@ -2,6 +2,7 @@
 //! copy for the AI's search. Java stays the oracle: shadow games (`replay`) check this engine against it.
 
 pub mod card;
+pub mod career;
 pub mod decide;
 pub mod fingerprint;
 pub mod log;
@@ -29,10 +30,22 @@ pub fn cards() -> card::CardDb {
     DB.get_or_init(|| card::CardDb::load_json(CARDS_JSON).map(|(db, _)| db).unwrap_or_default()).clone()
 }
 
-/// The verified cards' names
+/// Verified cards upstream XMage has changed since (`cards/upstream-pending.txt`, written by
+/// `rust/tools/upstream_ledger.py check`, docs/rust/Upstream.md): they stay off the gate, so their games play on
+/// Java, until they're re-translated and re-verified.
+pub const UPSTREAM_PENDING_TXT: &str = include_str!("../cards/upstream-pending.txt");
+
+fn names(text: &'static str) -> impl Iterator<Item = &'static str> {
+    text.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#'))
+}
+
+/// The verified cards' names: the list, less the ones upstream changed since
 pub fn verified() -> &'static std::collections::HashSet<&'static str> {
     static SET: std::sync::OnceLock<std::collections::HashSet<&'static str>> = std::sync::OnceLock::new();
-    SET.get_or_init(|| VERIFIED_TXT.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).collect())
+    SET.get_or_init(|| {
+        let pending: std::collections::HashSet<&str> = names(UPSTREAM_PENDING_TXT).collect();
+        names(VERIFIED_TXT).filter(|n| !pending.contains(n)).collect()
+    })
 }
 
 /// Whether a game with this card may go to Rust: it's on the verified list (and so in the engine)

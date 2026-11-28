@@ -1,0 +1,23 @@
+# name: Train450 guild-ub-aggro-1
+# archetype: aggro
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aerial Formation
+3 Agonizing Syphon
+2 Boon of Erebos
+4 Crystalline Nautilus
+2 Eidolon of Philosophy
+4 Fae of Wishes
+4 Foolish Fate
+3 General Chang, Cold Warrior
+2 Hermitic Nautilus
+4 Jaded Analyst
+2 Necrogen Scudder
+1 Ozai's Cruelty
+2 Scrounging Skyray
+3 Tenacious Underdog
+2 Touch of the Void
+7 Island
+4 Restless Reef
+4 Shipwreck Marsh
+6 Swamp

@@ -1,0 +1,21 @@
+# name: Train200 tri-wbg-midrange-6
+# archetype: midrange
+# colors: WBG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Bayou Groff
+3 Bristlebane Battler
+3 Erebos, Bleak-Hearted
+3 Evolved Spinoderm
+4 Last Breath
+2 Nasty Little Rabbit
+3 Rotting Regisaur
+3 Siege Rhino
+4 Terra Stomper
+4 Vanquish the Weak
+4 Vigorbloom Charm
+4 Botanical Plaza
+4 Caves of Koilos
+6 Forest
+4 Kyoshi Village
+3 Plains
+3 Swamp

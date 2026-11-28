@@ -19,10 +19,13 @@
 //! - **costs**: `Handler::cost(name, CostKind::…, applies, apply)`, in `CostModificationType` order (increases, then
 //!   reductions, then sets) after the engine's own of that kind, for spells (`rules::modified_cost_of`, the spell's
 //!   own static abilities too: "this spell costs {2} less") and activated abilities (`adjusted_mana_cost_own`).
-//! - **restrictions**: `Handler::restriction(name, applies, &[Restrict::…])`: `rules::can_block`, `can_attack`.
+//! - **restrictions**: `Handler::restriction(name, applies, &[Restrict::…])`: `rules::can_block`, `can_attack`,
+//!   `transform`.
 //! - **rule-modifying**: `Handler::rule(name, Rule::CantCast(f))`: `rules::castable` (and the cast itself);
 //!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
+//!   `Rule::CantUseActivatedAbilities(f)`: a permanent's activated abilities, mana abilities too
+//!   (`Permanent.canUseActivatedAbilities`, `rules::activations_forbidden`);
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
 //!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`);
 //!   `Rule::CantHaveCounters(f)`: counters put on a permanent (`rules::counters_to_add`, before replacements).
@@ -30,14 +33,16 @@
 //!   `Rule::CantBeTargeted(f)`: a permanent as a target (`rules::targetable`); `Rule::Several(&[…])`: more than one;
 //!   `Rule::CantSearchLibrary(f)`: a library search (`rules::search_library` finds nothing);
 //!   `Rule::ManaBecomes(f)`: unspent mana changes kind instead of emptying (`rules::end_step`);
-//!   `Rule::CantPlayLands(f)`: `rules::can_play_land` (`PLAY_LAND` by a player).
+//!   `Rule::CantPlayLands(f)`: `rules::can_play_land` (`PLAY_LAND` by a player);
+//!   `Rule::CantPlayLandsFromHand(f)`: `rules::playable`'s lands in hand (`PLAY_LAND` of a card in hand);
+//!   `Rule::CantVenture(f)`: `rules::venture` (`VENTURE` by a player: nothing happens).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::BlockDragon(f)`: blocking a Dragon with flying (`rules::can_block`);
 //!   `AsThough::ActivateAsInstant(f)`: a sorcery-speed activated ability's timing (`rules::activatable`);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`);
 //!   `AsThough::DamageNotBlocked(f)`: a blocked attacker assigns its combat damage as though it weren't blocked
-//!   (`rules::combat_damage`).
+//!   (`rules::combat_damage`); `AsThough::ForetellAnyTime(f)`: foretelling on any player's turn (`rules::foretell`).
 //!
 //! A handler's functions get a `StaticCx`: the effect's source and controller (Java's `source`), its timestamp, and
 //! the Java the transpiler translated for it. The same `CardStatic` resolving as a one-shot effect (Emergence Zone's
@@ -151,12 +156,17 @@ pub(crate) type AffectsFn = fn(&Game, &StaticCx, ObjId) -> bool;
 pub(crate) enum Layer {
     /// layer 4, `TypeChangingEffects_4`: the subtypes it adds
     Type(fn(&Game, &StaticCx, ObjId) -> Vec<String>),
+    /// layer 4, `TypeChangingEffects_4`: the supertypes it adds (e.g. "LEGENDARY": Super-Soldier Serum)
+    SuperType(fn(&Game, &StaticCx, ObjId) -> Vec<String>),
     /// layer 6, `AbilityAddingRemovingEffects_6`: the abilities it adds
     Ability(fn(&Game, &StaticCx, ObjId) -> Vec<AbilityDef>),
     /// layer 7b, `PTChangingEffects_7` / `SetPT_7b`: the base power and toughness it sets
     SetPt(fn(&Game, &StaticCx, ObjId) -> (i32, i32)),
     /// layer 7b, the base toughness alone (`getToughness().setModifiedBaseValue`: Maha, Its Feathers Night)
     SetToughness(fn(&Game, &StaticCx, ObjId) -> i32),
+    /// layer 7b, the base power alone (`getPower().setModifiedBaseValue`: Ms. Marvel, Kamala Khan;
+    /// `SetBasePowerEnchantedEffect`: Withercrown)
+    SetPower(fn(&Game, &StaticCx, ObjId) -> i32),
     /// layer 7c, `PTChangingEffects_7` / `ModifyPT_7c`: what it adds to power and toughness
     ModifyPt(fn(&Game, &StaticCx, ObjId) -> (i32, i32)),
 }
@@ -166,9 +176,9 @@ impl Layer {
     #[allow(dead_code)]
     pub fn java(&self) -> (&'static str, &'static str) {
         match self {
-            Layer::Type(_) => ("TypeChangingEffects_4", "NA"),
+            Layer::Type(_) | Layer::SuperType(_) => ("TypeChangingEffects_4", "NA"),
             Layer::Ability(_) => ("AbilityAddingRemovingEffects_6", "NA"),
-            Layer::SetPt(_) | Layer::SetToughness(_) => ("PTChangingEffects_7", "SetPT_7b"),
+            Layer::SetPt(_) | Layer::SetToughness(_) | Layer::SetPower(_) => ("PTChangingEffects_7", "SetPT_7b"),
             Layer::ModifyPt(_) => ("PTChangingEffects_7", "ModifyPT_7c"),
         }
     }
@@ -230,6 +240,9 @@ pub(crate) enum EventType {
     /// statics already apply (`PermanentImpl.transform`, before `TRANSFORMED`). Nothing to change: a replacement
     /// does something as it transforms ("as this creature transforms into …": Sephiroth's emblem)
     Transforming,
+    /// `LOSES`: `player` would lose the game (the state-based check, `PlayerImpl.lost` through `canLose`); "replaced"
+    /// and they don't (Exquisite Archangel). Not when another player wins (`lostForced`)
+    Loses,
 }
 
 /// The event a replacement handler sees and may change (Java's `GameEvent`)
@@ -348,6 +361,10 @@ pub(crate) enum CostKind {
     /// is made only if they did; while checking what's playable it applies whenever the life could be paid
     /// (`inCheckPlayableState`)
     MayPayLife(i32),
+    /// `SET_COST` that asks first (Bruenor Battlehammer's free equip): as an ability is activated, once its targets
+    /// are chosen and its other cost changes made, its controller is asked "Pay {0} to equip instead {cost}?"
+    /// (`may_free`), and a yes clears its mana cost; while checking what's playable it applies (`apply` there)
+    MayFree,
 }
 
 /// The spell or ability whose cost a cost handler changes (Java's `abilityToModify`)
@@ -381,6 +398,8 @@ pub(crate) enum Restrict {
     CantBlock(fn(&Game, &StaticCx, ObjId, ObjId) -> bool),
     /// `canAttack` is false
     CantAttack(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `canTransform` is false (`PermanentImpl.checkTransformRestrictionEffects`)
+    CantTransform(fn(&Game, &StaticCx, ObjId) -> bool),
 }
 
 pub(crate) struct Restriction {
@@ -401,6 +420,10 @@ pub(crate) enum Rule {
     /// `ACTIVATE_ABILITY` of an activated ability that isn't a mana ability: `seat` can't activate the ability at
     /// `index` of `id` (Faith's Fetters)
     CantActivate(fn(&Game, &StaticCx, Seat, ObjId, usize) -> bool),
+    /// a `RestrictionEffect`'s `canUseActivatedAbilities` false: none of the permanent `id`'s activated abilities,
+    /// its mana abilities too, can be activated (`PlayerImpl.getUseableManaAbilities`, `getPlayable`: Academic
+    /// Probation)
+    CantUseActivatedAbilities(fn(&Game, &StaticCx, ObjId) -> bool),
     /// `LOSES` (`false`: `seat` can't lose the game, `PlayerImpl.canLose`) and `WINS` (`true`: `seat` can't win it,
     /// `PlayerImpl.won`)
     CantLoseOrWin(fn(&Game, &StaticCx, Seat, bool) -> bool),
@@ -431,6 +454,25 @@ pub(crate) enum Rule {
     /// `PLAY_LAND` whose `applies` reads only the player: `seat` can't play lands (Aggressive Mining), read by
     /// `rules::can_play_land`
     CantPlayLands(fn(&Game, &StaticCx, Seat) -> bool),
+    /// `PLAY_LAND` of a land card in its player's hand (`getZone(event.getSourceId()) == Zone.HAND`): `seat` can't
+    /// play lands from their hand (Experimental Frenzy), read where `rules::playable` offers the hand's lands
+    CantPlayLandsFromHand(fn(&Game, &StaticCx, Seat) -> bool),
+    /// `VENTURE` whose `applies` reads only the player: `seat` doesn't venture into the dungeon
+    /// (`GameImpl.ventureIntoDungeon` returns: Keen-Eared Sentry)
+    CantVenture(fn(&Game, &StaticCx, Seat) -> bool),
+    /// `UNTAP` replaced with nothing (a `ReplacementEffect` whose `replaceEvent` returns true: Blossombind, Frozen in
+    /// Ice): the permanent `id` can't become untapped, in its untap step or by an effect (`PermanentImpl.untap`)
+    CantUntap(fn(&Game, &StaticCx, ObjId) -> bool),
+    /// `SEARCH_LIBRARY` whose `replaceEvent` sets its amount (Aven Mindcensor): `seat` searching `owner`'s library
+    /// searches only that many cards from its top (`PlayerImpl.searchLibrary`'s `librarySearchLimit`); None leaves it
+    SearchLimit(fn(&Game, &StaticCx, Seat, Seat) -> Option<usize>),
+    /// a `Layer.PlayerEffects` continuous effect's `player.setMaxHandSize`: `seat`'s maximum hand size, where it
+    /// sets one (Winter, Misanthropic Guide); None leaves it. Read by `rules::max_hand_size`, after the engine's own.
+    MaxHandSize(fn(&Game, &StaticCx, Seat) -> Option<usize>),
+    /// `GameState.addPowerInsteadOfToughnessForDamageLethalityFilter`: lethal damage to the creature `id` is
+    /// determined by its power rather than its toughness (Zilortha, Strength Incarnate), read by the state-based
+    /// actions (`max(power, 1)`) and `Permanent.getLethalDamage` (power)
+    LethalByPower(fn(&Game, &StaticCx, ObjId) -> bool),
 }
 
 /// The rules a rule-modifying handler's hook has (`Rule::Several`'s, or its one); none for another kind
@@ -476,6 +518,8 @@ pub(crate) enum AsThough {
     /// None: it doesn't apply; Some(false): it applies; Some(true): it applies if the effect's controller says yes
     /// to "Have (the attacker) assign damage as though it weren't blocked?" (an `applies` that asks: Zilortha's)
     DamageNotBlocked(fn(&Game, &StaticCx, ObjId) -> Option<bool>),
+    /// `ALLOW_FORETELL_ANYTIME`: `seat` may foretell cards on any player's turn (Cosmos Charger)
+    ForetellAnyTime(fn(&Game, &StaticCx, Seat) -> bool),
 }
 
 /// What casting a spell by an `AsThough::PlayThen` way does: (the permitting source, its controller, the spell).
@@ -670,6 +714,7 @@ pub(crate) fn resolve_static(
         })
         .collect();
     let mut until_turn_of = None;
+    let mut lasting = false;
     if let EffectDef::CardStatic { handler, args, effects, filters, abilities } = effect {
         if let Some(start) = handler.0.start {
             let cx = StaticCx { source, controller, timestamp, args, effects, filters, abilities, targets: &targets };
@@ -678,8 +723,9 @@ pub(crate) fn resolve_static(
         if handler.0.until_your_next_turn || args.first().is_some_and(|a| a.trim() == "Duration.UntilYourNextTurn") {
             until_turn_of = Some(controller);
         }
+        lasting = handler.0.lasting;
     }
-    let r = ResolvedStatic { effect: effect.clone(), source, controller, timestamp, targets, until_turn_of };
+    let r = ResolvedStatic { effect: effect.clone(), source, controller, timestamp, targets, until_turn_of, lasting };
     game.card_statics.push(r);
     Some(())
 }
@@ -705,8 +751,8 @@ pub(crate) fn modify_pt(game: &Game, id: ObjId) -> (i32, i32) {
 }
 
 /// Layer 7b: the base power and toughness the handlers set on `id`, each with its timestamp (no power: only the
-/// toughness is set)
-pub(crate) fn set_pt(game: &Game, id: ObjId) -> Vec<(u64, Option<i32>, i32)> {
+/// toughness is set; no toughness: only the power)
+pub(crate) fn set_pt(game: &Game, id: ObjId) -> Vec<(u64, Option<i32>, Option<i32>)> {
     let mut out = Vec::new();
     each_static(game, &mut |h, cx, _| {
         let Hook::Continuous(c) = h else { return };
@@ -714,10 +760,13 @@ pub(crate) fn set_pt(game: &Game, id: ObjId) -> Vec<(u64, Option<i32>, i32)> {
             match layer {
                 Layer::SetPt(f) if (c.affects)(game, cx, id) => {
                     let (p, t) = f(game, cx, id);
-                    out.push((cx.timestamp, Some(p), t));
+                    out.push((cx.timestamp, Some(p), Some(t)));
                 }
                 Layer::SetToughness(f) if (c.affects)(game, cx, id) => {
-                    out.push((cx.timestamp, None, f(game, cx, id)));
+                    out.push((cx.timestamp, None, Some(f(game, cx, id))));
+                }
+                Layer::SetPower(f) if (c.affects)(game, cx, id) => {
+                    out.push((cx.timestamp, Some(f(game, cx, id)), None));
                 }
                 _ => {}
             }
@@ -773,6 +822,28 @@ fn has_subtype_now(game: &Game, id: ObjId, s: &str) -> bool {
     out
 }
 
+/// Layer 4: whether a handler gives `id` the supertype `s` (e.g. "LEGENDARY")
+pub(crate) fn has_supertype(game: &Game, id: ObjId, s: &str) -> bool {
+    thread_local!(static INSIDE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) });
+    if INSIDE.with(|x| x.replace(true)) {
+        return false;
+    }
+    let mut out = false;
+    let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
+        let Hook::Continuous(c) = h else { return };
+        for layer in c.layers() {
+            if let Layer::SuperType(f) = layer {
+                if !out && (c.affects)(game, cx, id) && f(game, cx, id).iter().any(|x| x == s) {
+                    out = true;
+                }
+            }
+        }
+    };
+    each_static(game, &mut check);
+    INSIDE.with(|x| x.set(false));
+    out
+}
+
 /// Whether a handler's restriction says `blocker` can't block `attacker`
 pub(crate) fn cant_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
     let mut out = false;
@@ -784,7 +855,7 @@ pub(crate) fn cant_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
             out = restrict.iter().any(|r| match r {
                 Restrict::CantBeBlocked(f) => applies(game, cx, attacker) && f(game, cx, attacker, blocker),
                 Restrict::CantBlock(f) => applies(game, cx, blocker) && f(game, cx, blocker, attacker),
-                Restrict::CantAttack(_) => false,
+                Restrict::CantAttack(_) | Restrict::CantTransform(_) => false,
             });
         }
     });
@@ -802,6 +873,22 @@ pub(crate) fn cant_attack(game: &Game, attacker: ObjId) -> bool {
             out = restrict
                 .iter()
                 .any(|r| matches!(r, Restrict::CantAttack(f) if applies(game, cx, attacker) && f(game, cx, attacker)));
+        }
+    });
+    out
+}
+
+/// Whether a handler's restriction says the permanent `id` can't transform
+pub(crate) fn cant_transform(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if out {
+            return;
+        }
+        if let Hook::Restriction(Restriction { applies, restrict }) = h {
+            out = restrict
+                .iter()
+                .any(|r| matches!(r, Restrict::CantTransform(f) if applies(game, cx, id) && f(game, cx, id)));
         }
     });
     out
@@ -846,6 +933,31 @@ pub(crate) fn cant_have_counters(game: &Game, id: ObjId, counter: &str) -> bool 
     each_static(game, &mut |h, cx, _| {
         if let Hook::Rule(Rule::CantHaveCounters(f)) = h {
             out = out || f(game, cx, id, counter);
+        }
+    });
+    out
+}
+
+/// How many cards from the top of `owner`'s library `seat` searches, if a handler limits it (the last one that
+/// applies sets the event's amount, `SearchLibraryEvent.setAmount`)
+pub(crate) fn search_limit(game: &Game, seat: Seat, owner: Seat) -> Option<usize> {
+    let mut out = None;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::SearchLimit(f)) = h {
+            if let Some(n) = f(game, cx, seat, owner) {
+                out = Some(n);
+            }
+        }
+    });
+    out
+}
+
+/// Whether a handler says the permanent `id` can't become untapped (`UNTAP` replaced)
+pub(crate) fn cant_untap(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::CantUntap(f)) = h {
+            out = out || f(game, cx, id);
         }
     });
     out
@@ -904,12 +1016,76 @@ pub(crate) fn keeps_damage(game: &Game, id: ObjId) -> bool {
     out
 }
 
+/// Whether a rule-modifying handler says `seat` can't venture into the dungeon (`VENTURE`)
+pub(crate) fn cant_venture(game: &Game, seat: Seat) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::CantVenture(f) = r {
+                out = out || f(game, cx, seat);
+            }
+        }
+    });
+    out
+}
+
+/// The maximum hand size a handler sets for `seat` (the last one, in the order the statics are read), if any
+pub(crate) fn handler_max_hand_size(game: &Game, seat: Seat) -> Option<usize> {
+    let mut out = None;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::MaxHandSize(f) = r {
+                if let Some(n) = f(game, cx, seat) {
+                    out = Some(n);
+                }
+            }
+        }
+    });
+    out
+}
+
+/// Whether lethal damage to the creature `id` is determined by its power (`Rule::LethalByPower`)
+pub(crate) fn lethal_by_power(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::LethalByPower(f) = r {
+                out = out || f(game, cx, id);
+            }
+        }
+    });
+    out
+}
+
+/// The power or toughness lethal damage to `id` is measured against (`Permanent.getLethalDamage`)
+pub(crate) fn lethal_measure(game: &Game, id: ObjId) -> i32 {
+    let (p, t) = game.power_toughness(id);
+    if lethal_by_power(game, id) {
+        p
+    } else {
+        t
+    }
+}
+
 /// Whether a rule-modifying handler says `seat` can't play lands (`PLAY_LAND`)
 pub(crate) fn cant_play_lands(game: &Game, seat: Seat) -> bool {
     let mut out = false;
     each_static(game, &mut |h, cx, _| {
         if let Hook::Rule(Rule::CantPlayLands(f)) = h {
             out = out || f(game, cx, seat);
+        }
+    });
+    out
+}
+
+/// Whether a rule-modifying handler says `seat` can't play lands from their hand
+pub(crate) fn cant_play_lands_from_hand(game: &Game, seat: Seat) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::CantPlayLandsFromHand(f) = r {
+                out = out || f(game, cx, seat);
+            }
         }
     });
     out
@@ -922,6 +1098,19 @@ pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) ->
         for r in rule_parts(h) {
             if let Rule::CantActivate(f) = r {
                 out = out || f(game, cx, seat, id, index);
+            }
+        }
+    });
+    out
+}
+
+/// Whether a handler says none of the permanent `id`'s activated abilities, mana abilities too, can be activated
+pub(crate) fn cant_use_activated_abilities(game: &Game, id: ObjId) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        for r in rule_parts(h) {
+            if let Rule::CantUseActivatedAbilities(f) = r {
+                out = out || f(game, cx, id);
             }
         }
     });
@@ -986,6 +1175,17 @@ pub(crate) fn block_dragon(game: &Game, id: ObjId) -> bool {
     each_static(game, &mut |h, cx, _| {
         if let Hook::AsThough(AsThough::BlockDragon(f)) = h {
             out = out || f(game, cx, id);
+        }
+    });
+    out
+}
+
+/// Whether an as-though handler lets `seat` foretell cards on any player's turn
+pub(crate) fn foretell_any_time(game: &Game, seat: Seat) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::AsThough(AsThough::ForetellAnyTime(f)) = h {
+            out = out || f(game, cx, seat);
         }
     });
     out
@@ -1106,6 +1306,53 @@ pub(crate) fn change_cost(game: &Game, kind: CostKind, of: &CostCx, cost: &mut M
     if of.ability.is_none() {
         each_own_static(game, of.card, &mut change);
     }
+}
+
+/// `CostKind::MayFree` as an ability is activated: for each handler that applies, in order, "Pay {0} to equip
+/// instead {cost}?"; a yes clears the mana cost. False when the decider stopped.
+pub(crate) fn may_free(game: &mut Game, d: &mut dyn Decider, of: &CostCx, mana: &mut ManaCost) -> bool {
+    let mut asks = 0;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Cost(CostMod { kind: CostKind::MayFree, applies, .. }) = h {
+            if applies(game, cx, of) {
+                asks += 1;
+            }
+        }
+    });
+    for _ in 0..asks {
+        let q = Query::YesNo { message: format!("Pay {{0}} to equip instead {}?", mana_text(mana)) };
+        let yes = loop {
+            match ask(game, d, of.seat, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return false,
+                _ => {}
+            }
+        };
+        if yes {
+            *mana = ManaCost::default();
+        }
+    }
+    true
+}
+
+/// `ManaCosts.getText` of what's left to pay: generic, then the colored symbols in WUBRG order, then colorless
+fn mana_text(m: &ManaCost) -> String {
+    let mut out = String::new();
+    if m.generic > 0 {
+        out += &format!("{{{}}}", m.generic);
+    }
+    for (k, c) in ["W", "U", "B", "R", "G"].iter().enumerate() {
+        for _ in 0..m.colored[k] {
+            out += &format!("{{{c}}}");
+        }
+    }
+    for _ in 0..m.colorless {
+        out += "{C}";
+    }
+    if out.is_empty() {
+        out = "{0}".into();
+    }
+    out
 }
 
 /// What a spell being cast carries once its caster paid the life of a `CostKind::MayPayLife` handler
@@ -1246,9 +1493,13 @@ pub(crate) fn replacements_applying(game: &Game, ev: &Event) -> usize {
     n
 }
 
-/// A permanent's own statics don't see it entering (Java's aren't active until it's on the battlefield)
+/// A permanent's own statics don't see it entering (Java's aren't active until it's on the battlefield). An effect
+/// that resolved pointed at the entering card isn't one of them, even with that card as its source: the watcher's
+/// `AddCounterEnteringCreatureEffect` of a spell Osteomancer Adept let you cast has the spell's ability as its source.
 fn own_entering(ev: &Event, cx: &StaticCx) -> bool {
-    ev.kind == EventType::EntersBattlefield && ev.target == Some(cx.source)
+    ev.kind == EventType::EntersBattlefield
+        && ev.target == Some(cx.source)
+        && !cx.targets.iter().any(|(t, _)| *t == Target::Obj(cx.source))
 }
 
 /// Whether a replacement handler for events of `kind` is in play

@@ -72,6 +72,20 @@ impl Counts {
     }
 }
 
+/// Appends a line to the file; a file past `cap` bytes moves to `<file>.1` first. Errors are dropped: a note is a help,
+/// not something to stop for
+pub fn append_capped(file: &Path, line: &str, cap: u64) {
+    use std::io::Write;
+    if std::fs::metadata(file).map(|m| m.len() > cap).unwrap_or(false) {
+        let mut old = file.as_os_str().to_owned();
+        old.push(".1");
+        let _ = std::fs::rename(file, PathBuf::from(old));
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(file) {
+        let _ = f.write_all(line.as_bytes());
+    }
+}
+
 fn minus(now: &BTreeMap<String, u64>, earlier: &BTreeMap<String, u64>) -> BTreeMap<String, u64> {
     now.iter()
         .map(|(k, v)| (k.clone(), v.saturating_sub(earlier.get(k).copied().unwrap_or(0))))
@@ -229,5 +243,20 @@ mod tests {
         }
         assert_eq!(totals.days.len(), KEEP_DAYS);
         assert_eq!(totals.days.keys().next().unwrap(), &day(10 * 86_400));
+    }
+
+    #[test]
+    fn a_noted_difference_is_kept_and_the_file_starts_again_past_its_cap() {
+        let dir = std::env::temp_dir().join(format!("playmat-differences-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("differences.log");
+        let _ = std::fs::remove_file(&file);
+        append_capped(&file, "1 careerQuests at /0\n", 30);
+        append_capped(&file, "2 careerQuests at /1\n", 30);
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "1 careerQuests at /0\n2 careerQuests at /1\n");
+        append_capped(&file, "3 searchCards at /2\n", 30);
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "3 searchCards at /2\n");
+        assert!(dir.join("differences.log.1").exists());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -2686,5 +2686,571 @@
     "accent": "#f4a8d8",
     "style": "rays",
     "ladder": "mythic"
+  },
+  {
+    "kind": "playmat",
+    "id": "velvet-command",
+    "name": "Command Table Velvet",
+    "es": "Terciopelo de Comandante",
+    "rarity": "rare",
+    "price": 450,
+    "dye": "#1f5c44",
+    "shades": [
+      "#06110c",
+      "#0a1c15",
+      "#102b20",
+      "#163c2d",
+      "#1f513d",
+      "#2b6b51",
+      "#3d8768"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "starlit-orrery",
+    "name": "Starlit Orrery",
+    "es": "Planetario estelar",
+    "rarity": "mythic",
+    "price": 550,
+    "dye": "#27386e",
+    "shades": [
+      "#070914",
+      "#0c1124",
+      "#131b38",
+      "#1b274f",
+      "#26366b",
+      "#35498a",
+      "#4b63ab"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "obsidian-forge",
+    "name": "Obsidian Forge",
+    "es": "Forja de obsidiana",
+    "rarity": "rare",
+    "price": 400,
+    "dye": "#6e2b20",
+    "shades": [
+      "#120807",
+      "#1e0d0b",
+      "#2e1410",
+      "#421d17",
+      "#59271e",
+      "#753428",
+      "#964636"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "sunken-reef",
+    "name": "Sunken Reef",
+    "es": "Arrecife sumergido",
+    "rarity": "uncommon",
+    "price": 350,
+    "dye": "#1c6670",
+    "shades": [
+      "#061214",
+      "#0a1e22",
+      "#102f35",
+      "#16424a",
+      "#1e5863",
+      "#29717f",
+      "#3a8e9e"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "lotus-pond",
+    "name": "Lotus Pond",
+    "es": "Estanque de lotos",
+    "rarity": "rare",
+    "price": 450,
+    "dye": "#4f6e59",
+    "shades": [
+      "#0a100c",
+      "#121c15",
+      "#1c2b21",
+      "#283d2f",
+      "#375340",
+      "#496b54",
+      "#61876e"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "tavern-oak",
+    "name": "Tavern Oak",
+    "es": "Roble de taberna",
+    "rarity": "uncommon",
+    "price": 300,
+    "dye": "#7a5230",
+    "shades": [
+      "#120c07",
+      "#1f150c",
+      "#302013",
+      "#452f1b",
+      "#5c3f24",
+      "#765230",
+      "#946940"
+    ]
+  },
+  {
+    "kind": "sleeve",
+    "id": "guild-azorius",
+    "name": "Senate Filigree",
+    "es": "Filigrana del Senado",
+    "rarity": "uncommon",
+    "price": 200,
+    "color": "#3b6ea5"
+  },
+  {
+    "kind": "sleeve",
+    "id": "guild-rakdos",
+    "name": "Carnival Velvet",
+    "es": "Terciopelo de carnaval",
+    "rarity": "uncommon",
+    "price": 200,
+    "color": "#8f2438"
+  },
+  {
+    "kind": "sleeve",
+    "id": "guild-golgari",
+    "name": "Undercity Moss",
+    "es": "Musgo de la subciudad",
+    "rarity": "uncommon",
+    "price": 200,
+    "color": "#355e3b"
+  },
+  {
+    "kind": "sleeve",
+    "id": "guild-izzet",
+    "name": "Aether Coil",
+    "es": "Bobina de éter",
+    "rarity": "rare",
+    "price": 250,
+    "color": "#44388c"
+  },
+  {
+    "kind": "sleeve",
+    "id": "dragon-scales",
+    "name": "Dragon Scales",
+    "es": "Escamas de dragón",
+    "rarity": "rare",
+    "price": 300,
+    "color": "#9e4422"
+  },
+  {
+    "kind": "sleeve",
+    "id": "celestial-astrolabe",
+    "name": "Celestial Astrolabe",
+    "es": "Astrolabio celeste",
+    "rarity": "mythic",
+    "price": 350,
+    "color": "#1b3b6f"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-filigree",
+    "name": "Gilded Filigree",
+    "es": "Filigrana dorada",
+    "rarity": "rare",
+    "price": 350,
+    "ring": "#d9b15f",
+    "accent": "#f5dfa0",
+    "style": "double"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-verdigris",
+    "name": "Verdigris Brass",
+    "es": "Latón verdín",
+    "rarity": "uncommon",
+    "price": 250,
+    "ring": "#4a9a84",
+    "accent": "#c8a566",
+    "style": "beaded"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-astral",
+    "name": "Astral Ring",
+    "es": "Anillo astral",
+    "rarity": "mythic",
+    "price": 450,
+    "ring": "#6c88e0",
+    "accent": "#f0d68a",
+    "style": "rays"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-molten",
+    "name": "Molten Cracks",
+    "es": "Grietas fundidas",
+    "rarity": "rare",
+    "price": 350,
+    "ring": "#d95829",
+    "accent": "#ffb347",
+    "style": "notched"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-frost",
+    "name": "Frost Crystal",
+    "es": "Cristal helado",
+    "rarity": "uncommon",
+    "price": 250,
+    "ring": "#7ec8e3",
+    "accent": "#d8f3fc",
+    "style": "dashed"
+  },
+  {
+    "kind": "avatar",
+    "id": "automaton",
+    "name": "Clockwork Automaton",
+    "es": "Autómata mecánico",
+    "rarity": "rare",
+    "price": 300,
+    "light": "#d4a65a",
+    "dark": "#3b2b14",
+    "path": "M12 3v3m-5 2h10l1 9-6 4-6-4 1-9zm2 4h.01m5.99 0h.01M9 15h6"
+  },
+  {
+    "kind": "avatar",
+    "id": "bog-witch",
+    "name": "Bog Witch",
+    "es": "Bruja del pantano",
+    "rarity": "uncommon",
+    "price": 250,
+    "light": "#6ea86e",
+    "dark": "#1b2e20",
+    "path": "M4 11l8-7 8 7H4zm3 0v4c0 3 2 5 5 5s5-2 5-5v-4M10 14h.01m3.99 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "sun-paladin",
+    "name": "Sun Paladin",
+    "es": "Paladín solar",
+    "rarity": "rare",
+    "price": 300,
+    "light": "#e5c36c",
+    "dark": "#423112",
+    "path": "M12 3l6 3v6c0 4.5-2.6 7.5-6 9-3.4-1.5-6-4.5-6-9V6l6-3zm0 5v6m-3-3h6"
+  },
+  {
+    "kind": "avatar",
+    "id": "eldrazi-seer",
+    "name": "Void Seer",
+    "es": "Vidente del vacío",
+    "rarity": "mythic",
+    "price": 400,
+    "light": "#a888e0",
+    "dark": "#241838",
+    "path": "M12 4c4.5 0 8 4 8 8s-3.5 8-8 8-8-4-8-8 3.5-8 8-8zm0 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 2.5a1.5 1.5 0 1 1 0 3"
+  },
+  {
+    "kind": "emote",
+    "id": "commander-talk",
+    "name": "Commander table talk",
+    "es": "Charla de Commander",
+    "rarity": "rare",
+    "price": 300,
+    "stickers": [
+      {
+        "id": "not-the-threat",
+        "phrase": "Not the threat!",
+        "es": "¡No soy la amenaza!"
+      },
+      {
+        "id": "have-response",
+        "phrase": "I have a response…",
+        "es": "Tengo una respuesta…"
+      },
+      {
+        "id": "board-wipe",
+        "phrase": "Board wipe incoming",
+        "es": "Se viene limpieza de mesa"
+      },
+      {
+        "id": "deal",
+        "phrase": "Deal?",
+        "es": "¿Trato?"
+      }
+    ]
+  },
+  {
+    "kind": "emote",
+    "id": "goblin-chaos",
+    "name": "Goblin chaos",
+    "es": "Caos trasgo",
+    "rarity": "uncommon",
+    "price": 250,
+    "stickers": [
+      {
+        "id": "swing-all",
+        "phrase": "Swing with everything!",
+        "es": "¡Ataco con todo!"
+      },
+      {
+        "id": "math-blockers",
+        "phrase": "Math is for blockers",
+        "es": "Las cuentas son para quien bloquea"
+      },
+      {
+        "id": "no-regrets",
+        "phrase": "No regrets!",
+        "es": "¡Sin arrepentimientos!"
+      },
+      {
+        "id": "topdeck",
+        "phrase": "Topdeck!",
+        "es": "¡Robo milagroso!"
+      }
+    ]
+  },
+  {
+    "kind": "arrow",
+    "id": "void-beam",
+    "name": "Void beam",
+    "es": "Rayo del vacío",
+    "rarity": "rare",
+    "price": 225,
+    "color": "#8a4fff"
+  },
+  {
+    "kind": "arrow",
+    "id": "emerald-vine",
+    "name": "Emerald vine",
+    "es": "Enredadera esmeralda",
+    "rarity": "uncommon",
+    "price": 200,
+    "color": "#3ca363"
+  },
+  {
+    "kind": "spark",
+    "id": "dragonfire",
+    "name": "Dragonfire",
+    "es": "Fuego de dragón",
+    "rarity": "rare",
+    "price": 250,
+    "color": "#ff5a2b"
+  },
+  {
+    "kind": "title",
+    "id": "table-politician",
+    "name": "Table Politician",
+    "es": "Político de mesa",
+    "rarity": "rare",
+    "price": 300
+  },
+  {
+    "kind": "title",
+    "id": "high-roller",
+    "name": "High Roller",
+    "es": "Gran apostador",
+    "rarity": "mythic",
+    "price": 500
+  },
+  {
+    "kind": "title",
+    "id": "mythic-bond",
+    "name": "Mythic Bond",
+    "es": "Vínculo mítico",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "title",
+    "id": "horde-breaker",
+    "name": "Horde Breaker",
+    "es": "Azote de la horda",
+    "rarity": "rare",
+    "price": 300
+  },
+  {
+    "kind": "title",
+    "id": "archenemy-slayer",
+    "name": "Scheme Breaker",
+    "es": "Rompeplanes",
+    "rarity": "mythic",
+    "price": 450
+  },
+  {
+    "kind": "title",
+    "id": "pod-sovereign",
+    "name": "Pod Sovereign",
+    "es": "Soberano de mesa",
+    "rarity": "mythic",
+    "price": 500
+  },
+  {
+    "kind": "cmdframe",
+    "id": "cmd-gold-filigree",
+    "name": "Gold Filigree",
+    "es": "Filigrana dorada",
+    "rarity": "rare",
+    "ring": "#e2c27a",
+    "accent": "#9e7328",
+    "style": "double",
+    "price": 350
+  },
+  {
+    "kind": "cmdframe",
+    "id": "cmd-phyrexian",
+    "name": "Phyrexian Gilded",
+    "es": "Dorado pirexiano",
+    "rarity": "rare",
+    "ring": "#d8cbb5",
+    "accent": "#991b1b",
+    "style": "notched",
+    "price": 400
+  },
+  {
+    "kind": "cmdframe",
+    "id": "cmd-ravnica",
+    "name": "Ravnica Guildcrest",
+    "es": "Blasón de Rávnica",
+    "rarity": "uncommon",
+    "ring": "#5da9e9",
+    "accent": "#f4d35e",
+    "style": "beaded",
+    "price": 275
+  },
+  {
+    "kind": "cmdframe",
+    "id": "cmd-eldrazi",
+    "name": "Eldrazi Void",
+    "es": "Vacío eldrazi",
+    "rarity": "mythic",
+    "ring": "#a855f7",
+    "accent": "#c4b5fd",
+    "style": "rays",
+    "price": 550
+  },
+  {
+    "kind": "cmdframe",
+    "id": "cmd-constellation",
+    "name": "Theros Constellation",
+    "es": "Constelación de Theros",
+    "rarity": "mythic",
+    "ring": "#67e8f9",
+    "accent": "#facc15",
+    "style": "rays",
+    "price": 550
+  },
+  {
+    "kind": "pet",
+    "id": "atelier-owl",
+    "name": "Atelier Owl",
+    "es": "Búho del taller",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "title",
+    "id": "grand-artificer",
+    "name": "Grand Artificer",
+    "es": "Gran artífice",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "pet",
+    "id": "astral-phoenix",
+    "name": "Astral Phoenix",
+    "es": "Fénix astral",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "title",
+    "id": "mythic-curator",
+    "name": "Mythic Curator",
+    "es": "Curador mítico",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "pet",
+    "id": "mini-dragon",
+    "name": "Ember Hatchling",
+    "es": "Cría de dragón",
+    "rarity": "mythic",
+    "price": 650
+  },
+  {
+    "kind": "pet",
+    "id": "golem-pup",
+    "name": "Rune Golem Pup",
+    "es": "Cachorro gólem rúnico",
+    "rarity": "mythic",
+    "price": 650
+  },
+  {
+    "kind": "title",
+    "id": "spire-climber",
+    "name": "Spire Climber",
+    "es": "Escalador de la aguja",
+    "rarity": "rare",
+    "mastery": "mode_gauntlet",
+    "rank": 5
+  },
+  {
+    "kind": "title",
+    "id": "gauntlet-master",
+    "name": "Gauntlet Master",
+    "es": "Maestro del reto",
+    "rarity": "mythic",
+    "mastery": "mode_gauntlet",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "tide-warden",
+    "name": "Tide Warden",
+    "es": "Guardián de la marea",
+    "rarity": "rare",
+    "mastery": "mode_horde",
+    "rank": 5
+  },
+  {
+    "kind": "title",
+    "id": "horde-master",
+    "name": "Horde Master",
+    "es": "Maestro de la horda",
+    "rarity": "mythic",
+    "mastery": "mode_horde",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "scheme-weaver",
+    "name": "Scheme Weaver",
+    "es": "Tejedor de tramas",
+    "rarity": "rare",
+    "mastery": "mode_archenemy",
+    "rank": 5
+  },
+  {
+    "kind": "title",
+    "id": "archenemy-master",
+    "name": "Archenemy Master",
+    "es": "Maestro archienemigo",
+    "rarity": "mythic",
+    "mastery": "mode_archenemy",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "twin-vanguard",
+    "name": "Twin Vanguard",
+    "es": "Vanguardia gemela",
+    "rarity": "rare",
+    "mastery": "mode_thg",
+    "rank": 5
+  },
+  {
+    "kind": "title",
+    "id": "thg-master",
+    "name": "Two-Headed Master",
+    "es": "Maestro bicéfalo",
+    "rarity": "mythic",
+    "mastery": "mode_thg",
+    "rank": 10
   }
 ]

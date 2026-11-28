@@ -1,0 +1,23 @@
+# name: Train450 tri-gwu-bigmana-6
+# archetype: bigmana
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Archon of Justice
+4 Bounding Wolf
+4 Disperse
+2 Dissenter's Deliverance
+3 Dorothea, Vengeful Victim
+2 Edgar, Moonlit Sovereign
+2 Hussar Patrol
+3 Nettle Sentinel
+1 Railway Brawler
+4 Spiritcall Enthusiast
+2 Titan of Industry
+3 Topiary Panther
+2 Triton Tactics
+4 Botanical Plaza
+5 Forest
+4 Island
+4 Lush Oasis
+4 Plains
+4 Sharlayan, Nation of Scholars

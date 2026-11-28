@@ -1,0 +1,20 @@
+# name: Train450 mono-b-midrange-4
+# archetype: midrange
+# colors: B
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Bilbo's Deadly Slice
+2 Bloodthirsty Aerialist
+2 Cruel Alliance
+1 Deadly Embrace
+1 Delta Bloodflies
+3 Eldrazi Obligator
+3 Eye Collector
+3 Fanatical Offering
+3 Liliana's Standard Bearer
+2 Raven Eagle
+2 Relic Golem
+3 Rottenmouth Viper
+1 Tyrannical Pitlord
+4 Whisper of the Dross
+4 Yellowjacket, Heartless Marauder
+24 Swamp

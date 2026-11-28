@@ -240,7 +240,7 @@ impl Catalog {
         let Some(format) = self.formats.get(deck_type) else {
             return Ok(Err(format!("Unknown deck type: {deck_type}")));
         };
-        if !format.plain {
+        if !format.plain && format.simple.is_none() {
             return Ok(Ok(None));
         }
         let Some((main, side)) = deck_lists(deck) else { return Ok(Ok(None)) };

@@ -1,0 +1,19 @@
+# name: Train200 mono-b-midrange-3
+# archetype: midrange
+# colors: B
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Anoint with Affliction
+2 Artificer's Dragon
+1 Creakwood Safewright
+3 Cremate
+3 Devouring Sugarmaw
+4 Dirge Bat
+2 Drivnod, Carnage Dominus
+3 Grimdancer
+4 Necrotic Wound
+1 Slice from the Shadows
+1 Succumb to Temptation
+3 Sunset Saboteur
+2 Unliving Legionnaire
+4 Wanted Scoundrels
+24 Swamp

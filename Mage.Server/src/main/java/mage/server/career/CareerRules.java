@@ -16,6 +16,10 @@ public final class CareerRules {
     /** coins a new Career starts with: one pack */
     public static final int START_COINS = 100;
     public static final int PACK_PRICE = 100;
+    /** coins for an additional 100-card Commander precon bundle in the Career shop (the first is free for existing accounts) */
+    public static final int PRECON_PRICE = 800;
+    public static final String FORMAT_CONSTRUCTED = "Constructed - Freeform";
+    public static final String FORMAT_COMMANDER = "Variant Magic - Commander";
     /** copies of a card that count; more become coins or wildcards */
     public static final int PLAYSET = 4;
     /** a loss that ended before this turn pays nothing (no conceding for coins) */

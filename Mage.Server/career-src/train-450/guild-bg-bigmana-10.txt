@@ -1,0 +1,23 @@
+# name: Train450 guild-bg-bigmana-10
+# archetype: bigmana
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Bilious Skulldweller
+2 Dreg Mangler
+2 Eliminate
+2 Feed the Cycle
+4 High-Society Hunter
+2 Hired Blade
+3 Large Bear
+3 Liliana's Steward
+2 Massacre Girl, Known Killer
+3 Polukranos Reborn
+1 Questing Beast
+3 Rampaging Hippo
+2 Sarkhan's Resolve
+2 Vanquish the Weak
+1 Venus, Torn Between Worlds
+4 Festering Gulch
+6 Forest
+4 Subterranean Cavern
+11 Swamp

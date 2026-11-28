@@ -28,6 +28,7 @@ final class GauntletPacks {
     static final String SINGLETON = "singleton";
     static final String CUBE = "cube";
     static final String DRAFT = "draft";
+    static final String COMMANDER = "commander";
 
     static final int SPELLS = 13;
     static final int LANDS = 7;
@@ -81,7 +82,53 @@ final class GauntletPacks {
     }
 
     static boolean known(String variant) {
-        return JUMPSTART.equals(variant) || PAUPER.equals(variant) || SINGLETON.equals(variant) || CUBE.equals(variant) || DRAFT.equals(variant);
+        return JUMPSTART.equals(variant) || PAUPER.equals(variant) || SINGLETON.equals(variant)
+                || CUBE.equals(variant) || DRAFT.equals(variant) || COMMANDER.equals(variant);
+    }
+
+    /** {@code count} color-matched singleton packs for Commanders of the Spire */
+    static List<CareerJumpstart.Pack> commanderStart(String runColors, Random random, int count) throws CareerService.CareerException {
+        List<Character> colors = new ArrayList<>();
+        for (char color : (runColors == null || runColors.isEmpty() ? COLORS : runColors).toCharArray()) {
+            if (!pool(SINGLETON, null, null, color).isEmpty()) {
+                colors.add(color);
+            }
+        }
+        if (colors.isEmpty()) {
+            throw new CareerService.CareerException("The card database doesn't have cards for Commander Gauntlet packs.");
+        }
+        List<CareerJumpstart.Pack> packs = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            char color = colors.get(i % colors.size());
+            CareerJumpstart.Pack pack = pack(SINGLETON, null, null, color, random);
+            pack.name = COLOR_NAMES.get(color) + " command pack (" + (i + 1) + ")";
+            packs.add(pack);
+        }
+        return packs;
+    }
+
+    /** {@code count} rare or mythic spells in the run's colors for the Foil Forge upgrade event */
+    static List<CardInfo> rareUpgrades(String runColors, Random random, int count) {
+        List<CardInfo> candidates = new ArrayList<>();
+        String palette = (runColors == null || runColors.isEmpty()) ? COLORS : runColors;
+        for (char color : palette.toCharArray()) {
+            for (CardInfo info : pool(SINGLETON, null, null, color)) {
+                if (info.getRarity() == Rarity.RARE || info.getRarity() == Rarity.MYTHIC) {
+                    candidates.add(info);
+                }
+            }
+        }
+        if (candidates.isEmpty()) {
+            for (char color : COLORS.toCharArray()) {
+                for (CardInfo info : pool(SINGLETON, null, null, color)) {
+                    if (info.getRarity() == Rarity.RARE || info.getRarity() == Rarity.MYTHIC) {
+                        candidates.add(info);
+                    }
+                }
+            }
+        }
+        Collections.shuffle(candidates, random);
+        return new ArrayList<>(candidates.subList(0, Math.min(count, candidates.size())));
     }
 
     /** {@code count} packs of different colours to start a run with */
@@ -118,15 +165,16 @@ final class GauntletPacks {
             Collections.shuffle(packs, random);
             return new ArrayList<>(packs.subList(0, Math.min(count, packs.size())));
         }
+        String effectiveVariant = COMMANDER.equals(variant) ? SINGLETON : variant;
         List<Character> colors = new ArrayList<>();
         for (char color : (runColors == null || runColors.isEmpty() ? COLORS : runColors).toCharArray()) {
-            if (!pool(variant, cubeId, deckCube, color).isEmpty()) {
+            if (!pool(effectiveVariant, cubeId, deckCube, color).isEmpty()) {
                 colors.add(color);
             }
         }
         List<CareerJumpstart.Pack> packs = new ArrayList<>();
         for (int i = 0; i < count && !colors.isEmpty(); i++) {
-            packs.add(pack(variant, cubeId, deckCube, colors.get(random.nextInt(colors.size())), random));
+            packs.add(pack(effectiveVariant, cubeId, deckCube, colors.get(random.nextInt(colors.size())), random));
         }
         return packs;
     }

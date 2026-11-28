@@ -177,6 +177,7 @@ public abstract class GameImpl implements Game {
 
     // temporary store for income concede commands, don't copy
     private final LinkedList<UUID> concedingPlayers = new LinkedList<>();
+    private String technicalErrorReason;
 
     public GameImpl(MultiplayerAttackOption attackOption, RangeOfInfluence range, Mulligan mulligan, int minimumDeckSize, int startingLife, int startingHandSize) {
         this.id = UUID.randomUUID();
@@ -206,6 +207,7 @@ public abstract class GameImpl implements Game {
         this.gameIndex = game.gameIndex;
         this.tableId = game.tableId;
         this.totalErrorsCount.set(game.totalErrorsCount.get());
+        this.technicalErrorReason = game.technicalErrorReason;
 
         this.ready = game.ready;
         //this.tableEventSource = game.tableEventSource; // client-server part, not need on copy/simulations
@@ -1272,6 +1274,10 @@ public abstract class GameImpl implements Game {
         meldCards.clear();
         meldCards.putAll(restored.meldCards);
         startingPlayerId = restored.startingPlayerId;
+        // the new table shuffled its seats: everyone sits, and takes turns, as in the saved game
+        if (!state.seatLike(restored.state)) {
+            logger.warn("Game " + getId() + ": the saved game's seats don't match the table's, so the turn order may differ");
+        }
         state.restoreForRollBack(restored.state);
         state.setChoosingPlayerId(restored.state.getChoosingPlayerId());
         // the generator object didn't change, only its position, so it's still the one this thread draws from
@@ -1876,10 +1882,16 @@ public abstract class GameImpl implements Game {
      * Winner: highest life, then most priority time left, then random.
      */
     @Override
+    public String getTechnicalErrorReason() {
+        return technicalErrorReason;
+    }
+
+    @Override
     public void endWithTechnicalWinner(String reason) {
         if (state.isGameOver()) {
             return;
         }
+        this.technicalErrorReason = reason != null ? reason : "Critical error";
 
         // find a winner
         List<Player> candidates = state.getPlayers().values().stream()
@@ -2047,6 +2059,20 @@ public abstract class GameImpl implements Game {
         gameOptions.trace.record(this, point);
     }
 
+    private boolean hasAnyStoredBookmark() {
+        for (Player p : getPlayers().values()) {
+            if (p.getStoredBookmark() != -1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int refreshPriorityRollbackBookmark() {
+        clearAllBookmarks();
+        return bookmarkState();
+    }
+
     @Override
     public void playPriority(UUID activePlayerId, boolean resuming) {
         if (!this.isSimulation() && this.inCheckPlayableState()) {
@@ -2056,6 +2082,7 @@ public abstract class GameImpl implements Game {
         int priorityErrorsCount = 0;
         infiniteLoopCounter = 0;
         int rollbackBookmarkOnPriorityStart = 0;
+        UUID lastErroredNonHumanId = null;
         clearAllBookmarks();
         try {
             applyEffects();
@@ -2095,6 +2122,12 @@ public abstract class GameImpl implements Game {
                                     }
                                     getState().handleSimultaneousEvent(this); // needed here to handle triggers e.g. from paying costs like sacrificing a creatures before LKIShort is cleared
                                     applyEffects();
+                                    // Refresh the error-recovery bookmark after a committed action (e.g. land play,
+                                    // spell cast) whenever no player holds a mana-tap undo bookmark, so a later error
+                                    // does not revert earlier valid plays in the same phase (#424).
+                                    if (!hasAnyStoredBookmark()) {
+                                        rollbackBookmarkOnPriorityStart = refreshPriorityRollbackBookmark();
+                                    }
                                 }
                                 if (isPaused()) {
                                     return;
@@ -2104,6 +2137,9 @@ public abstract class GameImpl implements Game {
                         }
                         resetShortLivingLKI();
                         resuming = false;
+                        if (player.getId().equals(lastErroredNonHumanId)) {
+                            lastErroredNonHumanId = null;
+                        }
                         if (isPaused() || checkIfGameIsOver()) {
                             return;
                         }
@@ -2117,6 +2153,7 @@ public abstract class GameImpl implements Game {
                                 state.getPlayers().resetPassed();
                                 fireUpdatePlayersEvent();
                                 resetShortLivingLKI();
+                                rollbackBookmarkOnPriorityStart = refreshPriorityRollbackBookmark();
                                 break;
                             } else {
                                 resetLKI();
@@ -2144,6 +2181,8 @@ public abstract class GameImpl implements Game {
                             throw new MageException("Too many errors, game will be end. Last error: " + e);
                         }
 
+                        UUID erroredPlayerId = state.getPriorityPlayerId();
+
                         // rollback to prev state
                         GameState restoredState = restoreState(rollbackBookmarkOnPriorityStart, "Game error: " + e);
                         rollbackBookmarkOnPriorityStart = 0;
@@ -2158,6 +2197,20 @@ public abstract class GameImpl implements Game {
                         if (activePlayer != null && (!activePlayer.isTestMode() || !activePlayer.isFastFailInTestMode())) {
                             // real game - try to continue
                             priorityErrorsCount++;
+                            // If a non-human player repeatedly fails on the same priority state, pass its priority
+                            // so it does not trap the game in an infinite rollback loop (#424).
+                            Player erroredPlayer = erroredPlayerId != null ? this.getPlayer(erroredPlayerId) : null;
+                            if (erroredPlayer != null && !erroredPlayer.isHuman()) {
+                                if (erroredPlayerId.equals(lastErroredNonHumanId)) {
+                                    erroredPlayer.pass(this);
+                                    lastErroredNonHumanId = null;
+                                    this.informPlayers(erroredPlayer.getLogName() + " encountered an error and passed priority.");
+                                } else {
+                                    lastErroredNonHumanId = erroredPlayerId;
+                                }
+                            } else {
+                                lastErroredNonHumanId = null;
+                            }
                             continue;
                         } else {
                             // tests - try to fail fast
@@ -2165,6 +2218,9 @@ public abstract class GameImpl implements Game {
                         }
                     }
                     state.getPlayerList().getNext();
+                    if (!hasAnyStoredBookmark()) {
+                        rollbackBookmarkOnPriorityStart = refreshPriorityRollbackBookmark();
+                    }
                 }
             }
         } catch (Exception e) {
@@ -2471,6 +2527,10 @@ public abstract class GameImpl implements Game {
 
         // if it was no copy of copy take the target itself
         if (newBluePrint == null) {
+            if (copyFromPermanent.isCopy() && copyFromPermanent.getCopyFrom() instanceof Permanent) {
+                // copy effect is no longer active (e.g. source is LKI), use the original copy link
+                copyFromPermanent = (Permanent) copyFromPermanent.getCopyFrom();
+            }
             newBluePrint = copyFromPermanent.copy();
 
             // reset to original characteristics
@@ -2844,14 +2904,12 @@ public abstract class GameImpl implements Game {
         );
         Set<Card> copiedCardsToRemove = new HashSet<>();
         for (Card copiedCard : allCopiedCards) {
-            UUID copiedCardId = copiedCard.getMainCard().getId();
-            UUID persistentCopySource = state.getPersistentCardCopySource(copiedCardId);
-            if (persistentCopySource != null) {
-                // Persistent copies opt out of 704.5e only while their registered source remains.
-                if (getPermanent(persistentCopySource) != null) {
-                    continue;
-                }
-                state.stopKeepingCardCopy(copiedCardId);
+            // 722.3c
+            // This copy remains in exile for as long as the prepared permanent remains on the battlefield and has
+            // the prepared designation. This is an exception to rule 704.5e.
+            if (copiedCard instanceof PreparedSpellCopy
+                    && ((PreparedSpellCopy) copiedCard).getPreparedPermanent(this) != null) {
+                continue;
             }
             // 1. Zone must be checked from main card only cause mdf parts can have different zones
             //    (one side on battlefield, another side on outside)
@@ -3007,7 +3065,8 @@ public abstract class GameImpl implements Game {
             }
             if (perm.isPlaneswalker(this)) {
                 //20091005 - 704.5i
-                if (perm.getCounters(this).getCount(CounterType.LOYALTY) == 0) {
+                if (perm.getCounters(this).getCount(CounterType.LOYALTY) == 0
+                        && perm.zeroLoyaltyRuleApplies()) {
                     if (movePermanentToGraveyardWithInfo(perm, "SBA: planeswalker has loyalty 0")) {
                         somethingHappened = true;
                         continue;

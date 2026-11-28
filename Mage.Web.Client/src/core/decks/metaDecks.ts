@@ -3,6 +3,10 @@
  * live in public/meta-decks and are fetched on demand, outside the JavaScript bundle.
  */
 
+export type MetaTier = 'meta' | 'rogue' | 'fun';
+
+export const ALL_META_TIERS: readonly MetaTier[] = ['meta', 'rogue', 'fun'];
+
 export interface MetaDeck {
   /** the .dck file in public/meta-decks */
   file: string;
@@ -10,7 +14,7 @@ export interface MetaDeck {
   name: string;
   /** the server's deck type ("Constructed - Modern") */
   format: string;
-  tier: 'meta' | 'rogue' | 'fun';
+  tier: MetaTier;
   /** the archetype's share when fetched, in percent; zero for original lists without metagame data */
   share: number;
   /** main-deck cards (the command zone included in commander formats) */

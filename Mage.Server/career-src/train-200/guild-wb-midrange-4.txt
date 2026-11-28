@@ -1,0 +1,22 @@
+# name: Train200 guild-wb-midrange-4
+# archetype: midrange
+# colors: WB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Acrobatic Maneuver
+2 Ao, the Dawn Sky
+2 Captain Mar-Vell, Space-Born
+4 Divine Smite
+4 Dragon's Eye Sentry
+3 Friendly Ghost
+1 Grim Strider
+1 Hotshot Mechanic
+3 Knight of the Ebon Legion
+3 Moment of Craving
+3 Proft, Sinister Mastermind
+1 Reprisal
+2 Rotting Regisaur
+3 Soulstinger
+4 Caves of Koilos
+9 Plains
+4 Shadowy Backstreet
+7 Swamp

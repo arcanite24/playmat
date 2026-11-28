@@ -209,4 +209,29 @@ describe('games store', () => {
     // no "your game is starting" for a game you only watch
     expect(attention).not.toHaveBeenCalled();
   });
+
+  test('GAME_INFORM_PERSONAL and GAME_ERROR surface readable toasts for open games (#424)', async () => {
+    const { useGames, fake } = await load();
+    const { useToasts } = await import('./toasts');
+    useToasts.setState({ toasts: [] });
+    useGames.getState().open('g1', 'p1', 'play');
+
+    fake.rpc.emit({
+      method: 'GAME_INFORM_PERSONAL',
+      messageId: 10,
+      objectId: 'g1',
+      data: { message: 'Meddling Mage [abc]: Spells with the chosen name can’t be cast.' },
+    } as never);
+    fake.rpc.emit({
+      method: 'GAME_ERROR',
+      messageId: 11,
+      objectId: 'g1',
+      data: 'Game error occurred:\n\njava.lang.IllegalStateException: boom\nStack trace:\n\tat foo.Bar(Bar.java:1)',
+    } as never);
+
+    expect(useToasts.getState().toasts.map((t) => ({ title: t.title, message: t.message, tone: t.tone }))).toEqual([
+      { title: 'Game notice', message: 'Meddling Mage [abc]: Spells with the chosen name can’t be cast.', tone: 'info' },
+      { title: 'Game error', message: 'Game error occurred: java.lang.IllegalStateException: boom', tone: 'error' },
+    ]);
+  });
 });

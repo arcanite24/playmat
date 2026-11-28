@@ -84,7 +84,7 @@ enum VincentValentineValue implements DynamicValue {
     @Override
     public int calculate(Game game, Ability sourceAbility, Effect effect) {
         return Optional
-                .of((Permanent) effect.getValue("creatureDied"))
+                .ofNullable((Permanent) effect.getValue("creatureDied"))
                 .map(MageObject::getPower)
                 .map(MageInt::getValue)
                 .orElse(0);

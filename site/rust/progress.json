@@ -1,6 +1,6 @@
 {
- "updated": "2026-11-15",
- "goal": "games against the AI that cost a fraction of the server's CPU: one-on-one games against the AI with Pioneer and Standard decks, decided in milliseconds.",
+ "updated": "2026-11-24",
+ "goal": "Java off the game path: every one-on-one game up to Pioneer (Career, Ranked, League and Ladder tables included), then sealed, draft and tournaments, played on the Rust host by default, with sessions, the lobby and tables in Rust. Java keeps multiplayer, Commander and decks with cards Rust doesn't have.",
  "phases": [
   {
    "n": "0",
@@ -77,7 +77,7 @@
    "n": "6",
    "name": "Retire Java",
    "status": "active",
-   "text": "Started with AI games: since 11 Nov a one-on-one game against the AI can run on the Rust engine with no Java game behind it, for players who turn it on in Settings. Also built: one-on-one tables between people (best-of-three, timers, spectators), and the solo tools on hosted games (saves, \"Try this turn again\", advice, practice tools). Tournaments and drafts come once the pool covers limited card pools.",
+   "text": "Started with AI games: since 11 Nov a one-on-one game against the AI can run on the Rust engine with no Java game behind it, for players who turn it on in Settings. Also built: one-on-one tables between people (best-of-three, timers, spectators), and the solo tools on hosted games (saves, \"Try this turn again\", advice, practice tools). Tournaments and drafts come once the pool covers limited card pools. Since 24 Nov 2026 the goal is to take Java off the game path (docs/rust/Assessment-2026-11-24.md). From 12 to 24 Nov the Rust host played 217 production games (about 12% of all games), none ending in an error, and Java the other 88%. Career tables and games from Java saves still stay on Java.",
    "pr": [
     260,
     263,
@@ -137,19 +137,29 @@
    "n": "E",
    "name": "Rollout",
    "status": "live",
-   "text": "Rust-hosted games for listed players, and for every player who turns on \"Play on the Rust engine\" in Settings, live since 11 Nov 2026. Then every AI duel whose decks qualify, by default.",
+   "text": "Rust-hosted games for listed players, and for every player who turns on \"Play on the Rust engine\" in Settings, live since 11 Nov 2026. Then every AI duel whose decks qualify, by default. 217 production games from 12 to 24 Nov, none lost to an error or a panic. Next: the default for everyone, once a deploy waits for hosted games too. In review: #491 (deploys wait for hosted games), #492 (no hints or practice tools in ranked hosted games) and #493 (Career duel and campaign tables on the host, and abandoned hosted games ending as the player's quit) and #497 (platform shadow fixes: ranked careerGameResult, Freeform and Limited deckValidate).",
    "gate": "A week with no game lost to the host, then the default",
    "pr": [
     261,
-    276
+    276,
+    491,
+    492,
+    493,
+    497
    ]
   },
   {
    "n": "F",
    "name": "Then",
-   "status": "next",
-   "text": "The engine pieces the last Pioneer cards need, and what still plays on Java only: the Career's games and assists, tournaments and drafts. The solo tools, advice, practice tools and games between people are built (phase 6).",
-   "gate": "Per feature"
+   "status": "active",
+   "text": "Career tables: duels, campaign nodes, gauntlet fights and the weekly challenge go to the host (#493, deployed 24 Nov); timed twists and emblems too (#503); puzzles, trials, hordes and pods stay on Java. Java saves aren't converted: hosted games save as lines, and old Java saves expire after 30 days. Cards: waves 17 to 19 deployed 25 Nov; waves 20a to 25c and the prepare picker (#512) merged, not deployed: 14,369 of the 14,408 cards in the engine verified (14,168 of the 15,259 Pioneer cards), every school and meta deck covered. Platform diffs (#497) and the upstream ledger (#498) deployed 24 Nov. Then limited (sealed, draft, tournaments) set by set, then sessions, the lobby and tables in Rust (docs/rust/Assessment-2026-11-24.md).",
+   "gate": "Per feature",
+   "pr": [
+    493,
+    497,
+    498,
+    500
+   ]
   }
  ],
  "measures": [
@@ -257,14 +267,14 @@
   "source": "docs/rust/Engine.md"
  },
  "counted": {
-  "engine_cards": 14024,
-  "verified_cards": 14000,
+  "engine_cards": 23899,
+  "verified_cards": 16483,
   "pioneer": {
    "cards": 15259,
-   "in_engine": 13937,
-   "verified": 13913
+   "in_engine": 14268,
+   "verified": 14224
   },
-  "java_card_files": 32749,
+  "java_card_files": 32850,
   "school": {
    "label": "Pioneer and Standard school decks",
    "decks": 42,
@@ -1019,30 +1029,30 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1455
+   "checked_in": 1688
   },
   "rust": {
-   "lines": 137429,
+   "lines": 172800,
    "crates": [
     {
      "crate": "playmat-ai",
-     "lines": 3163
+     "lines": 15380
     },
     {
      "crate": "playmat-engine",
-     "lines": 115437
+     "lines": 124541
     },
     {
      "crate": "playmat-gateway",
-     "lines": 2797
+     "lines": 2885
     },
     {
      "crate": "playmat-host",
-     "lines": 4817
+     "lines": 6361
     },
     {
      "crate": "playmat-platform",
-     "lines": 10302
+     "lines": 10725
     },
     {
      "crate": "playmat-protocol",
@@ -1051,10 +1061,26 @@
     {
      "crate": "playmat-statediff",
      "lines": 340
+    },
+    {
+     "crate": "playmat-swarm",
+     "lines": 7213
+    },
+    {
+     "crate": "playmat-swarm-proto",
+     "lines": 1184
+    },
+    {
+     "crate": "playmat-worker",
+     "lines": 3105
+    },
+    {
+     "crate": "playmat-worker-wasm",
+     "lines": 493
     }
    ]
   }
  },
- "commit": "3c17be59c9f90ddd53d34d3c5b476c56587ea7fc",
- "generated": "2026-11-15"
+ "commit": "1b591b03842b050f49b9b340dc6d456096168f77",
+ "generated": "2026-11-27"
 }

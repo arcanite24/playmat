@@ -1,0 +1,45 @@
+{
+  "$comment": "Cosmetics of the Artifact Blueprints set (Legends Showcase capsule machine), written by art/machine-specs.mjs from career/machines/legends-showcase.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/blueprt",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [],
+  "style": "artificer workshop gouache on Prussian-blue drafting linen with luminous chalk linework and warm brass highlights",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a segmented brass-and-steel mechanical wurm coiling around glowing turquoise power cores",
+  "items": [
+    {
+      "id": "wurmcoil-engine",
+      "subject": "a segmented brass-and-steel mechanical wurm coiling around glowing turquoise power cores"
+    },
+    {
+      "id": "blightsteel-colossus",
+      "subject": "a towering dark-iron juggernaut striding through emerald alchemical vapor and sparks"
+    },
+    {
+      "id": "walking-ballista",
+      "subject": "a spindly bronze spider-legged siege engine bristling with glowing arcane bolts"
+    },
+    {
+      "id": "solemn-simulacrum",
+      "subject": "a melancholy weathered clockwork automaton standing quietly in a misty pine glade"
+    },
+    {
+      "id": "cranial-plating",
+      "subject": "an intricate articulated brass-and-onyx crown harness humming with amber arcs"
+    },
+    {
+      "id": "set-blueprt",
+      "out": "public/career-art/sleeve/set-blueprt.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

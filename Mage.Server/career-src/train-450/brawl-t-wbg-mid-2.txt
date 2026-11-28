@@ -1,0 +1,55 @@
+# name: Train450 brawl-t-wbg-mid-2
+# archetype: brawl_mid
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Abzan Charm
+1 Aesthir Glider
+1 Brightfield Mustang
+1 Clear the Stage
+1 Cliffhaven Vampire
+1 Crypt Lurker
+1 Dark Nourishment
+1 Deicide
+1 Devilthorn Fox
+1 Eat to Extinction
+1 Elvish Mystic
+1 Emperor's Vanguard
+1 Epicure of Blood
+1 Frondland Felidar
+1 General's Enforcer
+1 Gigantic Big Bear
+1 Grim Javelineer
+1 Hardened Escort
+1 Heir of Falkenrath
+1 Kellan's Lightblades
+1 Lord of the Forsaken
+1 Nessian Courser
+1 Park Heights Pegasus
+1 Prowling Caracal
+1 Radagast of Rhosgobel
+1 Risky Research
+1 Scrollshift
+1 Sultai Flayer
+1 Syr Vondam, the Lucent
+1 Thousand Moons Crackshot
+1 Thragtusk
+1 Titania, Rugged Rumbler
+1 Unburied Earthcarver
+1 Wild Onslaught
+1 Wispweaver Angel
+1 Cardassia Prime
+1 Concealed Courtyard
+1 Deathcap Glade
+1 Foot Headquarters
+4 Forest
+1 Fortified Village
+1 Grove of the Guardian
+4 Plains
+1 Radiant Grove
+1 Risa
+1 Scoured Barrens
+1 Silverquill Campus
+1 Subterranean Cavern
+4 Swamp
+1 Woodland Cemetery

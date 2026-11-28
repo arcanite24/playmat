@@ -1,0 +1,23 @@
+# name: Train450 tri-bgu-midrange-2
+# archetype: midrange
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Aven Reedstalker
+2 Demon Wall
+4 Ebondeath, Dracolich
+3 Go for the Throat
+1 Overwhelmed Apprentice
+2 Putrefy
+2 Serrated Scorpion
+4 Shapers of Nature
+4 Silverback Shaman
+3 The Ancient One
+3 Witherbloom Charm
+3 Witherbloom Command
+1 You Are Already Dead
+4 Forest
+3 Island
+5 Swamp
+4 Underground Mortuary
+4 Witherbloom Campus
+4 Woodland Chasm

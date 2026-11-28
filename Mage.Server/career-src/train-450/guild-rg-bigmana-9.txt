@@ -1,0 +1,23 @@
+# name: Train450 guild-rg-bigmana-9
+# archetype: bigmana
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Flame-Blessed Bolt
+2 Free from Flesh
+2 Gigantosaurus
+2 Gnarled Professor
+1 Hazoret, Godseeker
+4 Ilharg, the Raze-Boar
+3 Kogla and Yidaro
+2 Munitions Enthusiast
+2 Nightpack Ambusher
+3 Pugnacious Hammerskull
+2 Quakestrider Ceratops
+3 Regal Imperiosaur
+2 Scorchmark
+2 Searing Blaze
+3 Slumbering Trudge
+9 Forest
+4 Konstrari Annex
+8 Mountain
+4 Racers' Ring

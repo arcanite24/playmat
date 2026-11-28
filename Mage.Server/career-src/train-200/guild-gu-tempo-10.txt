@@ -1,0 +1,23 @@
+# name: Train200 guild-gu-tempo-10
+# archetype: tempo
+# colors: GU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Champions of the Perfect
+2 Countersculpt
+3 Flashfreeze
+2 Gearsmith Prodigy
+2 Growth Cycle
+2 Heritage Reclamation
+4 Illusory Angel
+2 Into the Roil
+4 Loch Mare
+1 Lofty Denial
+3 Patchwork Beastie
+4 Quandrix Charm
+2 Reasonable Doubt
+3 Threnody Singer
+2 Touch of the Void
+5 Forest
+4 Hinterland Harbor
+9 Island
+4 Thornwood Falls

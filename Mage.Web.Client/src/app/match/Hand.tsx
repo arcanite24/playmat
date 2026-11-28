@@ -41,7 +41,7 @@ export interface HandProps {
   cardWidth?: number;
 }
 
-const ZONE_TAG: Record<PlayableZone, string> = { exile: 'From exile', graveyard: 'From graveyard', library: 'From library' };
+const ZONE_TAG: Record<PlayableZone, string> = { exile: 'From exile', graveyard: 'From graveyard', library: 'From library', sideboard: 'From sideboard' };
 
 const DRAG_THRESHOLD = 12;
 /** how far the fan's outermost cards sit below its middle, at most: a big hand stays a shallow arc instead of sinking off the stage */

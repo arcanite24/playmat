@@ -126,6 +126,12 @@ public final class CareerService {
         public int lists;
         /** the AI: "archmage" when tier five's hybrid AI is meant to play it (S050) */
         public String aiType;
+        /** "constructed" or "commander" */
+        public String format;
+        /** true for 4-player Commander pod encounters */
+        public boolean pod;
+        /** display names of the 3 AI pod opponents, when pod is true */
+        public List<String> podNames;
     }
 
     /** How much of a set the collection has: different cards owned (any printing) of the set's cards. */
@@ -142,12 +148,22 @@ public final class CareerService {
         public String name;
         public String releaseDate;
         public int price;
+        /** "standard" (core & expansion), "commander" (Commander Legends / Battlebond), or "masters" (Horizons / Remastered) */
+        public String category;
         /** a campaign chapter has to open it first */
         public boolean locked;
         /** the campaign chapter that opens it (to beat while locked, beaten once open); null for the newest sets */
         public String unlockedBy;
         /** the card whose art is on the set's packs; null without a card database */
         public CareerContent.CareerCover cover;
+    }
+
+    /** What claiming or buying a Commander precon gave. */
+    public static class CareerPreconResult {
+        public String starterId;
+        public boolean free;
+        public CareerSavedDeck deck;
+        public CareerProfile profile;
     }
 
     /** What a pack gave, and the Career afterwards. */
@@ -193,11 +209,15 @@ public final class CareerService {
             throw new CareerException("The starter deck can't be read: " + e.getMessage());
         }
         CareerStore store = CareerStore.get();
+        boolean isCommander = content.isCommanderStarter(starterId);
         boolean created = store.transaction(() -> {
             // progression made the profile with the account's first counted game; picking a starter opens the collection
             if (!store.createProfile(user, starterId, CareerRules.START_COINS, System.currentTimeMillis())
                     && !store.openCollection(user, starterId, CareerRules.START_COINS)) {
                 return false;
+            }
+            if (isCommander) {
+                store.setQuestPref(user, "commander");
             }
             for (DeckCardInfo info : CareerContent.allCards(deck)) {
                 CareerCard card = resolve(info);
@@ -211,6 +231,140 @@ public final class CareerService {
             throw new CareerException("You already have a Career.");
         }
         return store.profile(user);
+    }
+
+    /** True when an existing non-Commander Career account can still claim one free 100-card Commander precon. */
+    public boolean commanderPreconGiftAvailable(String user) throws SQLException {
+        CareerStore store = CareerStore.get();
+        CareerProfile profile = store.profile(user);
+        if (profile == null || !profile.collection) {
+            return false;
+        }
+        if (CareerContent.get().isCommanderStarter(profile.starter)) {
+            return false;
+        }
+        return store.stats(user).getOrDefault("commander_precon_gift", 0) == 0;
+    }
+
+    /** Commander starter IDs this account already owns (from starting Career with one or acquiring a precon). */
+    public List<String> ownedPrecons(String user) throws SQLException {
+        CareerStore store = CareerStore.get();
+        CareerProfile profile = store.profile(user);
+        if (profile == null || !profile.collection) {
+            return Collections.emptyList();
+        }
+        Map<String, Integer> stats = store.stats(user);
+        List<String> owned = new ArrayList<>();
+        for (CareerContent.CareerStarter starter : CareerContent.get().starters()) {
+            if (!"commander".equals(starter.track)) {
+                continue;
+            }
+            if (starter.id.equals(profile.starter)
+                    || stats.getOrDefault("precon:" + starter.id, 0) > 0
+                    || store.careerDeckBySource(user, "starter:" + starter.id) != null) {
+                owned.add(starter.id);
+            }
+        }
+        return owned;
+    }
+
+    /**
+     * Claims a 100-card Commander precon for free (one-time gift for existing non-Commander accounts) or buys an
+     * additional Commander precon bundle for {@link CareerRules#PRECON_PRICE} coins. Adds every non-basic card (up to
+     * playset) to the collection and saves an editable Commander deck in {@code career_decks}.
+     */
+    public CareerPreconResult acquirePrecon(String user, String starterId) throws SQLException, CareerException {
+        CareerContent content = CareerContent.get();
+        CareerContent.CareerStarter starter = content.starter(starterId);
+        if (starter == null || !"commander".equals(starter.track)) {
+            throw new CareerException("There is no Commander precon " + starterId + ".");
+        }
+        DeckCardLists deck;
+        try {
+            deck = content.starterDeck(starterId);
+        } catch (java.io.IOException e) {
+            throw new CareerException("The Commander precon can't be read: " + e.getMessage());
+        }
+        CareerStore store = CareerStore.get();
+        long now = System.currentTimeMillis();
+        boolean[] wasFree = new boolean[1];
+        CareerStore.CareerDeckRow[] savedRow = new CareerStore.CareerDeckRow[1];
+        Gson gson = new Gson();
+        refusing(() -> store.transaction(() -> {
+            CareerProfile profile = store.profile(user);
+            if (profile == null || !profile.collection) {
+                throw new SQLException(new CareerException("Open your Career collection first."));
+            }
+            ensureSavedDecksInitialized(store, user, profile, now);
+            Map<String, Integer> stats = store.stats(user);
+            String source = "starter:" + starterId;
+            if (starterId.equals(profile.starter)
+                    || stats.getOrDefault("precon:" + starterId, 0) > 0
+                    || store.careerDeckBySource(user, source) != null) {
+                throw new SQLException(new CareerException("You already own " + starter.name + "."));
+            }
+            boolean free = !content.isCommanderStarter(profile.starter)
+                    && stats.getOrDefault("commander_precon_gift", 0) == 0;
+            if (!free) {
+                if (profile.coins < CareerRules.PRECON_PRICE) {
+                    throw new SQLException(new CareerException(
+                            starter.name + " costs " + CareerRules.PRECON_PRICE + " coins; you have " + profile.coins + "."));
+                }
+                store.addCoins(user, -CareerRules.PRECON_PRICE);
+            } else {
+                store.addStat(user, "commander_precon_gift", 1);
+            }
+            wasFree[0] = free;
+            for (DeckCardInfo info : CareerContent.allCards(deck)) {
+                CareerCard card = resolve(info);
+                if (card == null || CareerRules.LAND.equals(card.rarity)) {
+                    continue;
+                }
+                int have = store.owned(user, card.name);
+                int room = Math.max(0, CareerRules.PLAYSET - have);
+                int add = Math.min(info.getAmount(), room);
+                if (add > 0) {
+                    store.addCard(user, card, add);
+                }
+            }
+            store.addStat(user, "precon:" + starterId, 1);
+            String cleanName = cleanDeckName(starter.name, deck.getName());
+            DeckCardLists copy = copyDeckWithName(deck, cleanName);
+            CareerStore.CareerDeckRow row = new CareerStore.CareerDeckRow();
+            row.id = UUID.randomUUID().toString();
+            row.name = cleanName;
+            row.deck = gson.toJson(copy);
+            row.source = source;
+            row.format = CareerRules.FORMAT_COMMANDER;
+            row.active = store.activeCareerDeck(user) == null;
+            row.updated = now;
+            if (store.careerDeckCount(user) < MAX_SAVED_DECKS) {
+                store.putCareerDeck(user, row);
+                if (row.active) {
+                    store.putDeck(user, row.deck, now);
+                }
+                savedRow[0] = store.careerDeck(user, row.id);
+            }
+            return null;
+        }));
+        CareerPreconResult result = new CareerPreconResult();
+        result.starterId = starterId;
+        result.free = wasFree[0];
+        result.profile = store.profile(user);
+        if (savedRow[0] != null) {
+            result.deck = toSavedDeckView(savedRow[0], ownedCounts(store, user), gson);
+        }
+        return result;
+    }
+
+    /** Sets the account's quest track preference ("any", "constructed", or "commander"). */
+    public String setQuestPref(String user, String pref) throws SQLException {
+        CareerStore store = CareerStore.get();
+        return store.transaction(() -> {
+            ensureProfile(store, user, System.currentTimeMillis());
+            store.setQuestPref(user, pref);
+            return store.questPref(user);
+        });
     }
 
     /**
@@ -409,6 +563,38 @@ public final class CareerService {
         return view;
     }
 
+    public List<CareerOpponent> commanderOpponents(String user) throws SQLException {
+        CareerContent content = CareerContent.get();
+        List<CareerContent.Opponent> roster = content.commanderOpponents();
+        Map<String, Integer> wins = CareerStore.get().winsByOpponent(user);
+        Map<Integer, Integer> winsByTier = new LinkedHashMap<>();
+        for (CareerContent.Opponent opponent : roster) {
+            winsByTier.merge(opponent.tier, wins.getOrDefault(opponent.id, 0), Integer::sum);
+        }
+        List<CareerContent.Opponent> sorted = new ArrayList<>(roster);
+        sorted.sort(java.util.Comparator.comparingInt((CareerContent.Opponent opponent) -> opponent.tier)
+                .thenComparing(opponent -> opponent.rival != null)
+                .thenComparing(opponent -> opponent.raid)
+                .thenComparingInt(opponent -> -CareerContent.measuredWinRate(opponent)));
+        List<CareerOpponent> views = new ArrayList<>();
+        CareerLadder.Nemesis nemesis = CareerLadder.nemesis(user);
+        for (CareerContent.Opponent opponent : sorted) {
+            CareerOpponent view = opponentView(content, opponent, wins, winsByTier, nemesis != null && opponent.id.equals(nemesis.opponentId));
+            view.tierName = content.commanderTier(opponent.tier).name;
+            view.unlocked = (opponent.tier == 1 || winsByTier.getOrDefault(opponent.tier - 1, 0) >= CareerRules.WINS_TO_UNLOCK_NEXT_TIER)
+                    && CareerLadder.rivalOpen(opponent, roster, wins);
+            view.format = "commander";
+            view.pod = opponent.podDecks != null && opponent.podDecks.size() > 1;
+            view.podNames = opponent.podNames;
+            views.add(view);
+        }
+        return views;
+    }
+
+    public boolean commanderUnlocked(String user, String opponentId) throws SQLException {
+        return commanderOpponents(user).stream().anyMatch(view -> view.id.equals(opponentId) && view.unlocked);
+    }
+
     public boolean unlocked(String user, String opponentId) throws SQLException {
         return opponents(user).stream().anyMatch(view -> view.id.equals(opponentId) && view.unlocked);
     }
@@ -581,6 +767,12 @@ public final class CareerService {
             if (result == null && !CareerPayouts.waitsForRust(event)) {
                 return null;
             }
+            if (!"puzzle".equals(table.kind) && !"trial".equals(table.kind) && turns >= CareerRewards.get().turnFloor()) {
+                boolean commanderCast = counted.counters().getOrDefault("commanders_cast", 0) > 0;
+                boolean prestigeMode = "horde".equals(table.kind) || "gauntlet".equals(table.kind)
+                        || "archenemy".equals(table.kind) || "commander".equals(table.kind);
+                awardPetBond(store, table.user, won, commanderCast, prestigeMode, result, now);
+            }
             CareerRules.Reward reward = matchReward(event);
             CareerPayout payout = new CareerPayout();
             payout.matchKey = tableId.toString();
@@ -601,6 +793,25 @@ public final class CareerService {
     private static CareerRules.Reward matchReward(CareerPayoutEvent event) {
         CareerPayoutEvent.Career table = event.career;
         return assistedReward(modeReward(table.kind, table.tier, event.won, event.turns), table.assisted);
+    }
+
+    /** Awards Bond XP to the player's equipped pet (if any) and attaches the summary to the saved game result. */
+    private void awardPetBond(CareerStore store, String user, boolean won, boolean commanderCast,
+                              boolean prestigeMode, CareerProgress.CareerGameResult result, long now) {
+        try {
+            mage.server.support.PlayerLook look = mage.server.support.Support.get().store().look(user);
+            if (look == null || look.pet == null || look.pet.isEmpty()) {
+                return;
+            }
+            CareerPets.CareerPetBondResult bond = CareerPets.get()
+                    .recordGame(store, user, look.pet, won, commanderCast, prestigeMode, now);
+            if (bond != null && result != null && result.gameKey != null) {
+                result.petBond = bond;
+                store.setGameDetails(result.gameKey, new Gson().toJson(result));
+            }
+        } catch (SQLException | RuntimeException e) {
+            logger.warn("Pet bond XP update skipped for " + user + ": " + e.getMessage());
+        }
     }
 
     /**
@@ -686,6 +897,7 @@ public final class CareerService {
                 CareerCampaigns.get().finished(store, table.user, table.ref, won, result, now);
                 break;
             case "gauntlet":
+                store.addStat(table.user, "games_mode_gauntlet", 1);
                 CareerGauntlet.get().finished(store, table.user, table.ref, won, result, now);
                 break;
             case "puzzle":
@@ -698,7 +910,16 @@ public final class CareerService {
                 CareerLimited.get().finished(store, table.user, table.ref, won, result, now);
                 break;
             case "horde":
+                store.addStat(table.user, "games_mode_horde", 1);
                 CareerHordes.get().finished(store, table.user, table.ref, won, tally, result, now);
+                break;
+            case "archenemy":
+                store.addStat(table.user, "games_mode_archenemy", 1);
+                CareerArchenemy.get().finished(store, table.user, table.ref, won, result, now);
+                break;
+            case "thg":
+                store.addStat(table.user, "games_mode_thg", 1);
+                CareerTwoHeadedGiant.get().finished(store, table.user, table.ref, won, result);
                 break;
             case "duel":
                 CareerLadder.finished(store, table.user, table.opponent, won, result, now);
@@ -862,6 +1083,17 @@ public final class CareerService {
                         waiting.won = seat.won;
                         results.put(seat.user, waiting);
                     }
+                }
+            }
+            if (finished.turns >= CareerRewards.get().turnFloor()) {
+                long bondNow = System.currentTimeMillis();
+                for (CareerPayoutEvent.Seat seat : event.finished.seats) {
+                    if (!seat.counted) {
+                        continue;
+                    }
+                    boolean commanderCast = seat.counters != null && seat.counters.getOrDefault("commanders_cast", 0) > 0;
+                    boolean prestigeMode = "event".equals(finished.kind) || "pod".equals(finished.kind);
+                    awardPetBond(store, seat.user, seat.won, commanderCast, prestigeMode, paid == null ? null : paid.get(seat.user), bondNow);
                 }
             }
         } catch (SQLException | RuntimeException e) {
@@ -1126,6 +1358,7 @@ public final class CareerService {
     public static class CareerSavedDeck {
         public String id;
         public String name;
+        public String format;
         public DeckCardLists deck;
         public boolean active;
         /** where the deck came from ("starter:<id>", "campaign:<campaign>/<chapter>"), or null */
@@ -1203,6 +1436,15 @@ public final class CareerService {
      */
     public CareerSavedDeck saveNamedDeck(String user, String id, String name, DeckCardLists deck, boolean activate)
             throws SQLException, CareerException {
+        return saveNamedDeck(user, id, name, deck, activate, null);
+    }
+
+    /**
+     * Creates (id null/blank) or updates a saved Career deck with an optional deck format ("Constructed - Freeform" or
+     * "Variant Magic - Commander"). Checked against the collection like {@link #saveDeck}.
+     */
+    public CareerSavedDeck saveNamedDeck(String user, String id, String name, DeckCardLists deck, boolean activate, String format)
+            throws SQLException, CareerException {
         CareerStore store = CareerStore.get();
         CareerProfile profile = store.profile(user);
         if (profile == null || !profile.collection) {
@@ -1217,6 +1459,7 @@ public final class CareerService {
         }
         long now = System.currentTimeMillis();
         String trimmedId = id == null ? "" : id.trim();
+        String requestedFormat = normalizeDeckFormat(format);
         Gson gson = new Gson();
         CareerStore.CareerDeckRow[] saved = new CareerStore.CareerDeckRow[1];
         refusing(() -> store.transaction(() -> {
@@ -1238,6 +1481,11 @@ public final class CareerService {
             }
             row.name = cleanName;
             row.deck = json;
+            if (requestedFormat != null) {
+                row.format = requestedFormat;
+            } else if (row.format == null || row.format.isEmpty()) {
+                row.format = CareerRules.FORMAT_CONSTRUCTED;
+            }
             row.updated = now;
             boolean makeActive = activate || (existing != null && existing.active) || store.activeCareerDeck(user) == null;
             row.active = makeActive;
@@ -1251,6 +1499,17 @@ public final class CareerService {
         }));
         Map<String, Integer> owned = ownedCounts(store, user);
         return toSavedDeckView(saved[0], owned, gson);
+    }
+
+    private static String normalizeDeckFormat(String format) {
+        if (format == null || format.trim().isEmpty()) {
+            return null;
+        }
+        String trimmed = format.trim();
+        if (CareerRules.FORMAT_COMMANDER.equalsIgnoreCase(trimmed) || "commander".equalsIgnoreCase(trimmed)) {
+            return CareerRules.FORMAT_COMMANDER;
+        }
+        return CareerRules.FORMAT_CONSTRUCTED;
     }
 
     /** Makes one of the account's saved Career decks the active deck for Career duels. */
@@ -1358,6 +1617,8 @@ public final class CareerService {
             row.name = name;
             row.deck = legacyJson;
             row.source = profile.starter != null && !profile.starter.isEmpty() ? "starter:" + profile.starter : null;
+            row.format = CareerContent.get().isCommanderStarter(profile.starter)
+                    ? CareerRules.FORMAT_COMMANDER : CareerRules.FORMAT_CONSTRUCTED;
             row.active = true;
             row.updated = legacyUpdated > 0 ? legacyUpdated : now;
             store.putCareerDeck(user, row);
@@ -1372,6 +1633,8 @@ public final class CareerService {
                 row.name = name;
                 row.deck = json;
                 row.source = "starter:" + profile.starter;
+                row.format = CareerContent.get().isCommanderStarter(profile.starter)
+                        ? CareerRules.FORMAT_COMMANDER : CareerRules.FORMAT_CONSTRUCTED;
                 row.active = true;
                 row.updated = now;
                 store.putCareerDeck(user, row);
@@ -1467,6 +1730,7 @@ public final class CareerService {
         CareerSavedDeck view = new CareerSavedDeck();
         view.id = row.id;
         view.name = row.name;
+        view.format = row.format == null || row.format.isEmpty() ? CareerRules.FORMAT_CONSTRUCTED : row.format;
         view.deck = gson.fromJson(row.deck, DeckCardLists.class);
         if (view.deck != null && (view.deck.getName() == null || view.deck.getName().isEmpty())) {
             view.deck.setName(row.name);
@@ -1565,12 +1829,17 @@ public final class CareerService {
 
     // ---- the shop
 
-    /** sets with boosters, newest first: core sets and expansions that are out */
+    private static final Set<String> COMMANDER_SHOP_SETS = new java.util.HashSet<>(java.util.Arrays.asList("CMR", "BBD"));
+    private static final Set<String> MASTERS_SHOP_SETS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "MH3", "MH2", "2X2", "DMR", "RVR", "LTR"));
+
+    /** sets with boosters, newest first: core sets, expansions, and curated Commander & Masters booster sets */
     public List<CareerShopSet> shop() {
         Date now = new Date();
         return Sets.getInstance().values().stream()
                 .filter(ExpansionSet::hasBoosters)
-                .filter(set -> set.getSetType() == SetType.EXPANSION || set.getSetType() == SetType.CORE)
+                .filter(set -> set.getSetType() == SetType.EXPANSION || set.getSetType() == SetType.CORE
+                        || COMMANDER_SHOP_SETS.contains(set.getCode()) || MASTERS_SHOP_SETS.contains(set.getCode()))
                 .filter(set -> set.getReleaseDate() != null && !set.getReleaseDate().after(now))
                 .sorted(Comparator.comparing(ExpansionSet::getReleaseDate).reversed())
                 .map(set -> {
@@ -1579,6 +1848,8 @@ public final class CareerService {
                     view.name = set.getName();
                     view.releaseDate = new java.text.SimpleDateFormat("yyyy-MM-dd").format(set.getReleaseDate());
                     view.price = CareerRules.PACK_PRICE;
+                    view.category = COMMANDER_SHOP_SETS.contains(set.getCode()) ? "commander"
+                            : MASTERS_SHOP_SETS.contains(set.getCode()) ? "masters" : "standard";
                     view.cover = packArt(set.getCode());
                     return view;
                 })

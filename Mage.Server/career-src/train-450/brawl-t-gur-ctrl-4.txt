@@ -1,0 +1,53 @@
+# name: Train450 brawl-t-gur-ctrl-4
+# archetype: brawl_ctrl
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ashling's Command
+1 Avengers Disassembled
+1 Bar the Gate
+1 Bolt Hound
+1 Broadside Barrage
+1 By Force
+1 Choose Your Weapon
+1 Deepfathom Echo
+1 Desolation of Smaug
+1 Farideh's Fireball
+1 Gargos, Vicious Watcher
+1 Ghitu Journeymage
+1 Havoc Sower
+1 Hellkite Tyrant
+1 Hurloon Battle Hymn
+1 Kogla, the Titan Ape
+1 Lilysplash Mentor
+1 Memory Drain
+1 Nullify
+1 Paladin of Predation
+1 Rainveil Rejuvenator
+1 Ral's Outburst
+1 Refute
+1 Riparian Tiger
+1 Savage Knuckleblade
+1 Shatter
+1 Shrapnel Blast
+1 Smelt
+1 Stampeding Horncrest
+1 Stormchaser Chimera
+1 Sureshot Sower
+1 Thought Collapse
+1 Twitching Doll
+1 Verdant Rebirth
+1 Andoria
+1 Baron, Airship Kingdom
+1 Breeding Pool
+1 Fiery Islet
+4 Forest
+1 Frostboil Snarl
+1 Highland Forest
+1 Hinterland Harbor
+1 Innovative Commons
+4 Island
+1 Lakeside Shack
+6 Mountain
+1 Racers' Ring
+1 Sulfur Falls
+1 Temple of Epiphany

@@ -1,0 +1,55 @@
+{
+  "$comment": "Cosmetics of the Sunken Library set (Tabletop Atelier capsule machine), written by art/machine-specs.mjs from career/machines/tabletop-atelier.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/mixed/sunken",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [],
+  "style": "deep oceanic watercolor and oil with bioluminescent teal scrolls, coral arches, and sunken marble",
+  "rules": "Each item belongs to a unified tabletop cosmetic collection sharing the exact same palette, brushwork, and motif. No text, letters, numbers, logos, or borders.",
+  "spare": "an extra painting in the same style: a wide serene tabletop playmat evoking Sunken Library",
+  "items": [
+    {
+      "id": "sunken-mat",
+      "out": "public/career-art/playmat/sunken-mat.webp",
+      "size": "1280x720",
+      "subject": "a wide serene tabletop playmat evoking Sunken Library. A wide 16:9 tabletop playmat with a calm, low-contrast textured center so playing cards read crisply over it, and painterly theme accents along the outer edges."
+    },
+    {
+      "id": "sunken-avatar",
+      "out": "public/career-art/avatar/sunken-avatar.webp",
+      "size": "512x512",
+      "subject": "a painterly fantasy portrait bust of Tide Scholar in the theme of Sunken Library. A centered bust portrait medallion subject with dramatic workshop lighting and clean silhouette."
+    },
+    {
+      "id": "sunken-pet",
+      "out": "public/career-art/companion/sunken-pet.webp",
+      "size": "512x512",
+      "subject": "an adorable small magical tabletop companion creature, Reef Octopus, matching Sunken Library. A charming tabletop companion creature in full-body view centered with breathing room around it on a deep moody background."
+    },
+    {
+      "id": "sunken-frame",
+      "out": "public/career-art/plate-frame/sunken-frame.webp",
+      "size": "512x512",
+      "subject": "a circular ornamental portrait frame medallion titled Coral Filigree in the style of Sunken Library. An ornate circular portrait border motif with clean dark interior so an avatar sits inside it."
+    },
+    {
+      "id": "sunken-cmd",
+      "out": "public/career-art/cmdframe/sunken-cmd.webp",
+      "size": "540x756",
+      "subject": "an ornate vertical Command-Zone card border frame titled Abyssal Command matching Sunken Library. An ornate vertical rectangular border frame for a commander card slot with a calm dark interior center."
+    },
+    {
+      "id": "set-sunken",
+      "out": "public/career-art/sleeve/set-sunken.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

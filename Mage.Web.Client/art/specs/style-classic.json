@@ -1,0 +1,45 @@
+{
+  "$comment": "Cosmetics of the Classic Iconics set (Legends Showcase capsule machine), written by art/machine-specs.mjs from career/machines/legends-showcase.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/classic",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [],
+  "style": "timeless classic high-fantasy oil painting in rich earth umber, verdant forest green, and warm twilight gold",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a muscular bone-plated predator stalking through ancient mossy ruins under green mist",
+  "items": [
+    {
+      "id": "tarmogoyf",
+      "subject": "a muscular bone-plated predator stalking through ancient mossy ruins under green mist"
+    },
+    {
+      "id": "snapcaster-mage",
+      "subject": "a trench-coated arcane duelist snapping bright blue sparks from his fingertips in a rainy alley"
+    },
+    {
+      "id": "dark-confidant",
+      "subject": "a sharp-eyed robed spymaster studying forbidden parchment by a single tallow candle"
+    },
+    {
+      "id": "stoneforge-mystic",
+      "subject": "a pale runesmith lifting a gleaming white-hot blade from an anvil of floating stone"
+    },
+    {
+      "id": "primeval-titan",
+      "subject": "a towering mountain-shouldered giant striding through sunlit pine valleys with ancient trees on its back"
+    },
+    {
+      "id": "set-classic",
+      "out": "public/career-art/sleeve/set-classic.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

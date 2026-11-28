@@ -1,0 +1,35 @@
+# name: Train450 lim-g-wu-mid-4
+# archetype: limited_mid
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Acrobatic Leap
+1 Angel of Renewal
+1 Baneslayer Angel
+1 Clay Revenant
+1 Cliffhaven Sell-Sword
+2 Crimestopper Sprite
+1 Dawnwing Marshal
+1 Deepway Navigator
+2 Devourer of Destiny
+2 Divine Verdict
+1 Dragonloft Idol
+1 Dutiful Thrull
+1 Fancy Footwork
+2 Granite Witness
+2 Lake-town Toymaker
+1 Oketra's Avenger
+1 Relic Seeker
+1 Screaming Swarm
+1 Spider-Woman, Stunning Savior
+1 Stalwart Valkyrie
+2 Sunmane Pegasus
+2 Temporal Machinations
+1 Traxos, Scourge Eternal
+2 Valorous Stance
+2 Vulpikeet
+1 Wanted Griffin
+1 Winds of Rebuke
+5 Island
+11 Plains
+4 Port Town
+4 Sharlayan, Nation of Scholars

@@ -30,14 +30,33 @@ function groupKey(permanent: PermanentView): string {
   return [permanent.name ?? '', permanent.power ?? '', permanent.toughness ?? '', permanent.isToken ? 'token' : 'card'].join('|');
 }
 
-/** My identical creatures that can attack or are attacking, in board order, for groups of at least `min`. */
-export function attackGroups(view: GameView | null | undefined, prompt: Prompt | null | undefined, min = MIN_ATTACK_GROUP): AttackGroup[] {
+/** The defender id an attacking permanent is currently aimed at, or null if it isn't in combat. */
+export function attackerDefender(view: GameView | null | undefined, attackerId: string): string | null {
+  for (const group of view?.combat ?? []) {
+    if (group.attackers && attackerId in group.attackers) return group.defenderId ?? null;
+  }
+  return null;
+}
+
+/**
+ * My identical creatures that can attack or are attacking, in board order, for groups of at least `min`.
+ * When `defenderId` is given, `attacking` holds only the creatures aimed at that defender (so the player can split
+ * a token horde across several defenders without touching tokens already aimed elsewhere); `min` still counts the
+ * whole group of identical creatures.
+ */
+export function attackGroups(
+  view: GameView | null | undefined,
+  prompt: Prompt | null | undefined,
+  min = MIN_ATTACK_GROUP,
+  defenderId: string | null = null,
+): AttackGroup[] {
   if (!view || prompt?.kind !== 'declareAttackers') return [];
   const me = view.players?.find((player) => player.playerId === view.myPlayerId);
   if (!me) return [];
   const ready = new Set(prompt.possibleAttackers);
   const attacking = new Set(myAttackers(view));
   const groups = new Map<string, AttackGroup>();
+  const totals = new Map<string, number>();
   for (const permanent of Object.values(me.battlefield ?? {})) {
     const id = permanent.id;
     if (!id || (!ready.has(id) && !attacking.has(id))) continue;
@@ -56,10 +75,14 @@ export function attackGroups(view: GameView | null | undefined, prompt: Prompt |
       };
       groups.set(key, group);
     }
-    if (attacking.has(id)) group.attacking.push(id);
-    else group.ready.push(id);
+    totals.set(key, (totals.get(key) ?? 0) + 1);
+    if (attacking.has(id)) {
+      if (!defenderId || attackerDefender(view, id) === defenderId) group.attacking.push(id);
+    } else {
+      group.ready.push(id);
+    }
   }
-  return [...groups.values()].filter((group) => group.ready.length + group.attacking.length >= min);
+  return [...groups.values()].filter((group) => (totals.get(group.key) ?? 0) >= min);
 }
 
 /** How many of a group can attack at most. */

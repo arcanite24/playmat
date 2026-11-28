@@ -146,8 +146,8 @@ const KEYWORDS: Entry[] = [
   { name: 'Saddle', text: 'Tap creatures with that much total power: it becomes saddled until end of turn. Only as a sorcery.' },
   { name: 'Enchant', text: 'An Aura can be attached only to the stated kind of object.' },
   { name: 'Fortify', text: 'Pay the cost: attach this Fortification to target land you control. Only as a sorcery.' },
-  { name: 'Daybound', text: 'If a player casts no spells during their own turn, it becomes night next turn and this transforms.' },
-  { name: 'Nightbound', text: 'If a player casts two or more spells during a turn, it becomes day next turn and this transforms.' },
+  { name: 'Daybound', text: "If it's neither day nor night, it becomes day as this enters. If it's day and the active player casts no spells during their own turn, it becomes night next turn and this transforms." },
+  { name: 'Nightbound', text: "If it's night and the active player casts two or more spells during their own turn, it becomes day next turn and this transforms." },
   { name: 'Mobilize', text: 'Whenever it attacks, create that many tapped and attacking 1/1 red Warrior tokens; sacrifice them at the next end step.' },
 ];
 
@@ -165,6 +165,11 @@ const ACTIONS: Entry[] = [
   { name: 'Adapt', text: 'If it has no +1/+1 counters, put that many +1/+1 counters on it.', forms: ['adapts'] },
   { name: 'Monstrosity', text: 'If it isn\'t monstrous, put that many +1/+1 counters on it and it becomes monstrous.', forms: ['monstrous'] },
   { name: 'Transform', text: 'Turn a double-faced card over to its other face.', forms: ['transforms', 'transformed'] },
+  {
+    name: 'Day and Night',
+    text: "Checked as each turn begins: if it's day and the active player cast no spells during their own turn, it becomes night; if it's night and the active player cast two or more spells during their own turn, it becomes day.",
+    match: /\b(?:becomes day|becomes night|neither day nor night|it's day|it's night)\b/i,
+  },
   { name: 'Discover', text: 'Exile cards from the top of your library until you hit a nonland card with that mana value or less; cast it for free or put it in your hand.', forms: ['discovers'] },
   // before Manifest, which must not claim "manifest dread"
   { name: 'Manifest dread', text: 'Look at the top two cards of your library. Put one onto the battlefield face down as a 2/2 creature and the other into your graveyard. If the face-down card is a creature card, you may turn it face up any time for its mana cost.', forms: ['manifests dread'] },
@@ -258,13 +263,18 @@ function plain(text: string): string {
 /** Words that make a sentence: after a keyword they mean the line merely starts with the same word (a card name). */
 const VERBS = /\b(deals?|gets?|gains?|has|have|is|are|can|can't|enters?|dies|attacks?|blocks?|becomes?|draws?|loses?|returns?|creates?|destroys?)\b/i;
 
-/** The keyword at the start of each comma- or semicolon-separated part of a keyword line. */
-function leadingKeywords(line: string): Entry[] {
+/**
+ * The keyword at the start of each comma- or semicolon-separated part of a keyword line. Before a dash
+ * (`beforeDash`) only a number or cost may follow it ("Echo—", "Impending 4—"): more words make a flavor word
+ * ("Echo of the Lost — During your turn, ...").
+ */
+function leadingKeywords(line: string, beforeDash = false): Entry[] {
   const parts = line.split(/[,;]/).map((part) => part.trim().toLowerCase());
   return KEYWORDS.filter((entry) => parts.some((part) => [entry.name.toLowerCase(), ...(entry.forms ?? [])].some((form) => {
     if (part === form) return true;
     if (!part.startsWith(form)) return false;
     const rest = part.slice(form.length);
+    if (beforeDash) return /^\s*(\{[^}]+\}|\d+|x)(\s*\{[^}]+\})*\s*$/.test(rest);
     // a cost or parameter may follow ("Ward {2}", "Protection from red", "Annihilator 2"), not a sentence
     return /^(\s|\{|—|-)/.test(rest) && !VERBS.test(rest) && rest.trim().split(/\s+/).length <= 6;
   })));
@@ -280,6 +290,26 @@ function mentions(text: string, entry: Entry): boolean {
     mentionPatterns.set(entry, pattern);
   }
   return pattern.test(text);
+}
+
+/** A line cut at its dashes, each part with whether a dash follows it. */
+function dashParts(text: string): [string, boolean][] {
+  const parts = text.split(DASH);
+  return parts.map((part, index) => [part, index < parts.length - 1]);
+}
+
+/**
+ * How much of the text a leading flavor word takes ("Dash Attack — ", "Echo of the Lost — "): a short name before a
+ * dash that is neither an ability word nor a keyword with its cost. It names nothing, whatever words it uses.
+ */
+function flavorWordLength(text: string): number {
+  const found = /^([^—–{}:,.;]+?)\s*[—–]\s*/.exec(text);
+  if (!found) return 0;
+  const prefix = found[1].trim();
+  if (!prefix || prefix.split(/\s+/).length > 5) return 0;
+  if (ABILITY_WORDS.some((entry) => entry.name.toLowerCase() === prefix.toLowerCase())) return 0;
+  if (leadingKeywords(prefix, true).length > 0) return 0;
+  return found[0].length;
 }
 
 function isKeywordLine(line: string): boolean {
@@ -381,9 +411,10 @@ export function explainCard(card: CardView): CardExplanation {
   const names = ownNames(card);
   for (const line of lines) {
     // the card's own name says nothing ("Betrayer's Bargain deals 5 damage" isn't bargain)
-    const text = names.reduce((rest, name) => rest.replace(namePattern(name), 'This'), plain(line.text));
+    const named = names.reduce((rest, name) => rest.replace(namePattern(name), 'This'), plain(line.text));
+    const text = named.slice(flavorWordLength(named));
     if (line.abilityWord) add(ABILITY_WORDS.find((entry) => entry.name === line.abilityWord)!);
-    for (const part of text.split(DASH)) leadingKeywords(part).forEach(add);
+    dashParts(text).forEach(([part, beforeDash]) => leadingKeywords(part, beforeDash).forEach(add));
     KEYWORDS.filter((entry) => !entry.strict && mentions(text, entry)).forEach(add);
     ACTIONS.filter((entry) => mentions(text, entry)).forEach(add);
     // an ability word after a sentence of the same line ("Draw a card. Delirium — ...")
@@ -445,6 +476,8 @@ export function termSpans(text: string, card?: Pick<CardView, 'name' | 'displayN
   for (const name of card ? ownNames(card) : []) {
     for (const found of text.matchAll(namePattern(name))) reminders.push([found.index, found.index + found[0].length]);
   }
+  const flavor = flavorWordLength(text);
+  if (flavor > 0) reminders.push([0, flavor]);
   const inReminder = (start: number) => reminders.some(([from, to]) => start >= from && start < to);
   const hits: { start: number; end: number; entry: Entry }[] = [];
   const scan = (entry: Entry, accept: (start: number, end: number) => boolean) => {
@@ -461,7 +494,8 @@ export function termSpans(text: string, card?: Pick<CardView, 'name' | 'displayN
       const before = text.slice(0, start);
       if (!/(^|[,;—–.]\s*)$/.test(before)) return false;
       const part = text.slice(start).split(/[,;—–(.]/)[0];
-      return leadingKeywords(part).includes(entry);
+      const beforeDash = /^[—–]/.test(text.slice(start + part.length));
+      return leadingKeywords(part, beforeDash).includes(entry);
     });
   }
   for (const entry of ACTIONS) scan(entry, () => true);
@@ -486,7 +520,7 @@ export function keywordsOf(card: CardView): string[] {
   for (const line of splitRules(card).rules) {
     const text = plain(line);
     if (classify(line, card).kind !== 'keyword') continue;
-    for (const part of text.split(DASH)) leadingKeywords(part).forEach((entry) => names.add(entry.name));
+    dashParts(text).forEach(([part, beforeDash]) => leadingKeywords(part, beforeDash).forEach((entry) => names.add(entry.name)));
   }
   return [...names];
 }

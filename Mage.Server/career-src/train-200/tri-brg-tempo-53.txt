@@ -1,0 +1,24 @@
+# name: Train200 tri-brg-tempo-53
+# archetype: tempo
+# colors: BRG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Fires of Victory
+4 Goblin Guide
+3 Hero's Downfall
+2 Horribly Awry
+2 Monoist Sentry
+3 Munitions Enthusiast
+3 Oviya Pashiri, Sage Lifecrafter
+2 Pack's Favor
+3 Polis Crusher
+3 Scorching Dragonfire
+3 Shakedown Heavy
+4 Spell Shrivel
+2 Steal the Show
+1 Test of Loyalty
+4 Bristling Backwoods
+2 Forest
+4 Gohn, Town of Ruin
+5 Mountain
+4 Razortrap Gorge
+3 Swamp

@@ -1,0 +1,23 @@
+# name: Train450 tri-gwu-bigmana-5
+# archetype: bigmana
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Absolving Lammasu
+4 Consign to Dust
+1 Crocodile of the Crossing
+2 Dathon and Picard at El-Adrel
+4 Destiny Spinner
+3 Emeritus of Abundance
+4 Fractal Mascot
+2 Koma, World-Eater
+2 Mosscoat Goriak
+2 Reality Shift
+2 Summon: Titan
+4 Thought Harvester
+2 Tiger-Seal
+4 Etched Cornfield
+8 Forest
+4 Island
+4 Lush Portico
+1 Plains
+4 Prairie Stream

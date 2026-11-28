@@ -1,0 +1,50 @@
+# name: Train450 brawl-g-gu-mid-2
+# archetype: brawl_mid
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Basking Capybara
+1 Beetle, Legacy Criminal
+1 Brambleweft Behemoth
+1 Bristlepack Sentry
+1 Brood Weaver
+1 Byway Courier
+1 Clutch of Currents
+1 Depart the Realm
+1 Doc Ock, Sinister Scientist
+1 Excavation Mole
+1 Glimmer of Genius
+1 Ice Out
+1 Icy Reception
+1 Kozilek's Shrieker
+1 Kujar Seedsculptor
+1 Magnigoth Sentry
+1 Nessian Wanderer
+1 Oculus Whelp
+1 Ominous Sphinx
+1 Outmuscle
+1 Rubblebelt Maverick
+1 Saryth, the Viper's Fang
+1 Seagraf Skaab
+1 Seeker of Insight
+1 Selfcraft Mechan
+1 Storm Sculptor
+1 Stormkeld Vanguard
+1 Surrak and Goreclaw
+1 Tajuru Beastmaster
+1 Temur Devotee
+1 Thranduil's Company
+1 Timely Interference
+1 Unity of Purpose
+1 Varis, Silverymoon Ranger
+1 Voyage's End
+1 Whoosh!
+1 Earth, Sector 001
+8 Forest
+1 Hedge Maze
+1 Hinterland Harbor
+8 Island
+1 Paradox Gardens
+1 Restless Vinestalk
+1 Simic Guildgate
+1 Temple of Mystery
+1 Woodland Stream

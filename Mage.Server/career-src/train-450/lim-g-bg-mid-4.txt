@@ -1,0 +1,38 @@
+# name: Train450 lim-g-bg-mid-4
+# archetype: limited_mid
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Agonasaur Rex
+2 Brushstrider
+2 Carrion Locust
+1 Colossal Heroics
+1 Come Back Wrong
+1 Courier Bat
+1 Dark Nourishment
+2 Downwind Ambusher
+2 Drudge Beetle
+1 Extinguish the Light
+1 Freestrider Commando
+1 Honor Troll
+1 Life's Legacy
+1 Llanowar Greenwidow
+1 Michelangelo, Mutant BFF
+1 Nettle Sentinel
+1 Pest Mascot
+1 Ravenous Lindwurm
+1 Rootwire Amalgam
+1 Savage Surge
+1 Slumbering Trudge
+1 Soulcoil Viper
+1 Sporeback Wolf
+1 Steeple Creeper
+1 Treeshaker Chimera
+2 Tribute to Urborg
+1 Trystan, Callous Cultivator
+1 Vampire Noble
+1 Warriors' Lesson
+1 Xenobotanist
+4 Ferenginar
+10 Forest
+4 Foul Orchard
+6 Swamp

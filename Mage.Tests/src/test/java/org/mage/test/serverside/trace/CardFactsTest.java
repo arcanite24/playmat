@@ -108,8 +108,14 @@ public class CardFactsTest {
             String set = null;
             if (name.startsWith("token:")) {
                 // a token class from mage.game.permanent.token, by its simple name
-                Class<?> cls = Class.forName("mage.game.permanent.token." + name.substring("token:".length()));
-                Token token = (Token) cls.getConstructor().newInstance();
+                Class<?> cls;
+                Token token;
+                try {
+                    cls = Class.forName("mage.game.permanent.token." + name.substring("token:".length()));
+                    token = (Token) cls.getConstructor().newInstance();
+                } catch (ClassNotFoundException | NoSuchMethodException e) {
+                    continue;
+                }
                 cardAbilities = token.getAbilities();
                 images = images(cls);
                 if (viewsOut != null) {
@@ -126,8 +132,13 @@ public class CardFactsTest {
                 }
             } else if (name.startsWith("emblem:")) {
                 // an emblem class from mage.game.command.emblems
-                Class<?> cls = Class.forName("mage.game.command.emblems." + name.substring("emblem:".length()));
-                cardAbilities = ((Emblem) cls.getConstructor().newInstance()).getAbilities();
+                Class<?> cls;
+                try {
+                    cls = Class.forName("mage.game.command.emblems." + name.substring("emblem:".length()));
+                    cardAbilities = ((Emblem) cls.getConstructor().newInstance()).getAbilities();
+                } catch (ClassNotFoundException | NoSuchMethodException e) {
+                    continue;
+                }
                 images = images(cls);
             } else if (name.startsWith("dungeon:")) {
                 // a dungeon class from mage.game.command.dungeons: its rooms' triggered abilities

@@ -1,0 +1,23 @@
+# name: Train450 guild-br-aggro-2
+# archetype: aggro
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Emeritus of Woe
+2 Fire Nation Cadets
+2 Gallia, the Merrymaker
+2 Garland, Knight of Cornelia
+1 Geistblast
+3 Hall Monitor
+2 Incendiary Flow
+3 Invigorated Rampage
+4 Manhole Missile
+4 Monoist Sentry
+3 Play with Fire
+2 Soulstinger
+1 Swarm, Being of Bees
+4 Undercity Dire Rat
+3 Whiplash, Vengeful Engineer
+4 Blackcleave Cliffs
+4 Bloodfell Caves
+7 Mountain
+6 Swamp

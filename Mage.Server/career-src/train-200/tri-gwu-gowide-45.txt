@@ -1,0 +1,22 @@
+# name: Train200 tri-gwu-gowide-45
+# archetype: gowide
+# colors: GWU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Ambush Wolf
+4 Avatar of the Resolute
+3 Burdened Stoneback
+3 Crowd of True Believers
+3 Geometer's Arthropod
+2 Glen Elendra Guardian
+3 Hermitic Herbalist
+3 Hopeful Initiate
+3 Ordinary Bear
+4 Shell Shield
+3 Swooping Lookout
+4 Voyage's End
+4 Forest
+3 Island
+4 Lush Portico
+3 Plains
+4 Simic Guildgate
+4 Spara's Headquarters

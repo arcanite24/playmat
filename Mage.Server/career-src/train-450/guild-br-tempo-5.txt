@@ -1,0 +1,22 @@
+# name: Train450 guild-br-tempo-5
+# archetype: tempo
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Abstruse Interference
+2 Ashnod's Intervention
+2 Chandra's Phoenix
+2 Everquill Phoenix
+4 Flameblade Adept
+2 Hazoret the Fervent
+3 Magma Spray
+2 Moonrager's Slash
+2 Pale Rider of Trostad
+3 Poison the Cup
+3 Pyrotechnic Performer
+3 Spiteful Hexmage
+4 Take Out the Trash
+2 Warping Wail
+4 Cinder Barrens
+4 Haunted Ridge
+9 Mountain
+5 Swamp

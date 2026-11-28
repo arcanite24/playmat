@@ -1,0 +1,18 @@
+# name: Train200 mono-b-midrange-2
+# archetype: midrange
+# colors: B
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Acererak the Archlich
+4 Borrowed Malevolence
+1 Dark Dabbling
+2 Deceiver of Form
+3 Erebos, God of the Dead
+3 Eternal Scourge
+4 Fatal Push
+1 Gas Guzzler
+4 Gifted Aetherborn
+4 Hunted Nightmare
+2 Morkrut Behemoth
+3 Sugar Rush
+3 Vicious Conquistador
+24 Swamp

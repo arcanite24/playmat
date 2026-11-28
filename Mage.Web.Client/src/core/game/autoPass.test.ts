@@ -183,3 +183,21 @@ describe('pass turn (Arena ">>")', () => {
     expect(autoAnswer(loaded, target, { ...off, passTurn: true })).toBeNull();
   });
 });
+
+describe("flash-enabling abilities (Alchemist's Refuge) on opponent's end step", () => {
+  const refuge = { other: [{ value: '{G}{U}, {T}: You may cast spells this turn as though they had flash.' }] };
+  const endStep = (withHand: boolean): GameView => ({
+    ...view({ refuge }),
+    activePlayerId: 'them',
+    step: 'END_TURN',
+    myHand: withHand ? { bear: { id: 'bear', name: 'Grizzly Bears' } } : {},
+  });
+
+  it("stops on opponent's end step when you have cards in hand even with abilitiesOnTheirTurn off", () => {
+    expect(autoAnswer(endStep(true), priority, on)).toBeNull();
+  });
+
+  it("still passes on opponent's end step when your hand is empty", () => {
+    expect(autoAnswer(endStep(false), priority, on)).toBe('pass');
+  });
+});

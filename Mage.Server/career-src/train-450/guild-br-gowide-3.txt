@@ -1,0 +1,22 @@
+# name: Train450 guild-br-gowide-3
+# archetype: gowide
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Archfiend of the Dross
+3 Brazen Scourge
+4 Cremate
+2 Deathbellow Raider
+4 Diregraf Ghoul
+3 Fearless Pup
+1 Gnarled Scarhide
+4 Goblin Guide
+3 Goblin Javelineer
+2 Kindled Fury
+3 Magmatic Hellkite
+2 Slumbering Cerberus
+3 Towashi Songshaper
+2 Unlikely Aid
+9 Mountain
+4 Qo'noS
+4 Razortrap Gorge
+5 Swamp

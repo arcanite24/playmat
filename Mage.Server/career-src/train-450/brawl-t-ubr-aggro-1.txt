@@ -1,0 +1,56 @@
+# name: Train450 brawl-t-ubr-aggro-1
+# archetype: brawl_aggro
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aerial Doombot
+1 Blistercoil Weird
+1 Boggart Cursecrafter
+1 Bonecache Overseer
+1 Cast Down
+1 Code of Constraint
+1 Collateral Damage
+1 Diversion Specialist
+1 Diviner of Victory
+1 Drakuseth, Maw of Flames
+1 End the Festivities
+1 Foggy Swamp Spirit Keeper
+1 Front Porch Sentries
+1 Giant Koi
+1 Giantfall
+1 Glint-Nest Crane
+1 Graveyard Trespasser
+1 Hypnotic Sprite
+1 Kami of Terrible Secrets
+1 Lightning Stormkin
+1 Lunar Frenzy
+1 Malcolm, the Eyes
+1 Mindwhisker
+1 Oracle of Bones
+1 Phoenix of Ash
+1 Piggy Bank
+1 Ravenous Necrotitan
+1 Rescuer Sphinx
+1 Scalestorm Summoner
+1 Slice from the Shadows
+1 Soulbright Seeker
+1 Thopter Mechanic
+1 Umara Entangler
+1 Unsubstantiate
+1 Vile Redeemer
+1 Volshe Tideturner
+1 Whirling Strike
+1 A.I.M. Labs
+1 Drowned Catacomb
+1 Eroded Canyon
+1 Fiery Islet
+1 Innovative Commons
+4 Island
+1 Jagged Barrens
+5 Mountain
+1 Prismari Campus
+1 Serpent's Pass
+1 Sunken Hollow
+2 Swamp
+1 Treno, Dark City
+1 Underground River
+1 Watery Grave

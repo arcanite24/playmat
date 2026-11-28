@@ -1,0 +1,20 @@
+# Mana@Home's coordinator (`playmat-swarm`, docs/swarm/Design.md "Architecture"): leases work units, hands out
+# presigned upload URLs and keeps the metadata in SQLite (/data/swarm.db). The game data goes to the R2 bucket named
+# by SWARM_R2_ACCOUNT, SWARM_R2_BUCKET, SWARM_R2_KEY_ID and SWARM_R2_SECRET, or with `--store /data/store` to a
+# folder the coordinator serves itself (a LAN swarm). It doesn't link the AI: it never plays or replays a game.
+FROM rust:1.94-slim-bookworm AS build
+WORKDIR /src
+COPY rust/ .
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo build --release --locked -p playmat-swarm \
+ && cp target/release/playmat-swarm /usr/local/bin/playmat-swarm
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=build /usr/local/bin/playmat-swarm /usr/local/bin/playmat-swarm
+RUN mkdir /data && chown 65534:65534 /data
+USER 65534:65534
+VOLUME /data
+EXPOSE 17190
+ENTRYPOINT ["/usr/local/bin/playmat-swarm"]
+CMD ["serve", "--db", "/data/swarm.db", "--listen", "0.0.0.0:17190"]

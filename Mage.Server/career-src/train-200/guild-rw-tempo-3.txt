@@ -1,0 +1,23 @@
+# name: Train200 guild-rw-tempo-3
+# archetype: tempo
+# colors: RW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+4 Archon of the Wild Rose
+2 Aven Interrupter
+2 Cathar Commando
+2 Cut Short
+3 Drill Too Deep
+2 Fancy Footwork
+3 Hopeful Initiate
+4 Maned Serval
+2 Moonrager's Slash
+1 Set Phasers to . . .
+3 Test of Conviction
+3 Tiger-Dillo
+1 Tweeze
+4 Void Shatter
+4 Mountain
+4 Needle Spires
+10 Plains
+4 Rabanastre, Royal City

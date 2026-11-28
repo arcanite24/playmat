@@ -1,0 +1,22 @@
+# name: Train450 guild-ur-gowide-3
+# archetype: gowide
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Arni Brokenbrow
+3 Cunning Coyote
+2 Daring Buccaneer
+2 Diligent Excavator
+1 Dynacharge
+2 Emberheart Challenger
+3 Fugitive Wizard
+2 Geist-Fueled Scarecrow
+3 Gran-Gran
+4 Hazoret the Fervent
+3 Mizzium Skin
+4 Phoenix Chick
+4 Pillar of Flame
+3 Saheeli, the Sun's Brilliance
+5 Island
+9 Mountain
+4 Spirebluff Canal
+4 Steam Vents

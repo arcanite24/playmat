@@ -1,0 +1,24 @@
+# name: Train200 guild-rg-tempo-3
+# archetype: tempo
+# colors: RG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+3 Archdruid's Charm
+3 Bristlepack Sentry
+2 Dreadmaw's Ire
+3 Fire Prophecy
+3 Greenbelt Rampager
+2 Horribly Awry
+2 Monastery Swiftspear
+2 Play with Fire
+4 Reinforced Ronin
+2 Rile
+2 Slice in Twain
+2 Steel Leaf Champion
+1 Stingerback Terror
+3 Traxos, Scourge of Kroog
+2 Void Shatter
+4 Copperline Gorge
+6 Forest
+8 Mountain
+4 Rootbound Crag

@@ -24,6 +24,12 @@ public class PlayerLook {
     public String flair;
     /** a pet's id: party-corgi, or an earned companion */
     public String pet;
+    /** the equipped pet's Bond Tier (1-5); filled by the server from pet_progress */
+    public Integer petTier;
+    /** the equipped pet's accessory/aura style (crown, shades, wizard-hat, mana-collar, astral-aura); filled by the server */
+    public String petStyle;
+    /** a Command-Zone frame's id (kind "cmdframe") */
+    public String commandFrame;
     /** an attack arrow colour's id (B300) */
     public String arrow;
     /** a hit spark's id (B300) */
@@ -50,7 +56,7 @@ public class PlayerLook {
     }
 
     boolean isEmpty() {
-        return sleeve == null && cloth == null && avatar == null && frame == null && title == null && flair == null && pet == null
+        return sleeve == null && cloth == null && avatar == null && frame == null && commandFrame == null && title == null && flair == null && pet == null
                 && arrow == null && spark == null && stamp == null && lands == null && (badges == null || badges.isEmpty())
                 && (cardStyles == null || cardStyles.isEmpty()) && (tokens == null || tokens.isEmpty())
                 && (deckTokens == null || deckTokens.isEmpty());

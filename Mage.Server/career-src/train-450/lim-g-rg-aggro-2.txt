@@ -1,0 +1,39 @@
+# name: Train450 lim-g-rg-aggro-2
+# archetype: limited_aggro
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Arni Brokenbrow
+1 Brazen Wolves
+1 Cemetery Prowler
+1 Drover Grizzly
+1 Dwarven Mauler
+2 Goblin Maskmaker
+1 Greater Sandwurm
+1 Harried Spearguard
+1 Heartfire Immolator
+1 Homing Lightning
+1 Intrepid Trufflesnout
+1 Lambholt Pacifist
+1 Mutagenic Growth
+2 Oakheart Dryads
+1 Phoenix of Ash
+1 Raging Goblinoids
+1 Rebel Salvo
+2 Renegade Firebrand
+1 Roughshod Duo
+1 Scab-Clan Berserker
+1 Scourge Wolf
+2 Scurrid Colony
+1 Searing Blaze
+1 Soul Swallower
+2 Sparkmage's Gambit
+1 Stoke the Flames
+1 Sunshot Militia
+1 Teeterpeak Ambusher
+2 Tyvar's Stand
+1 Wild Nacatl
+1 Zurgo Bellstriker
+6 Forest
+4 Gruul Guildgate
+9 Mountain
+4 Wooded Ridgeline

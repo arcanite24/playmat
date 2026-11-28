@@ -69,4 +69,24 @@ describe('GameLog (#249)', () => {
     resolveJoin();
     await vi.waitFor(() => expect(connection.api.chatLeave).toHaveBeenCalledWith('chat-42'));
   });
+
+  test('joins the game chat again after a login on a new connection, without leaving it', async () => {
+    const { GameLog, connection } = await load();
+    const { useSession } = await import('../stores/session');
+    connection.api.chatFindByGame = vi.fn(async () => 'chat-7');
+    connection.api.chatJoin = vi.fn(async () => undefined);
+    connection.api.chatLeave = vi.fn(async () => undefined);
+
+    const { unmount } = render(<GameLog gameId="g7" notices={[]} canChat view={null} />);
+    await vi.waitFor(() => expect(connection.api.chatJoin).toHaveBeenCalledTimes(1));
+
+    // the silent login after a dropped connection: the server dropped us from the chat with the old session
+    act(() => useSession.setState((state) => ({ loginCount: state.loginCount + 1 })));
+    await vi.waitFor(() => expect(connection.api.chatJoin).toHaveBeenCalledTimes(2));
+    expect(connection.api.chatJoin).toHaveBeenLastCalledWith('chat-7', expect.any(String));
+    expect(connection.api.chatLeave).not.toHaveBeenCalled();
+
+    unmount();
+    expect(connection.api.chatLeave).toHaveBeenCalledWith('chat-7');
+  });
 });

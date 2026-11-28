@@ -1,0 +1,24 @@
+# name: Train450 tri-rwb-control-4
+# archetype: control
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Abstruse Interference
+3 Congregate
+2 Feast of Dreams
+2 Flicker of Fate
+3 Gisela, the Broken Blade
+2 Horribly Awry
+2 Orzhov Charm
+4 Rakdos, the Showstopper
+3 Ray of Enfeeblement
+4 Resourceful Return
+1 Righteous Valkyrie
+1 Silverquill Charm
+3 Spell Shrivel
+1 The Eagles Are Coming!
+4 Bloodfell Caves
+4 Boros Guildgate
+4 Great Arashin City
+2 Mountain
+5 Plains
+7 Swamp

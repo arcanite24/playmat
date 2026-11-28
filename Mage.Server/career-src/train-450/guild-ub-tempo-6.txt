@@ -1,0 +1,22 @@
+# name: Train450 guild-ub-tempo-6
+# archetype: tempo
+# colors: UB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Befuddle
+2 Circle of Power
+3 Confounding Riddle
+4 Dirge Bat
+2 Disperse
+3 Hornswoggle
+3 Moonshadow
+2 Mysterio's Phantasm
+4 Network Disruptor
+2 Sangromancer
+3 Tonberry
+2 Triton Tactics
+4 Voyage's End
+3 Whoosh!
+9 Island
+4 Sunken Hollow
+5 Swamp
+4 Waterfront District

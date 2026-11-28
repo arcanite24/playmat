@@ -1,0 +1,56 @@
+# name: Train450 brawl-t-rgw-aggro-1
+# archetype: brawl_aggro
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Augur of Autumn
+1 Aziza, Mage Tower Captain
+1 Bolt of Keranos
+1 Brigid's Command
+1 Bristlebud Farmer
+1 Captain Jean-Luc Picard
+1 Cenote Scout
+1 Devkarin Dissident
+1 Endrider Catalyzer
+1 Ghired, Mirror of the Wilds
+1 Goblin Surveyor
+1 Grove Rumbler
+1 Heightened Reflexes
+1 Jungle Delver
+1 Knight of the Pilgrim's Road
+1 Little Bear
+1 Moment of Triumph
+1 Moorland Inquisitor
+1 Natural End
+1 Nissa, Resurgent Animist
+1 Purple Dragon Punks
+1 Realm-Cloaked Giant
+1 Resolute Reinforcements
+1 Ride Down
+1 Scarecrow Guide
+1 Skullcrack
+1 Spark Jolt
+1 Spark Trooper
+1 Spawn of Thraxes
+1 Tah-Crop Elite
+1 Take Out the Trash
+1 Tattered Ratter
+1 Tithe Taker
+1 Unholy Officiant
+1 Wildfire Wickerfolk
+1 Willow Geist
+1 Zhur-Taa Goblin
+1 Bajor
+1 Birnin Zana Plaza
+1 Cinder Glade
+1 Dimension X
+3 Forest
+1 Gruul Guildgate
+1 Karplusan Forest
+4 Mountain
+1 Needle Spires
+4 Plains
+1 Radiant Grove
+1 Sacred Foundry
+1 Stomping Ground
+1 Temple of Triumph
+1 Tranquil Expanse

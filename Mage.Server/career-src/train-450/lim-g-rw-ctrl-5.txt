@@ -1,0 +1,35 @@
+# name: Train450 lim-g-rw-ctrl-5
+# archetype: limited_ctrl
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+2 Bladegraft Aspirant
+1 Break the Spell
+2 Calamitous Cave-In
+1 Chrome Cat
+1 Courageous Goblin
+1 Fathom Fleet Firebrand
+1 Goblin Dark-Dwellers
+1 Harried Artisan
+1 Hyena Pack
+1 Igneous Inspiration
+1 Impossible Inferno
+1 Last Breath
+1 Lightning Helix
+2 Mardu Hateblade
+2 Master Piandao
+2 Pigment Wrangler
+1 Pillar of Flame
+1 Rescue Leopard
+2 Shaman of the Great Hunt
+1 Sun-Dappled Celebrant
+1 Sunrise Cavalier
+2 Swift Reckoning
+1 Take Vengeance
+1 The Scarlet Witch
+1 Vision of Love
+1 Warping Wail
+11 Mountain
+6 Plains
+4 Sun-Blessed Peak
+4 Sundown Pass

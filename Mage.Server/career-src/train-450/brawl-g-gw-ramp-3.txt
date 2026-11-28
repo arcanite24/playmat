@@ -1,0 +1,49 @@
+# name: Train450 brawl-g-gw-ramp-3
+# archetype: brawl_ramp
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Adaptive Automaton
+1 Alabaster Host Sanctifier
+1 Arashin Sovereign
+1 Attentive Sunscribe
+1 Auspicious Arrival
+1 Aven Interrupter
+1 Barrage Tyrant
+1 Blitz Automaton
+1 Boros Mastiff
+1 Bramble Wurm
+1 Congregate
+1 Consign to Dust
+1 Defend the Campus
+1 Defenestrated Phantom
+1 Divine Smite
+1 Expel
+1 Gallant Pie-Wielder
+1 Giada, Font of Hope
+1 Glacier Godmaw
+1 Hopeful Initiate
+1 Lifecraft Cavalry
+1 Michelangelo, Mutant BFF
+1 Momentous Fall
+1 Murasa Brute
+1 Nylea's Disciple
+1 Pugnacious Hammerskull
+1 Return to the Earth
+1 Sculptor of Winter
+1 Spider-Man, Brooklyn Visionary
+1 Steel Exemplar
+1 Swift Spinner
+1 Thrashing Mossdog
+1 Wildvine Pummeler
+1 World Shaper
+1 Wrecking Beast
+1 Birnin Zana Plaza
+1 Creosote Heath
+10 Forest
+1 Fortified Village
+1 Lush Portico
+1 Overgrown Farmland
+7 Plains
+1 Risa
+1 Scattered Groves
+1 Suburban Sanctuary

@@ -1,0 +1,20 @@
+# name: Train200 mono-b-control-5
+# archetype: control
+# colors: B
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+3 Bilbo's Deadly Slice
+2 Desecration Demon
+3 Doom Whisperer
+2 Emeritus of Woe
+1 Extinction Event
+2 Horribly Awry
+3 Join the Dead
+4 Oblivion's Hunger
+2 Rat Out
+1 Shadowborn Demon
+2 Tar Snare
+3 Void Shatter
+1 Warping Wail
+3 Withering Curse
+26 Swamp

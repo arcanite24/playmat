@@ -1,0 +1,25 @@
+# name: Train200 tri-ubr-tempo-52
+# archetype: tempo
+# colors: UBR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Amazing Acrobatics
+2 Coordinated Assault
+2 Depower
+3 Feldon, Ronom Excavator
+2 Geistlight Snare
+2 Geistwave
+3 Giantfall
+3 Join the Dead
+3 Malcolm, the Eyes
+2 Mystical Dispute
+3 Reservoir Kraken
+3 Satoru, the Infiltrator
+3 Sleep-Cursed Faerie
+2 Spark Jolt
+3 Vengeful Reaper
+5 Island
+3 Mountain
+4 Restless Vents
+2 Swamp
+4 Swiftwater Cliffs
+4 Theorix Annex

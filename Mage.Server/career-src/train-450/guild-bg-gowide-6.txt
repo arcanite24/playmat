@@ -1,0 +1,22 @@
+# name: Train450 guild-bg-gowide-6
+# archetype: gowide
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Aloe Alchemist
+2 Crushing Canopy
+2 Devouring Sugarmaw
+2 Exemplar of Strength
+3 Geth, Thane of Contracts
+4 Great Divide Guide
+2 Greenwood Sentinel
+2 Loam Dryad
+4 Might of Murasa
+3 Nasty Little Rabbit
+3 Outland Liberator
+3 Pompous Gadabout
+2 Tar Snare
+2 Valley Mightcaller
+4 Deathcap Glade
+11 Forest
+3 Swamp
+4 Woodland Cemetery

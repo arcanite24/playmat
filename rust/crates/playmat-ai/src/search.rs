@@ -12,7 +12,34 @@ use crate::eval;
 use crate::policy::{Policy, Repeats};
 use playmat_engine::decide::{Answer, Decider, Query};
 use playmat_engine::state::{Game, Seat, Zone};
-use std::time::Instant;
+
+/// Monotonic timer that never panics on `wasm32-unknown-unknown` (where `std::time::Instant::now` traps).
+struct Timer {
+    #[cfg(not(target_arch = "wasm32"))]
+    start: std::time::Instant,
+}
+
+impl Timer {
+    #[inline]
+    fn start() -> Self {
+        Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            start: std::time::Instant::now(),
+        }
+    }
+
+    #[inline]
+    fn elapsed_nanos(&self) -> u128 {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.start.elapsed().as_nanos()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            0
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -57,6 +84,47 @@ pub struct Config {
     pub cpuct: u32,
     /// `ismcts`: at most this many iterations (playouts) a decision, whatever the budget
     pub iters: u32,
+    /// Forge-inspired AI playbook id (`profile:<arch>` or `<format>/<deck>`), `None` for generic heuristics
+    pub playbook: Option<String>,
+    /// `ismcts`: weight per thousand on the expanded leaf's neural value vs rollout eval (0: rollout only, 1000: pure value-leaf, no rollout)
+    pub leaf_blend: u32,
+    /// `ismcts`: use Gumbel-top-k sequential halving at the root and completed-Q policy targets
+    pub gumbel_root: bool,
+    /// apply `temp` only on turns `<= temp_turn` (0: apply on all turns)
+    pub temp_turn: u32,
+    /// `ismcts`: optional wall-clock cap in ms per decision (0: disabled, deterministic iteration count)
+    pub time_ms: u32,
+    /// `ismcts` + `gumbel_root`: Q-value scaling factor `c_scale` per thousand (default 250 -> 0.25)
+    pub c_scale: u32,
+    /// `ismcts` + `gumbel_root`: root-parallel determinization worker threads (1 = sequential; >1 = parallel across worlds)
+    pub par: u32,
+    /// `ismcts` + `gumbel_root`: independent tree per determinized world (eliminates strategy fusion even at par=1)
+    pub multi_tree: bool,
+    /// `ismcts` + pure value-leaf: use cached neural policy (not heuristic `quick`) while resolving mid-combat/stack quiescence
+    pub quiesce_net: bool,
+    /// keep/mulligan and London bottom using the neural value head (`net.state`) instead of heuristic/goldfish rules
+    pub mulligan_net: bool,
+    /// Phase 3: top-K multiset Rao-Blackwellized belief resampling over 6*k proposals
+    pub belief_ms: bool,
+    /// Phase 3: belief-conditioned entropic/counterfactual risk blend at root (0 = off, 1..500 = alpha/1000)
+    pub cfr_root: u32,
+    /// Phase 3: intra-tree Virtual-Loss batch size for GPU/batched leaf evaluation (1 = sequential, 4..16 = batched)
+    pub vloss: usize,
+    /// Phase 3: saddle-point Regret-Matching+ adversarial belief tilting at root
+    pub rm_root: bool,
+    /// external decider endpoint (`tcp://host:port[?obs=1]` or `cmd:<command>`) for `PolicyKind::External`
+    pub external: Option<String>,
+    /// Pre-Phase-4: exact MCTS-Solver proven terminal win/loss propagation (undiluted by stale shallow visits)
+    pub solver: bool,
+    /// Pre-Phase-4: Leela/KataGo Node-Value FPU (use node.v_eval instead of visited-kid average wsum/visited)
+    pub fpu_vnode: bool,
+    /// Pre-Phase-4: logarithmic dynamic c_puct(N) = cpuct * (1 + ln((N + 197) / 196))
+    pub cpuct_dyn: bool,
+    /// Pre-Phase-4: Bayesian pass-history belief reweighting when opp holds >= 2 untapped lands
+    pub belief_pass: bool,
+    /// KataGo forced playouts / self-play exploration factor (0 = off; e.g. 200 = k=2.0 when temp > 0)
+    pub forced_k: u32,
+    pub threat_w: u32,
 }
 
 impl Default for Config {
@@ -70,6 +138,7 @@ impl Default for Config {
         // the network's search as measured (#390 Track B): on samples of what the seat can't see, scored by the
         // network's value
         let netsearch = matches!(policy, PolicyKind::NetSearch | PolicyKind::Gumbel | PolicyKind::Ismcts);
+        let hide_default = netsearch || policy == PolicyKind::External;
         Config {
             budget: 6000,
             width: 12,
@@ -79,7 +148,7 @@ impl Default for Config {
             playout_cap: 1500,
             policy,
             threads: threads.max(1),
-            hide: netsearch,
+            hide: hide_default,
             samples: if netsearch { 4 } else { 1 },
             playout: 2,
             eval: if netsearch { 3 } else { 2 },
@@ -93,6 +162,27 @@ impl Default for Config {
             consider: 4,
             cpuct: 300,
             iters: 256,
+            playbook: None,
+            leaf_blend: 0,
+            gumbel_root: false,
+            temp_turn: 0,
+            time_ms: 0,
+            c_scale: 250,
+            par: 1,
+            multi_tree: false,
+            quiesce_net: false,
+            mulligan_net: false,
+            belief_ms: false,
+            cfr_root: 0,
+            vloss: 1,
+            rm_root: false,
+            external: std::env::var("PLAYMAT_EXT_URL").ok(),
+            solver: false,
+            fpu_vnode: false,
+            cpuct_dyn: false,
+            belief_pass: false,
+            forced_k: 0,
+            threat_w: 0,
         }
     }
 }
@@ -131,13 +221,22 @@ pub struct Table {
     pub answers: u64,
     /// the game stops after this many answers (a guard against a game that never ends)
     pub max_answers: u64,
+    /// optional per-game wall-clock deadline (`PLAYMAT_GAME_TIMEOUT_SECS`)
+    pub deadline: Option<std::time::Instant>,
     stop: bool,
 }
 
 impl Table {
     pub fn new(ai: Vec<Option<Config>>) -> Table {
         let n = ai.len();
-        let policy = ai.iter().map(|c| Policy::version(c.as_ref().map_or(1, |c| c.playout))).collect();
+        let policy = ai
+            .iter()
+            .map(|c| {
+                let v = c.as_ref().map_or(1, |c| c.playout);
+                let pb = c.as_ref().and_then(|c| crate::playbook::resolve(c.playbook.as_deref()));
+                Policy::with_playbook(v, pb)
+            })
+            .collect();
         Table {
             hidden: (0..n).map(Hidden::new).collect(),
             plan: vec![Default::default(); n],
@@ -150,6 +249,14 @@ impl Table {
             stats: Vec::new(),
             answers: 0,
             max_answers: 200_000,
+            #[cfg(not(target_arch = "wasm32"))]
+            deadline: std::env::var("PLAYMAT_GAME_TIMEOUT_SECS")
+                .ok()
+                .and_then(|v| v.parse::<u64>().ok())
+                .filter(|&secs| secs > 0)
+                .map(|secs| std::time::Instant::now() + std::time::Duration::from_secs(secs)),
+            #[cfg(target_arch = "wasm32")]
+            deadline: None,
             stop: false,
         }
     }
@@ -169,9 +276,9 @@ impl Table {
         })
     }
 
-    /// Whether the game was cut off by `max_answers`
+    /// Whether the game was cut off by `max_answers` or `deadline`
     pub fn stopped_early(&self) -> bool {
-        self.stop
+        self.stop || self.deadline.is_some_and(|dl| std::time::Instant::now() >= dl)
     }
 
     /// Notes an answer given by someone else (a mirrored game's other seat), so later searches can replay it.
@@ -182,6 +289,12 @@ impl Table {
             self.since.clear();
         }
         self.since.push(a.clone());
+    }
+
+    /// Takes back the last answer this table gave: the host gives others in its place first (a Career opponent's
+    /// personality adds attackers), then this one, each noted with `record`, so the table's line stays the game's
+    pub fn take_back(&mut self) -> Option<Answer> {
+        self.since.pop()
     }
 
     /// Notes what the seats that search on samples see now
@@ -234,7 +347,7 @@ impl Table {
         }
         let candidates = candidates(game, seat, q, &quick, cfg.width);
         if candidates.len() < 2 {
-            return quick;
+            return candidates.into_iter().next().unwrap_or(quick);
         }
         // a lower skill's mistakes: now and then a candidate at random instead of the search (never a payment)
         if cfg.blunder > 0 && !matches!(q, Query::PlayMana { .. }) {
@@ -250,13 +363,15 @@ impl Table {
             hidden,
             playout: cfg.playout,
             rollout: cfg.rollout.as_ref().map(|p| crate::net::of(&Some(p.clone()))),
+            seat,
+            playbook: crate::playbook::resolve(cfg.playbook.as_deref()),
         });
         let slot = &mut self.deciders[seat];
         if !matches!(slot, Some((None, _))) && slot.as_ref().map(|(k, _)| *k) != Some(Some(cfg.policy)) {
             *slot = Some((Some(cfg.policy), cfg.policy.build(seat)));
         }
         let decider = &mut slot.as_mut().unwrap().1;
-        let start = Instant::now();
+        let start = Timer::start();
         let d = Decision {
             game,
             seat,
@@ -273,7 +388,7 @@ impl Table {
             seat,
             turn: game.turn,
             kind: kind(q),
-            nanos: start.elapsed().as_nanos(),
+            nanos: start.elapsed_nanos(),
             nodes,
             options: candidates.len(),
             permanents: game.battlefield.len(),
@@ -454,8 +569,10 @@ impl Table {
             hidden: cfg.hide.then(|| self.hidden[seat].clone()),
             playout: cfg.playout,
             rollout: cfg.rollout.as_ref().map(|p| crate::net::of(&Some(p.clone()))),
+            seat,
+            playbook: crate::playbook::resolve(cfg.playbook.as_deref()),
         };
-        let start = Instant::now();
+        let start = Timer::start();
         let stop = game.turn + 1 + cfg.extra_turns;
         let per = (cfg.budget / plans.len() as u64).clamp(50, cfg.playout_cap);
         let (best, nodes) = sampled(&root, game, seat, cfg, &plans, per, stop);
@@ -464,7 +581,7 @@ impl Table {
             seat,
             turn: game.turn,
             kind: kind(q),
-            nanos: start.elapsed().as_nanos(),
+            nanos: start.elapsed_nanos(),
             nodes,
             options: plans.len(),
             permanents: game.battlefield.len(),
@@ -480,7 +597,11 @@ impl Decider for Table {
     fn answer(&mut self, game: &Game, seat: Seat, q: &Query) -> Answer {
         self.answers += 1;
         self.observe(game);
-        if self.answers > self.max_answers {
+        #[cfg(not(target_arch = "wasm32"))]
+        let timed_out = self.deadline.is_some_and(|dl| std::time::Instant::now() >= dl);
+        #[cfg(target_arch = "wasm32")]
+        let timed_out = false;
+        if self.answers > self.max_answers || timed_out {
             self.stop = true;
             return Answer::Stop;
         }
@@ -501,7 +622,7 @@ impl Decider for Table {
     }
 
     fn stopped(&self) -> bool {
-        self.stop
+        self.stop || self.deadline.is_some_and(|dl| std::time::Instant::now() >= dl)
     }
 }
 
@@ -597,11 +718,31 @@ pub fn candidates(game: &Game, seat: Seat, q: &Query, quick: &Answer, width: usi
             }
         }
         Query::ChooseAbility { source, abilities } => {
+            drop(add);
+            let paying = game.unpaid.is_some() || game.mana_paid.is_some();
+            let def = &game.obj(*source).def;
+            let has_non_mana =
+                !paying && abilities.iter().any(|i| def.abilities.get(*i).is_some_and(|a| a.mana().is_none()));
+            if has_non_mana {
+                if let Some(Answer::Ability(src, qi)) = out.first() {
+                    if src == source && def.abilities.get(*qi).is_some_and(|a| a.mana().is_some()) {
+                        out.clear();
+                    }
+                }
+            }
             for i in abilities {
-                add(Answer::Ability(*source, *i));
+                if has_non_mana && def.abilities.get(*i).is_some_and(|a| a.mana().is_some()) {
+                    continue;
+                }
+                let a = Answer::Ability(*source, *i);
+                if !out.contains(&a) {
+                    out.push(a);
+                }
             }
         }
-        Query::YesNo { message } if !message.contains("mana pool") && !crate::policy::declines(message) => {
+        Query::YesNo { message }
+            if !message.contains("mana pool") && !crate::policy::declines_in_game(game, seat, message) =>
+        {
             add(Answer::Bool(true));
             add(Answer::Bool(false));
         }

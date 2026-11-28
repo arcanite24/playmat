@@ -1,0 +1,21 @@
+# name: Train450 tri-urw-bigmana-5
+# archetype: bigmana
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Aven Skirmisher
+2 Battlewise Valor
+4 Daredevil, Man Without Fear
+3 Dramatic Rescue
+3 Eddymurk Crab
+4 Eruth, Tormented Prophet
+4 Herald of Faith
+2 King T'Challa
+4 Rabbit Battery
+3 Unauthorized Exit
+4 White Dragon
+4 Azorius Guildgate
+4 Battlefield Forge
+4 Boros Guildgate
+4 Island
+3 Mountain
+6 Plains

@@ -159,7 +159,7 @@ public class CareerModesTest {
                 school(campaigns, campaign);
                 continue;
             }
-            assertEquals(5, campaign.chapters.size(), campaign.id + " has five chapters");
+            assertTrue(campaign.chapters.size() >= 4, campaign.id + " has at least four chapters");
             Set<String> ids = new HashSet<>();
             for (CareerCampaigns.Chapter chapter : campaign.chapters) {
                 deck(chapter.deck);
@@ -188,14 +188,16 @@ public class CareerModesTest {
                         node.options.forEach(option -> assertNotNull(option.reward, node.id + "/" + option.id));
                     }
                 }
-                assertEquals(5, duels, chapter.id + " has five duels");
+                assertTrue(duels >= 2, chapter.id + " has at least two duels");
                 assertTrue(boss, chapter.id + " ends with a boss");
             }
-            assertTrue(campaign.chapters.stream().map(chapter -> chapter.unlockSet).allMatch(set -> set != null),
-                    "each chapter opens a set");
+            if ("five-paths".equals(campaign.id)) {
+                assertTrue(campaign.chapters.stream().map(chapter -> chapter.unlockSet).allMatch(set -> set != null),
+                        "each chapter opens a set");
+            }
         }
 
-        assertEquals(25, CareerPuzzles.get().puzzles().size(), "twenty puzzles and the five stack drills");
+        assertTrue(CareerPuzzles.get().puzzles().size() >= 35, "twenty puzzles, five stack drills, and ten Commander/trample puzzles");
         for (CareerSetup.Puzzle puzzle : CareerPuzzles.get().puzzles().values()) {
             assertNotNull(puzzle.name, puzzle.id);
             assertNull(puzzle.problem(), puzzle.id + ": " + puzzle.problem());
@@ -212,14 +214,29 @@ public class CareerModesTest {
         }
 
         CareerGauntlet.Rules gauntlet = CareerGauntlet.get().rules();
-        assertEquals(gauntlet.maxWins, gauntlet.bosses.size(), "a boss for each win");
+        assertTrue(gauntlet.bosses.size() >= gauntlet.maxWins, "at least a boss for each win");
         assertEquals(gauntlet.maxWins + 1, gauntlet.rewards.size(), "a reward for every result");
         for (CareerCampaigns.NodeOpponent boss : gauntlet.bosses) {
             deck(boss.deck);
             twists(boss.name, boss.twists);
         }
+        for (CareerCampaigns.NodeOpponent boss : gauntlet.finalBosses) {
+            deck(boss.deck);
+            twists(boss.name, boss.twists);
+        }
+        for (CareerCampaigns.NodeOpponent boss : gauntlet.commanderBosses) {
+            deck(boss.deck);
+            twists(boss.name, boss.twists);
+        }
         assertTrue(CareerJumpstart.get().packs().size() >= gauntlet.startPacks, "enough packs to offer");
         CareerJumpstart.get().packs().forEach(pack -> pack.cards.forEach(card -> names.add(card.getCardName())));
+
+        // Hordes 2.0 (10 hordes) & Archenemy (24 schemes, 4 encounters)
+        assertTrue(CareerHordes.get().hordes("Ana").size() >= 10, "ten hordes shipped");
+        assertTrue(CareerArchenemy.get().schemes().size() >= 24, "24 archenemy schemes shipped");
+        assertEquals(4, CareerArchenemy.get().state("Ana").encounters.size(), "four archenemy encounters shipped");
+        assertTrue(CareerChallenges.get().challenges().size() >= 24, "24 rotating weekly challenges shipped");
+        assertTrue(CareerPuzzles.get().puzzles().size() >= 35, "35 puzzles shipped");
 
         // card names are checked against every card in Mage.Tests: CareerContentCardsTest
     }

@@ -1,0 +1,24 @@
+# name: Train200 tri-ubr-aggro-32
+# archetype: aggro
+# colors: UBR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Butcher's Glee
+3 Cult Conscript
+1 Ephara's Dispersal
+3 Fateful End
+3 Fervent Champion
+3 Garland, Knight of Cornelia
+4 Hazoret, Godseeker
+4 Lathnu Hellion
+3 Requiting Hex
+1 Resilient Roadrunner
+3 Seismic Wave
+3 Thieves' Guild Enforcer
+2 Ultimate Green Goblin
+3 Zurgo Bellstriker
+1 Island
+5 Mountain
+3 Swamp
+4 Swiftwater Cliffs
+4 TCRI Building
+4 Thundering Falls

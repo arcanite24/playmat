@@ -1,12 +1,14 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { loadTestCatalog } from '../../test/catalog';
+import { api } from '../connection';
 import { queryClient } from '../queries';
 import { useSession } from '../stores/session';
+import { useSettings } from '../stores/settings';
 import { useCareerLook } from './careerData';
-import { CosmeticsLocker } from './CosmeticsLocker';
+import CosmeticsSettings, { CosmeticsLocker } from './CosmeticsLocker';
 
 loadTestCatalog();
 
@@ -44,5 +46,36 @@ describe('the locker', () => {
     expect(screen.getByText('Table talk')).toBeTruthy();
     expect(screen.getByText('Hello!')).toBeTruthy();
     expect(screen.getAllByText(/Earned in Career/).length).toBe(5);
+  });
+
+  test('unlocked cosmetics still show how they were earned', () => {
+    renderLocker();
+    // Owl is owned (unlocked), not free, so its tile still displays how it was earned (without a lock icon)
+    const owl = screen.getByRole('radio', { name: /Owl/ });
+    expect((owl as HTMLButtonElement).disabled).toBe(false);
+    expect(owl.textContent).toMatch(/Earned in Career/);
+  });
+});
+
+describe('Settings, Cosmetics', () => {
+  test('a browser that never opened Career still shows what the account unlocked', async () => {
+    queryClient.clear();
+    useSession.setState({ phase: 'signedIn', userName: 'tester' });
+    useSettings.getState().update({ careerOptIn: false });
+    vi.spyOn(api, 'serverInfo').mockResolvedValue({ accounts: true, career: true });
+    vi.spyOn(api, 'careerLevels').mockResolvedValue({ level: 38, unlocks: [{ kind: 'avatar', id: 'owl' }] });
+    vi.spyOn(api, 'careerAchievements').mockResolvedValue([]);
+    vi.spyOn(api, 'supportPerks').mockResolvedValue({ perks: [] });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CosmeticsSettings />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    const owl = await screen.findByRole('radio', { name: /Owl/ });
+    expect((owl as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('radio', { name: /Fox/ }) as HTMLButtonElement).disabled).toBe(true);
+    vi.restoreAllMocks();
   });
 });

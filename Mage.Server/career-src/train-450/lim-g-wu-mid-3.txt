@@ -1,0 +1,37 @@
+# name: Train450 lim-g-wu-mid-3
+# archetype: limited_mid
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aberrant Researcher
+2 Abhorrent Oculus
+1 Anointed Chorister
+1 Cleric of Chill Depths
+1 Compelling Deterrence
+1 Dauntless Aven
+2 Divine Gambit
+2 Dread Defiler
+1 Elite Interceptor
+1 Enduring Curiosity
+1 Failed Fording
+1 Frantic Inventory
+2 Gandalf, Wandering Wizard
+1 Geyser Drake
+1 Glorifier of Suffering
+1 Inkshape Demonstrator
+1 Lagonna-Band Storyteller
+1 Lat-Nam Adept
+2 Ledger Shredder
+1 Mechanozoa
+1 Nick Fury, Agent of S.H.I.E.L.D.
+1 Raff Capashen, Ship's Mage
+1 Ray of Dissolution
+1 Shimmerwing Chimera
+1 Soaring Stoneglider
+1 Suus Mahna Practitioner
+1 Take the Fall
+2 Temur Devotee
+2 Thwip!
+4 Deserted Beach
+4 Fortified Beachhead
+10 Island
+6 Plains

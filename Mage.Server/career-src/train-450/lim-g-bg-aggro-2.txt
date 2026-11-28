@@ -1,0 +1,36 @@
+# name: Train450 lim-g-bg-aggro-2
+# archetype: limited_aggro
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aggressive Sabotage
+1 Atraxa's Fall
+1 Avatar of the Resolute
+2 Battlefly Swarm
+2 Captain Jonathan Archer
+1 Clear Shot
+1 Comet Crawler
+1 Exemplar of Strength
+1 Extended Absence
+2 Foundry Screecher
+1 Guul Draz Mucklord
+2 Hamlet Captain
+2 Hour of Defeat
+1 Korozda Guildmage
+1 Mold Adder
+1 Mythos of Nethroi
+1 Old Fat Spider
+1 Oran-Rief Invoker
+2 Pugnacious Hammerskull
+1 Quakestrider Ceratops
+2 Scheming Aspirant
+1 Slaughter Drone
+1 Spider-Ham, Peter Porker
+1 Tenacious Hunter
+2 Unnatural Endurance
+1 Walking Corpse
+2 Walltop Sentries
+1 Yisan, the Wanderer Bard
+4 Deathcap Glade
+9 Forest
+6 Swamp
+4 Woodland Cemetery

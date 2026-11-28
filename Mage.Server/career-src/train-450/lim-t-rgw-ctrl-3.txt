@@ -1,0 +1,39 @@
+# name: Train450 lim-t-rgw-ctrl-3
+# archetype: limited_ctrl
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Acrobatic Maneuver
+1 Chandra's Phoenix
+1 Deafening Clarion
+2 Earth-Cult Elemental
+1 Explosive Derailment
+1 Fiery Conclusion
+1 Firebending Lesson
+2 Frontline Rebel
+1 Geier Reach Bandit
+1 Get Lost
+2 Greenbelt Rampager
+1 Horribly Awry
+1 Immolation Shaman
+1 Kellan, Daring Traveler
+1 Lay Down Arms
+1 Loxodon Smiter
+1 Meria, Scholar of Antiquity
+1 Moonlight Hunt
+1 Mutant Chain Reaction
+2 Ripchain Razorkin
+2 Rite of Harmony
+1 Rust-Shield Rampager
+1 Solemn Offering
+1 Soul of the Harvest
+1 Tenured Concocter
+1 Territorial Hammerskull
+1 Void Shatter
+2 Zilortha, Strength Incarnate
+4 Boros Guildgate
+4 Forest
+4 Furycalm Snarl
+5 Mountain
+4 Plains
+4 Temple Garden

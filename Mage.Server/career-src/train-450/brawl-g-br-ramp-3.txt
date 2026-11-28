@@ -1,0 +1,49 @@
+# name: Train450 brawl-g-br-ramp-3
+# archetype: brawl_ramp
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Agate-Blade Assassin
+1 Bankrupt in Blood
+1 Bilbo's Deadly Slice
+1 Boiling Earth
+1 Bonded Horncrest
+1 Chaos Channeler
+1 Charging Tuskodon
+1 Conscripted Infantry
+1 Disciples of Gix
+1 Dreamshaper Shaman
+1 Durable Coilbug
+1 Fearful Villager
+1 Fell Stinger
+1 Festive Funeral
+1 Foot Mystic
+1 Ghoulsteed
+1 Goldhound
+1 Iron Hills Stalwart
+1 Keldon Raider
+1 Kellan, Planar Trailblazer
+1 Light of Judgment
+1 Lightning Shrieker
+1 Mutual Destruction
+1 Neheb, the Eternal
+1 Pirate Peddlers
+1 Pompous Battlemage
+1 Pulse Tracker
+1 Scarab Feast
+1 Shake the Foundations
+1 Skophos Warleader
+1 Spellscorn Coven
+1 Subira, Tulzidi Caravanner
+1 Thor, God of Thunder
+1 Tyrant of Valakut
+1 Witch of the Moors
+1 Bloodfell Caves
+1 Cinder Barrens
+1 Foreboding Ruins
+1 Hell's Kitchen
+10 Mountain
+1 Qo'noS
+1 Raucous Theater
+1 Restless Vents
+1 Smoldering Marsh
+7 Swamp

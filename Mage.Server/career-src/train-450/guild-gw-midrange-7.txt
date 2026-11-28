@@ -1,0 +1,22 @@
+# name: Train450 guild-gw-midrange-7
+# archetype: midrange
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Airbending Lesson
+2 Alpine Grizzly
+3 Anointed Peacekeeper
+1 Briar Hydra
+3 Colossal Rattlewurm
+2 Emergency Eject
+2 Expose to Daylight
+2 Lovestruck Beast
+2 Metropolis Reformer
+4 Pillar of Light
+3 Trollbred Guardian
+4 Venerated Rotpriest
+4 Veteran Survivor
+3 Warriors' Lesson
+8 Forest
+8 Plains
+4 Radiant Grove
+4 Sunpetal Grove

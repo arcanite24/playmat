@@ -1,0 +1,24 @@
+# name: Train450 tri-bgu-control-4
+# archetype: control
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Annul
+4 Calculated Dismissal
+4 Choose Your Weapon
+2 Dreamshackle Geist
+2 Feed the Cycle
+4 Full Steam Ahead
+2 Geistwave
+2 God-Eternal Rhonas
+3 Saw It Coming
+2 Shipbreaker Kraken
+2 Spirit of the Hunt
+2 Splash Portal
+2 Take the Fall
+2 Withering Torment
+4 Contaminated Aquifer
+5 Forest
+7 Island
+4 Submerged Boneyard
+2 Swamp
+4 Yavimaya Coast

@@ -1,0 +1,18 @@
+{
+  "$comment": "NB 2.1 art spec for the Coin Cosmetics Boutique avatars. Paint with: node art/wavespeed.mjs boutique-avatar --backend gemini",
+  "out": "public/career-art/avatar",
+  "lead": "Paint a square fantasy character bust portrait.",
+  "house": false,
+  "series": false,
+  "aspect": "1:1",
+  "size": "512x512",
+  "refs": ["eld/272", "mps/19"],
+  "style": "Painterly fantasy character bust portrait in oil and gouache on a dark atmospheric background: warm directional key light, expressive silhouette centered for a circular medallion crop, visible brushwork.",
+  "rules": "Center the character's head and shoulders cleanly for a circular avatar crop with generous breathing room around the edges. No frames, rings, text or symbols.",
+  "items": [
+    { "id": "automaton", "subject": "bust portrait of an ornate brass-and-porcelain clockwork automaton mage with softly glowing amber optical lenses and a dark velvet collar" },
+    { "id": "bog-witch", "subject": "bust portrait of a serene moss-cloaked swamp herbalist wearing a wide-brimmed woven hat tucked with pale mushrooms and glowing fireflies" },
+    { "id": "sun-paladin", "subject": "bust portrait of a noble gilded-armour sun knight with a weathered ivory cloak and warm golden rim light" },
+    { "id": "eldrazi-seer", "subject": "bust portrait of a mysterious blindfolded void oracle wearing a floating bone-and-amethyst crown amid faint cosmic dust" }
+  ]
+}

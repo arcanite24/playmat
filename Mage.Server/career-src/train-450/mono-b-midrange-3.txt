@@ -1,0 +1,18 @@
+# name: Train450 mono-b-midrange-3
+# archetype: midrange
+# colors: B
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Ahriman
+2 Blacklance Paragon
+4 Dark Deed
+1 Demon of Catastrophes
+4 Elusive Tormentor
+4 Eyetwitch
+2 Herald of Anguish
+2 Malevolent Chandelier
+2 Nocturnal Hunger
+4 Oblivion's Hunger
+4 Reckless Imp
+2 Skulduggery
+2 Technodrome
+24 Swamp

@@ -1,0 +1,24 @@
+# name: Train450 tri-rgw-control-4
+# archetype: control
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Acclaimed Contender
+1 Anti-Venom, Horrifying Healer
+1 Blur of Blades
+4 Gruul Charm
+3 Horribly Awry
+2 Humble the Brute
+2 Moonrager's Slash
+3 Natural State
+2 Nissa's Defeat
+4 Seismic Wave
+3 Sifter Wurm
+4 Spell Shrivel
+1 Warping Wail
+2 Wildwood Patrol
+4 Etched Cornfield
+6 Forest
+5 Mountain
+3 Plains
+4 Rockfall Vale
+4 Windurst, Federation Center

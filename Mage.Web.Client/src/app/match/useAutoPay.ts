@@ -69,6 +69,9 @@ export function useAutoPay(session: GameSession, state: GameSessionState, me: Pl
     const costs = readings.map((fullCost) => (prompt.specialLabel ? landsPartOf(fullCost, prompt.specialLabel, payers) : fullCost));
     // a manland paying for its own animation must not tap itself: it would come alive tapped
     const payingFor = parsePayment(prompt).sourceId;
+    // spells that care about the colors of mana spent (Converge, Sunburst, Adamant) are left to the player (#477)
+    const stackCard = payingFor ? view?.stack?.[payingFor] : undefined;
+    if (stackCard?.rules?.some((rule) => /\bconverge\b|colors? of mana spent|\bsunburst\b|\badamant\b/i.test(rule))) return;
     const sources: ManaSource[] = [];
     for (const id of interaction.clickable.keys()) {
       const permanent = permanents.get(id);

@@ -1,0 +1,19 @@
+# name: Train450 mono-w-midrange-5
+# archetype: midrange
+# colors: W
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Bright Reprisal
+4 Burdened Stoneback
+4 Circuit Mender
+3 Collision Course
+2 Crib Swap
+2 Faerie Guidemother
+2 Gale Swooper
+2 Gold-Forged Sentinel
+1 Plunge into Winter
+2 Shuttle Ace
+3 Tethmos High Priest
+3 Topple the Statue
+2 Venerable Knight
+3 Vile Redeemer
+24 Plains

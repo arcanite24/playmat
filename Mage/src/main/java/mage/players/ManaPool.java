@@ -6,7 +6,6 @@ import mage.MageObject;
 import mage.Mana;
 import mage.abilities.Ability;
 import mage.abilities.costs.Cost;
-import mage.abilities.effects.mana.ManaEffect;
 import mage.constants.Duration;
 import mage.constants.ManaType;
 import mage.constants.PhaseStep;
@@ -18,7 +17,6 @@ import mage.game.events.GameEvent;
 import mage.game.events.GameEvent.EventType;
 import mage.game.events.ManaEvent;
 import mage.game.events.ManaPaidEvent;
-import mage.game.stack.Spell;
 import mage.util.CardUtil;
 
 import java.io.Serializable;
@@ -112,25 +110,24 @@ public class ManaPool implements Serializable {
      * @return
      */
     public boolean pay(ManaType manaType, Ability ability, Filter filter, Game game, Cost costToPay, Mana usedManaToPay) {
-        if (!isAutoPayment() && manaType != unlockedManaType) {
-            // if manual payment and the needed mana type was not unlocked, nothing will be paid
-            return false;
-        }
         ManaType possibleAsThoughPoolManaType = null;
+        if (!isAutoPayment() && manaType != unlockedManaType) {
+            // manual payment: only the clicked mana type is spent, and it pays a different needed type only if an
+            // asThough effect allows it (mana of any type can be spent to cast that spell: a click on {R} pays {B})
+            possibleAsThoughPoolManaType = asThoughUnlockedManaType(manaType, ability, game);
+            if (possibleAsThoughPoolManaType == null) {
+                return false;
+            }
+        }
         if (isAutoPayment()
                 && isAutoPaymentRestricted()
                 && !wasManaAddedBeyondStock() // was not more mana added than at the start of casting something
                 && manaType != unlockedManaType) {
             // if automatic restricted payment and there is already mana in the pool
             // and the needed mana type was not unlocked, nothing will be paid
-            if (unlockedManaType != null) {
-                ManaPoolItem checkItem = new ManaPoolItem();
-                checkItem.add(unlockedManaType, 1);
-                possibleAsThoughPoolManaType = game.getContinuousEffects().asThoughMana(manaType, checkItem, ability.getSourceId(), ability, ability.getControllerId(), game);
-            }
             // Check if it's possible to use mana as thought for the unlocked manatype in the mana pool for this ability
-            if (possibleAsThoughPoolManaType == null
-                    || possibleAsThoughPoolManaType != unlockedManaType) {
+            possibleAsThoughPoolManaType = asThoughUnlockedManaType(manaType, ability, game);
+            if (possibleAsThoughPoolManaType == null) {
                 return false; // if it's not possible return
             }
         }
@@ -144,19 +141,7 @@ public class ManaPool implements Serializable {
 
         for (ManaPoolItem mana : manaItems) {
             if (filter != null && !filter.match(mana.getSourceObject(), game)) {
-                // If here, then mana source does not match the filter
-                // However, alternate mana payment abilities such as convoke won't match the filter but are valid
-                // So we need to do some ugly checks to allow them
-                // For convoke, mana apparently comes from a spell without a mana effect, that doesn't match the ability source
-                if (ability.getSourceId().equals(mana.getSourceId())
-                        || !(mana.getSourceObject() instanceof Spell)
-                        || ((Spell) mana.getSourceObject())
-                        .getAbilities(game)
-                        .stream()
-                        .flatMap(a -> a.getAllEffects().stream())
-                        .anyMatch(ManaEffect.class::isInstance)) {
-                    continue; // if any of the above cases, not an alt mana payment ability, thus excluded by filter
-                }
+                continue;
             }
             if (possibleAsThoughPoolManaType == null
                     && manaType != unlockedManaType
@@ -168,6 +153,10 @@ public class ManaPool implements Serializable {
             }
             ManaType usableManaType = game.getContinuousEffects().asThoughMana(manaType, mana, ability.getSourceId(), ability, ability.getControllerId(), game);
             if (usableManaType == null) {
+                continue;
+            }
+            if (possibleAsThoughPoolManaType != null && usableManaType != possibleAsThoughPoolManaType) {
+                // a click on {R} spends {R}, not another type the asThough effect would also allow
                 continue;
             }
             if (mana.get(usableManaType) > 0) {
@@ -183,6 +172,19 @@ public class ManaPool implements Serializable {
             }
         }
         return false;
+    }
+
+    /**
+     * The clicked (unlocked) mana type, when an asThough effect lets it pay the needed mana type, else null
+     */
+    private ManaType asThoughUnlockedManaType(ManaType manaType, Ability ability, Game game) {
+        if (unlockedManaType == null) {
+            return null;
+        }
+        ManaPoolItem checkItem = new ManaPoolItem();
+        checkItem.add(unlockedManaType, 1);
+        ManaType asThoughType = game.getContinuousEffects().asThoughMana(manaType, checkItem, ability.getSourceId(), ability, ability.getControllerId(), game);
+        return asThoughType == unlockedManaType ? unlockedManaType : null;
     }
 
     public int get(ManaType manaType) {

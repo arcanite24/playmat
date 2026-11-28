@@ -1,0 +1,23 @@
+# name: Train200 tri-gur-gowide-50
+# archetype: gowide
+# colors: GUR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Applied Biomancy
+4 Bamboo Grove Archer
+3 Brackish Blunder
+4 Fear of Exposure
+3 Mausoleum Wanderer
+4 Merfolk Windrobber
+1 Neheb, Dreadhorde Champion
+4 Overwhelmed Apprentice
+3 Smaug the Magnificent
+3 Spatial Contortion
+3 Spectrum Sentinel
+4 Vantress Gargoyle
+1 Winterflame
+4 Earth, Sector 001
+4 Eroded Canyon
+3 Forest
+6 Island
+1 Mountain
+4 Restless Vinestalk

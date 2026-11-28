@@ -1,0 +1,21 @@
+# name: Train200 guild-gw-control-9
+# archetype: control
+# colors: GW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Dromoka, the Eternal
+3 Gnarled Professor
+2 Heritage Reclamation
+3 Horribly Awry
+4 Lifecrafter's Gift
+2 Naturalize
+2 Plummet
+2 Ray of Dissolution
+4 Selesnya Charm
+3 Spell Shrivel
+1 Traxos, Scourge of Kroog
+2 True Love's Kiss
+2 Void Shatter
+4 Botanical Plaza
+11 Forest
+7 Plains
+4 Suburban Sanctuary

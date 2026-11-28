@@ -1,0 +1,21 @@
+# name: Train450 guild-wb-bigmana-10
+# archetype: bigmana
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Alms Beast
+2 Boon-Bringer Valkyrie
+2 Clackbridge Troll
+4 Deathpact Angel
+3 Goremand
+4 Momo, Friendly Flier
+2 Panther Pounce
+2 Staunch Shieldmate
+2 Subtle Strike
+2 Sunspire Griffin
+3 Tomik, Wielder of Law
+2 Tragedy Feaster
+4 Vindictive Triumph
+4 Concealed Courtyard
+4 Forsaken Sanctuary
+9 Plains
+8 Swamp

@@ -1,0 +1,125 @@
+# Career cards outside the Pioneer pool (pioneer-pool.txt): the five-paths campaign decks
+# (Mage.Server/src/main/resources/career/campaigns/decks/*.dck) and the roster decks orzhov-oppression,
+# rakdos-aristocrats and boros-battalion (career/opponents). transpile.engine_pool() takes them in beside the
+# Pioneer pool (wave 18, docs/rust/Engine.md).
+Aether Spellbomb
+Affa Guard Hound
+Allosaurus Shepherd
+Ambassador Oak
+Angel of the Dire Hour
+Archaeomender
+Archon of Justice
+Archon of Redemption
+Ashmouth Hound
+Blessed Sanctuary
+Blood Artist
+Blood Reckoning
+Bloodrock Cyclops
+Brightmare
+Brindle Shoat
+Buried Ruin
+Cadaver Imp
+Carven Caryatid
+Cathars' Crusade
+Chain Lightning
+Chromatic Sphere
+Cloudshift
+Coastal Piracy
+Crookclaw Transmuter
+Curiosity
+Dawntreader Elk
+Dreamstone Hedron
+Duelist's Heritage
+Emiel the Blessed
+Entomber Exarch
+Exclude
+Exhume
+Explore
+Exquisite Blood
+Falkenrath Aristocrat
+Falkenrath Noble
+Geralf's Messenger
+Ghoulcaller Gisa
+Ghoulraiser
+Grave Bramble
+Gravecrawler
+Grim Lavamancer
+Guardian Lions
+Hunter's Insight
+Innocent Blood
+Irresistible Prey
+Isamaru, Hound of Konda
+Kels, Fight Fixer
+Knight of Infamy
+Lightning Elemental
+Lightning Phoenix
+Lightning Visionary
+Lightning-Core Excavator
+Living Lightning
+Lurking Predators
+Magmaquake
+Mark of Mutiny
+Mikaeus, the Lunarch
+Molten Ravager
+Momentous Fall
+Myr Sire
+Narcolepsy
+Neyith of the Dire Hunt
+Nocturnal Feeder
+Nyxathid
+Oneirophage
+Ormos, Archive Keeper
+Overgrown Battlement
+Parasitic Implant
+Penumbra Bobcat
+Perilous Myr
+Phyrexian Broodlings
+Phyrexian Debaser
+Phyrexian Reclamation
+Phyrexian Tower
+Pillar of Flame
+Presence of Gond
+Primordial Sage
+Rain of Blades
+Ravenous Baloth
+Read the Runes
+Reanimate
+Rhystic Study
+Riptide Laboratory
+Rishadan Airship
+Ronom Unicorn
+Sangromancer
+Scholar of the Lost Trove
+Scourge of Nel Toth
+Sea Gate Oracle
+Searing Spear
+Selvala, Heart of the Wilds
+Sharding Sphinx
+Sheoldred, Whispering One
+Silvercoat Lion
+Spitting Earth
+Steel-Plume Marshal
+Supply Runners
+Talrand's Invocation
+Talrand, Sky Summoner
+Thragtusk
+Thriving Bluff
+Thriving Grove
+Thriving Heath
+Thriving Isle
+Thriving Moor
+Tinybones, Trinket Thief
+Tormented Soul
+Towering Titan
+Trusty Retriever
+Unstable Obelisk
+Vedalken Archmage
+Volcanic Fallout
+Wall of Blossoms
+Warclamp Mastiff
+Warmonger's Chariot
+Wildsize
+Witch of the Moors
+Wren's Run Vanquisher
+Zombie Goliath
+Zombie Infestation

@@ -4,13 +4,12 @@ import { createPortal } from 'react-dom';
 import type { CareerMachine, CareerMachineSet, CareerPull, CareerPullResult } from '../../../protocol/generated/views';
 import { useI18n, useT } from '../../i18n';
 import { Button } from '../../ui/Button';
-import { cardStyleArt } from '../../ui/cardStyles';
 import { catalogName, useCatalog } from '../../ui/cosmeticsCatalog';
 import { artUrl } from '../careerArt';
 import { playCareerCue } from '../careerSound';
 import { useStill } from '../motion';
 import { Burst, type Tier } from './Burst';
-import { sleeveArtOf } from './capsuleArt';
+import { capsuleItemArt, sleeveArtOf } from './capsuleArt';
 import { machineItems } from './capsuleData';
 import { Machine, PaintedCapsule, type MachineHandle } from './Machine';
 import { WearButton } from './WearStyle';
@@ -527,17 +526,17 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
           <span className={seq.flash} aria-hidden="true" />
           <figure className={styles.revealCard}>
             <span className={styles.revealArt}>
-              <img src={cardStyleArt(current.item ?? '', current.card ?? '')} alt="" draggable={false} />
-              <span className={styles.revealPlate}>{current.card}</span>
+              <img src={capsuleItemArt(current.kind ?? machine.kind, current.item, current.card)} alt="" draggable={false} />
+              <span className={styles.revealPlate}>{current.name ?? current.card}</span>
               <span className={styles.shine} aria-hidden="true" />
             </span>
             <figcaption>
               <span className={styles.newTag}>{t('capsules.seq.new')}</span>
-              <b>{current.card}</b>
+              <b>{current.name ?? current.card}</b>
               <span>{t('capsules.seq.inSet', { set: setName(setOf(current)), count: countInSet(current), total: setOf(current)?.items?.length ?? 5 })}</span>
             </figcaption>
           </figure>
-          <WearButton card={current.card ?? ''} item={current.item ?? ''} />
+          {(!current.kind || current.kind === 'cardstyle') && current.card && <WearButton card={current.card} item={current.item ?? ''} />}
           <Button onClick={(event) => {
             event.stopPropagation();
             next();
@@ -557,8 +556,8 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
                 <li key={which} ref={(el) => { trayRefs.current[which] = el; }} style={{ '--capsule': capsuleColor(one), '--i': which } as CSSProperties}>
                   {open ? (
                     <figure className={styles.trayCard} data-set-done={one.setDone || undefined}>
-                      <img src={cardStyleArt(one.item ?? '', one.card ?? '')} alt="" draggable={false} />
-                      <figcaption><b>{one.card}</b><small>{setName(setOf(one))}</small></figcaption>
+                      <img src={capsuleItemArt(one.kind ?? machine.kind, one.item, one.card)} alt="" draggable={false} />
+                      <figcaption><b>{one.name ?? one.card}</b><small>{setName(setOf(one))}</small></figcaption>
                     </figure>
                   ) : (
                     <button type="button" className={styles.trayCapsule} data-tier={tierOf(one)} onClick={() => openOne(which)} aria-label={t('capsules.seq.openOne', { at: which + 1 })}>
@@ -599,7 +598,7 @@ function FinaleView({ finale, machine, onNext, last }: { finale: Finale; machine
         <h2 className={styles.finaleTitle}>{name}</h2>
         <div className={styles.fan}>
           {(set.items ?? []).map((item, at) => (
-            <img key={item.id} src={cardStyleArt(item.id ?? '', item.card ?? '')} alt={item.card} style={{ '--at': at - 2 } as CSSProperties} draggable={false} />
+            <img key={item.id} src={capsuleItemArt(item.kind ?? machine.kind, item.id, item.card)} alt={item.name ?? item.card} style={{ '--at': at - 2 } as CSSProperties} draggable={false} />
           ))}
         </div>
         <div className={styles.finaleReward}>

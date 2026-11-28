@@ -1,0 +1,26 @@
+# name: Train450 tri-bgu-aggro-7
+# archetype: aggro
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Ashnod, Flesh Mechanist
+4 Attuned Hunter
+2 Bleed Dry
+2 Charnel Troll
+4 Cobbled Lancer
+4 Consuming Sinkhole
+2 Extended Absence
+2 Foul Renewal
+2 Generous Visitor
+4 Graf Reaver
+3 Humbling Elder
+2 Iridescent Vinelasher
+1 Nervous Gardener
+2 Ranger's Guile
+1 Setessan Tactics
+2 The Ancient One
+4 Breeding Pool
+3 Forest
+2 Island
+4 Swamp
+4 Temple of Mystery
+4 Vineglimmer Snarl

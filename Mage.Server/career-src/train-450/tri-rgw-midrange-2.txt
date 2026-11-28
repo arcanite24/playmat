@@ -1,0 +1,23 @@
+# name: Train450 tri-rgw-midrange-2
+# archetype: midrange
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Avaricious Dragon
+4 By Force
+2 Dragonlord Dromoka
+3 Fleeting Effigy
+4 Grand Warlord Radha
+2 Harbinger of the Hunt
+3 Heated Debate
+3 Hinterland Sanctifier
+4 Myriad Construct
+3 Skyship Stalker
+2 Solarium Sentry
+1 Unnatural Aggression
+4 Vision of Love
+3 Forest
+4 Fortified Village
+7 Mountain
+2 Plains
+4 Vigorbloom Annex
+4 Wind-Scarred Crag

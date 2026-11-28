@@ -52,11 +52,233 @@ pub struct TableRules {
     /// the AI seat's search settings pinned by label (`entrants::pinned`, a ladder bot's generation, #435): played
     /// instead of what this build makes of `ai_skill`
     pub ai_pin: Option<String>,
+    /// optional Forge-inspired AI playbook id (`profile:<arch>` or `<format>/<deck>`) for the AI seat
+    pub ai_playbook: Option<String>,
+    /// why the table gives no advice, when it doesn't (`noAdvice`: Java's `GameController.advise`, a ranked game)
+    pub no_advice: Option<String>,
+    /// why the table has no practice tools, when it hasn't (`noPractice`: Java's `GameController.practice`)
+    pub no_practice: Option<String>,
+    /// hints a Career game has left (`hintsLeft`, `CareerService.HINTS_PER_GAME`); none: no limit
+    pub hints_left: Option<u32>,
+    /// a Career table's setup (`setup`: `CareerSetup.hostSetup`), as Java's `CareerSetup.apply` plays it
+    pub setup: Option<CareerSetup>,
+}
+
+/// A side's edge: its life set, then a life bonus, extra cards, permanents and an emblem (`CareerSetup.edge`), and
+/// the timed twists it holds (`CareerTimedTwists`)
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Edge {
+    pub life: Option<i32>,
+    pub life_bonus: i32,
+    pub cards: u32,
+    /// each permanent's card name, and whether it enters tapped
+    pub permanents: Vec<(String, bool)>,
+    /// the card whose abilities the side gets as an emblem (`EmblemOfCard`)
+    pub emblem: Option<String>,
+    /// the log line after the player's name (" starts with an edge: 25 life.")
+    pub log: Option<String>,
+    /// the edges that come in during the game, each once, on an "Emblem Twist" the side holds
+    pub timed: Vec<Timed>,
+}
+
+/// A timed twist (`CareerSetup.TimedTwist`, as `hostSetup` sends it): what it waits for, its rule and what it does
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Timed {
+    /// "turn", "life" or "cast"
+    pub when: String,
+    /// "turn": the game's turn number whose upkeep (or a later one) brings it
+    pub turn: Option<u32>,
+    /// "life": the life at or below which it triggers
+    pub life: Option<i32>,
+    /// "cast": the card's name
+    pub card: Option<String>,
+    /// whose life or spells it watches (`CareerTimedTwists.who`): "you", the human, or "opponent", the twist's holder
+    /// (the human too, for the human's own twists)
+    pub who: String,
+    /// its rule text, as Java writes it (`getRule()`)
+    pub rule: String,
+    /// the line it writes in the game log
+    pub message: Option<String>,
+    /// life its holder gains (negative: loses)
+    pub gain_life: i32,
+    /// the edge its holder gets (its `log`: " gets an edge: …")
+    pub then: Option<Box<Edge>>,
+}
+
+impl Timed {
+    fn of(v: &Value) -> Option<Timed> {
+        Some(Timed {
+            when: v["when"].as_str()?.to_string(),
+            turn: v["turn"].as_u64().map(|n| n as u32),
+            life: v["life"].as_i64().map(|n| n as i32),
+            card: v["card"].as_str().map(String::from),
+            who: v["who"].as_str().unwrap_or("opponent").to_string(),
+            rule: v["rule"].as_str().unwrap_or("").to_string(),
+            message: v["message"].as_str().map(String::from),
+            gain_life: v["gainLife"].as_i64().unwrap_or(0) as i32,
+            then: Edge::of(&v["then"]).map(Box::new),
+        })
+    }
+
+    fn json(&self) -> Value {
+        let mut v = json!({"when": self.when, "who": self.who, "rule": self.rule, "gainLife": self.gain_life});
+        if let Some(n) = self.turn {
+            v["turn"] = json!(n);
+        }
+        if let Some(n) = self.life {
+            v["life"] = json!(n);
+        }
+        if let Some(c) = &self.card {
+            v["card"] = json!(c);
+        }
+        if let Some(m) = &self.message {
+            v["message"] = json!(m);
+        }
+        if let Some(e) = &self.then {
+            v["then"] = e.json();
+        }
+        v
+    }
+
+    /// The engine's twist: what it triggers on (`you`: the human's seat, `holder`: the twist's), its rule and what
+    /// it does; none for one it can't watch
+    fn engine(&self, db: &CardDb, you: Option<Seat>, holder: Seat) -> Option<playmat_engine::career::Timed> {
+        use playmat_engine::card::Trigger;
+        let seat = if self.who == "you" { you? } else { holder };
+        let on = match self.when.as_str() {
+            "turn" => Trigger::CareerTurn { turn: self.turn? },
+            "life" => Trigger::CareerLife { seat, life: self.life? },
+            "cast" => Trigger::CareerCast { seat, card: self.card.clone()? },
+            _ => return None,
+        };
+        let twist = playmat_engine::career::Twist {
+            message: self.message.clone(),
+            then: self.then.as_ref().map(|e| e.engine(db)),
+            gain_life: self.gain_life,
+        };
+        Some(playmat_engine::career::Timed { on, rule: self.rule.clone(), twist: Arc::new(twist) })
+    }
+}
+
+/// A Career opponent's leanings, each -100 to 100 (`CareerSetup.Personality`, `ComputerPlayer6.applyPersonality`)
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct Personality {
+    pub aggression: i32,
+    pub risk: i32,
+    pub patience: i32,
+}
+
+/// What a Career table starts with: the human's edge (`you`), the opponent's, and the opponent's personality
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct CareerSetup {
+    pub you: Option<Edge>,
+    pub opponent: Option<Edge>,
+    pub personality: Option<Personality>,
+}
+
+impl Edge {
+    fn of(v: &Value) -> Option<Edge> {
+        if !v.is_object() {
+            return None;
+        }
+        let permanents = v["permanents"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|p| Some((p["name"].as_str()?.to_string(), p["tapped"].as_bool().unwrap_or(false))))
+                    .collect()
+            })
+            .unwrap_or_default();
+        Some(Edge {
+            life: v["life"].as_i64().map(|n| n as i32),
+            life_bonus: v["lifeBonus"].as_i64().unwrap_or(0) as i32,
+            cards: v["cards"].as_u64().unwrap_or(0) as u32,
+            permanents,
+            emblem: v["emblem"].as_str().map(String::from),
+            log: v["log"].as_str().map(String::from),
+            timed: v["timed"].as_array().map(|a| a.iter().filter_map(Timed::of).collect()).unwrap_or_default(),
+        })
+    }
+
+    fn json(&self) -> Value {
+        let permanents: Vec<Value> = self.permanents.iter().map(|(n, t)| json!({"name": n, "tapped": t})).collect();
+        let mut v = json!({"lifeBonus": self.life_bonus, "cards": self.cards, "permanents": permanents});
+        if let Some(life) = self.life {
+            v["life"] = json!(life);
+        }
+        if let Some(emblem) = &self.emblem {
+            v["emblem"] = json!(emblem);
+        }
+        if let Some(log) = &self.log {
+            v["log"] = json!(log);
+        }
+        if !self.timed.is_empty() {
+            v["timed"] = Value::Array(self.timed.iter().map(Timed::json).collect());
+        }
+        v
+    }
+
+    /// The edge as the engine plays it, with its cards: one the engine lacks is left out, as Java's
+    /// `CareerSetup.create` leaves out a card it can't find
+    fn engine(&self, db: &CardDb) -> playmat_engine::career::Edge {
+        playmat_engine::career::Edge {
+            life: self.life,
+            life_bonus: self.life_bonus,
+            cards: self.cards,
+            permanents: self.permanents.iter().filter_map(|(n, t)| Some((db.get(n)?, *t))).collect(),
+            emblem: self.emblem.as_ref().and_then(|n| db.get(n)),
+            log: self.log.clone(),
+        }
+    }
+}
+
+impl CareerSetup {
+    pub fn of(v: &Value) -> Option<CareerSetup> {
+        if !v.is_object() {
+            return None;
+        }
+        let p = &v["personality"];
+        let lean = |k: &str| p[k].as_i64().unwrap_or(0).clamp(-100, 100) as i32;
+        Some(CareerSetup {
+            you: Edge::of(&v["you"]),
+            opponent: Edge::of(&v["opponent"]),
+            personality: p.is_object().then(|| Personality {
+                aggression: lean("aggression"),
+                risk: lean("risk"),
+                patience: lean("patience"),
+            }),
+        })
+    }
+
+    pub fn json(&self) -> Value {
+        let mut v = json!({});
+        if let Some(e) = &self.you {
+            v["you"] = e.json();
+        }
+        if let Some(e) = &self.opponent {
+            v["opponent"] = e.json();
+        }
+        if let Some(p) = &self.personality {
+            v["personality"] = json!({"aggression": p.aggression, "risk": p.risk, "patience": p.patience});
+        }
+        v
+    }
 }
 
 impl Default for TableRules {
     fn default() -> Self {
-        TableRules { starting_life: 20, free_mulligans: 0, ai_skill: None, rollback: false, ai_pin: None }
+        TableRules {
+            starting_life: 20,
+            free_mulligans: 0,
+            ai_skill: None,
+            rollback: false,
+            ai_pin: None,
+            ai_playbook: None,
+            no_advice: None,
+            no_practice: None,
+            hints_left: None,
+            setup: None,
+        }
     }
 }
 
@@ -70,6 +292,11 @@ impl TableRules {
             ai_skill: v["aiSkill"].as_u64().map(|n| n as u32),
             rollback: v["rollbackTurns"].as_bool().unwrap_or(d.rollback),
             ai_pin: v["aiPin"].as_str().map(String::from),
+            ai_playbook: v["aiPlaybook"].as_str().map(String::from),
+            no_advice: v["noAdvice"].as_str().map(String::from),
+            no_practice: v["noPractice"].as_str().map(String::from),
+            hints_left: v["hintsLeft"].as_u64().map(|n| n as u32),
+            setup: CareerSetup::of(&v["setup"]),
         }
     }
 
@@ -80,13 +307,32 @@ impl TableRules {
         if let Some(pin) = &self.ai_pin {
             v["aiPin"] = json!(pin);
         }
+        if let Some(pb) = &self.ai_playbook {
+            v["aiPlaybook"] = json!(pb);
+        }
+        if let Some(why) = &self.no_advice {
+            v["noAdvice"] = json!(why);
+        }
+        if let Some(why) = &self.no_practice {
+            v["noPractice"] = json!(why);
+        }
+        if let Some(n) = self.hints_left {
+            v["hintsLeft"] = json!(n);
+        }
+        if let Some(setup) = &self.setup {
+            v["setup"] = setup.json();
+        }
         v
     }
 
     /// The AI's search for its skill: Java's AI looks less far at a lower skill (`ComputerPlayer6.maxDepth`); the
     /// lowest skills play the quick answers only. A pinned seat plays its pin.
     pub fn ai_config(&self) -> Option<Config> {
-        playmat_ai::entrants::seat(self.ai_skill, self.ai_pin.as_deref())
+        let mut cfg = playmat_ai::entrants::seat(self.ai_skill, self.ai_pin.as_deref())?;
+        if cfg.playbook.is_none() {
+            cfg.playbook = self.ai_playbook.clone();
+        }
+        Some(cfg)
     }
 }
 
@@ -385,8 +631,8 @@ struct Host {
     chooser: Option<Seat>,
     /// the rule texts of the triggers the open question asks to order, by place
     open_triggers: Vec<String>,
-    /// the open question, for advice
-    open_query: Option<Query>,
+    /// the open question, for advice, with the seat it's for (a controlled turn's: not the asked player's)
+    open_query: Option<(Seat, Query)>,
     /// the priority timer
     clock: Clock,
     /// the seat being asked, whose clock runs
@@ -404,6 +650,21 @@ struct Host {
     restart: Option<Game>,
     /// practice tools to run at the human's next priority: for whom, the tool, its card and amount
     practice: Vec<(Seat, String, Option<String>, i32)>,
+    /// the table's refusals: advice and practice tools (a ranked game's)
+    no_advice: Option<String>,
+    no_practice: Option<String>,
+    /// a practice tool was used: the game pays no Career progress (`CareerTally.taint`)
+    practiced: bool,
+    /// hints left (a Career game's), and how many were given: Java counts them at the end (`CareerService.assisted`)
+    hints_left: Option<u32>,
+    hints_given: u32,
+    /// the Career table's setup, played after the mulligans
+    setup: Option<CareerSetup>,
+    /// the AI's personality: the seed of its dice (the first game's, so a carried-on game rolls them again the same),
+    /// the turn it last leaned on, and the answers it gives in the AI's place
+    lean_seed: i64,
+    leaned_turn: u32,
+    lean_queue: std::collections::VecDeque<Answer>,
     /// the asked player is being asked at priority
     at_priority: bool,
     free_mulligans: u32,
@@ -550,6 +811,15 @@ impl Host {
             rollback_request: None,
             restart: None,
             practice: Vec::new(),
+            no_advice: start.rules.no_advice.clone(),
+            no_practice: start.rules.no_practice.clone(),
+            practiced: false,
+            hints_left: start.rules.hints_left,
+            hints_given: 0,
+            setup: first.rules.setup.clone(),
+            lean_seed: first.seed,
+            leaned_turn: 0,
+            lean_queue: std::collections::VecDeque::new(),
             at_priority: false,
             free_mulligans: first.rules.free_mulligans,
             replaying,
@@ -1236,6 +1506,7 @@ impl Host {
         // `GameImpl.rollbackTurnsExecution`
         self.inform(format!("<font color='#FF8C00'>Player request: Rolling back to start of turn {turn}</font>"));
         self.turn_starts.split_off(&(turn + 1));
+        self.turn_seen = 0;
         for p in &mut self.seats {
             p.undo_point = None;
         }
@@ -1338,6 +1609,14 @@ impl Host {
         self.log_seen = self.game.log.as_ref().map_or(0, Vec::len);
         let turn = self.game.turn;
         self.inform(format!("The game carries on from the start of turn {turn}."));
+        // Emit HOST_TURN for the resumed turn immediately so solo saves, "Try this turn again",
+        // and "Play an earlier turn" always have it (#482).
+        if turn > 0 && !self.game.over {
+            self.turn_seen = turn;
+            self.turn_line(self.game.active);
+        } else {
+            self.turn_seen = 0;
+        }
     }
 
     /// `HOST_TURN`: the line to this turn's start, for Java's saves (a solo table's)
@@ -1356,6 +1635,9 @@ impl Host {
 
     /// A practice tool for the seat's player, queued for their next priority; why not, or empty
     fn queue_practice(&mut self, seat: Seat, tool: String, card: Option<String>, amount: i32) -> String {
+        if let Some(why) = &self.no_practice {
+            return why.clone();
+        }
         if self.ai.is_none() || !self.seats[seat].human {
             return "Practice tools only work in a game against the computer.".into();
         }
@@ -1370,24 +1652,31 @@ impl Host {
             _ => return format!("Unknown practice tool: {tool}"),
         }
         self.practice.push((seat, tool, card, amount));
+        self.practiced = true;
         String::new()
     }
 
     /// `gameAdvise`: what the AI would do in the seat's place at the open question (`AdviceService.advise`)
     fn advise(&mut self, seat: Seat, skill: u32) -> Value {
+        if let Some(why) = &self.no_advice {
+            return advice_none(why);
+        }
+        if self.hints_left == Some(0) {
+            return advice_none("You've used this game's hints.");
+        }
         if self.ai.is_none() {
             return advice_none("Advice only works in a game against the computer.");
         }
-        let Some(q) = self.open_query.clone() else {
+        let Some((for_seat, q)) = self.open_query.clone() else {
             return advice_none("Ask while the game waits for you to act.");
         };
         let rules = TableRules { ai_skill: Some(skill), ..TableRules::default() };
         let mut seats = vec![None, None];
-        seats[seat] = rules.ai_config();
+        seats[for_seat] = rules.ai_config();
         let mut advisor = Table::new(seats);
         let began = Instant::now();
         let game = self.game.clone();
-        let a = advisor.answer(&game, seat, &q);
+        let a = advisor.answer(&game, for_seat, &q);
         let millis = began.elapsed().as_millis() as u64;
         let ids = &self.seats[seat].ids;
         let step = |text: String, o: ObjId| json!({"text": text, "objectId": ids.object(o), "targetIds": []});
@@ -1428,9 +1717,16 @@ impl Host {
             _ => ("NONE", "The AI has nothing to say about this question.".to_string(), vec![]),
         };
         let step_name = game.step.map(|s| s.name().to_string()).unwrap_or_default();
-        json!({"kind": kind, "text": text, "steps": steps, "millis": millis,
+        let mut advice = json!({"kind": kind, "text": text, "steps": steps, "millis": millis,
             "when": format!("Turn {}, {}", game.turn, step_name.to_lowercase()),
-            "reason": "The Rust AI's pick in your place."})
+            "reason": "The Rust AI's pick in your place."});
+        // a Career game counts its hints (`AdviceService.advise`): Java marks the game with them at its end
+        if let Some(left) = self.hints_left.as_mut() {
+            *left -= 1;
+            self.hints_given += 1;
+            advice["hintsLeft"] = json!(*left);
+        }
+        advice
     }
 
     fn play(&mut self, db: &CardDb) -> Ended {
@@ -1444,6 +1740,7 @@ impl Host {
         if !self.mulligans(first) {
             return self.finish();
         }
+        self.apply_setup(db);
         for seat in 0..2 {
             self.game.player_mut(seat).drawn = 0;
         }
@@ -1468,6 +1765,9 @@ impl Host {
                 break;
             }
             game = back;
+            // the turn gone back to leans again
+            self.leaned_turn = 0;
+            self.lean_queue.clear();
             let practice = std::mem::take(&mut self.practice);
             if !practice.is_empty() {
                 let mut d = HostDecider { host: self };
@@ -1480,6 +1780,25 @@ impl Host {
         }
         self.game = game;
         self.finish()
+    }
+
+    /// A Career table's edges, after the mulligans (`GameImpl.init` runs `CareerSetup.apply` there): each side's life,
+    /// life bonus, extra cards, permanents and emblem, its log line, then the "Emblem Twist" with its timed twists
+    fn apply_setup(&mut self, db: &CardDb) {
+        let Some(setup) = self.setup.clone() else { return };
+        let human = self.humans().first().copied();
+        let mut game = self.game.clone();
+        // in the game's player order, as Java's loop over the players
+        for seat in 0..2 {
+            let edge = if Some(seat) == human { &setup.you } else { &setup.opponent };
+            let Some(edge) = edge else { continue };
+            let mut d = HostDecider { host: self };
+            playmat_engine::career::edge(&mut game, &mut d, seat, &edge.engine(db));
+            let twists: Vec<_> = edge.timed.iter().filter_map(|t| t.engine(db, human, seat)).collect();
+            playmat_engine::career::twists_emblem(&mut game, seat, &twists);
+        }
+        self.game = game;
+        self.log();
     }
 
     /// The game's end: who won, `GAME_OVER`
@@ -1519,6 +1838,27 @@ impl Host {
         let mut summary = summary;
         // the replay is complete: Java lists it
         summary["replayEvents"] = json!(self.replay.as_mut().map(|r| r.finish()).unwrap_or(0));
+        // publicly revealed cards of human seats (battlefield, graveyard, exile, stack) for Bo3 AI sideboarding
+        let mut revealed: Vec<String> = Vec::new();
+        for seat in self.humans() {
+            for o in self.game.objs.iter() {
+                if o.owner == seat
+                    && matches!(
+                        o.zone,
+                        playmat_engine::state::Zone::Battlefield
+                            | playmat_engine::state::Zone::Graveyard
+                            | playmat_engine::state::Zone::Exile
+                            | playmat_engine::state::Zone::Stack
+                    )
+                    && !revealed.contains(&o.def.name)
+                {
+                    revealed.push(o.def.name.clone());
+                }
+            }
+        }
+        if !revealed.is_empty() {
+            summary["revealedHumanCards"] = json!(revealed);
+        }
         Ended { winner, turns: self.game.turn, reason, time_left, summary }
     }
 
@@ -1542,7 +1882,14 @@ impl Host {
                 json!({"life": p.life, "poison": poison})
             })
             .collect();
-        json!({"players": players, "tally": first, "tallies": tallies})
+        let mut summary = json!({"players": players, "tally": first, "tallies": tallies});
+        if self.practiced {
+            summary["taint"] = json!("practice tools were used");
+        }
+        if self.hints_given > 0 {
+            summary["hints"] = json!(self.hints_given);
+        }
+        summary
     }
 
     fn over(&mut self, _winner: Option<Seat>, message: &str) {
@@ -1738,6 +2085,64 @@ fn run_practice(game: &mut Game, tools: Vec<(Seat, String, Option<String>, i32)>
     }
 }
 
+/// A Career opponent's personality on its attack (`ComputerPlayer6.applyPersonality`), once the AI is done
+/// choosing attackers: aggression sends creatures that would only trade, risk ones that could die for nothing, and
+/// patience keeps the weakest back while the defender can hit back. What to click: creatures to add, attackers to
+/// take back.
+fn lean(game: &Game, seat: Seat, creatures: &[ObjId], p: Personality, rng: &mut JavaRandom) -> Vec<ObjId> {
+    let opp = game.opponent(seat);
+    let power = |id: ObjId| game.power_toughness(id).0;
+    let creature = |id: &ObjId| game.has_type(*id, CardType::Creature);
+    let blockers: Vec<ObjId> = game
+        .battlefield
+        .iter()
+        .copied()
+        .filter(|b| game.obj(*b).controller == opp && !game.obj(*b).tapped && creature(b))
+        .collect();
+    // every blocker that could kill the attacker dies to it too
+    let trades = |a: ObjId| {
+        let (ap, at) = game.power_toughness(a);
+        blockers.iter().all(|b| {
+            let (bp, bt) = game.power_toughness(*b);
+            !(bp >= at && ap < bt)
+        })
+    };
+    let mut attacking: Vec<ObjId> = game
+        .battlefield
+        .iter()
+        .copied()
+        .filter(|a| game.obj(*a).controller == seat && game.obj(*a).attacking.is_some())
+        .collect();
+    let mut moves = Vec::new();
+    for &c in creatures {
+        if attacking.contains(&c) || power(c) <= 0 {
+            continue;
+        }
+        let chance = if trades(c) { p.aggression } else { p.risk / 2 };
+        if chance > 0 && rng.next_int_bound(100) < chance {
+            moves.push(c);
+            attacking.push(c);
+        }
+    }
+    let hold = p.patience / 40;
+    let pressure = game.battlefield.iter().any(|o| game.obj(*o).controller == opp && creature(o) && power(*o) > 0);
+    if hold > 0 && pressure && attacking.len() > 1 {
+        attacking.sort_by_key(|a| power(*a));
+        for _ in 0..hold {
+            if attacking.len() <= 1 {
+                break;
+            }
+            let weakest = attacking.remove(0);
+            if moves.contains(&weakest) {
+                moves.retain(|m| *m != weakest);
+            } else if !game.must_attack(weakest) {
+                moves.push(weakest);
+            }
+        }
+    }
+    moves
+}
+
 /// Java's `Advice.none`
 fn advice_none(why: &str) -> Value {
     json!({"kind": "NONE", "text": why, "steps": []})
@@ -1772,21 +2177,54 @@ impl Decider for HostDecider<'_> {
                 }
             }
             // a new turn's start (a turn rolled back to starts again): the line to it, for a save
-            if game.turn != h.turn_seen {
+            if h.replaying.is_none() && game.turn != h.turn_seen {
                 h.turn_seen = game.turn;
                 h.game = game.clone();
                 h.turn_line(game.active);
             }
         }
-        // a turn another player controls (Emrakul, the Promised End): the controller has the player do nothing it
-        // needn't; what it must answer, the quick policy answers
-        if game.controlled_by.iter().any(|(p, c)| *p == seat && *c != seat) {
+        // who answers: the player whose turn another controls (Emrakul, the Promised End; Mindslaver) is answered by
+        // that one, as Java's `GameController.perform` sends the controlled player's questions to the controller
+        let me = game.turn_controller(seat);
+        if me != seat && !h.seats[me].human {
+            // the AI controlling a person's turn has them do nothing they needn't; what they must answer, the quick
+            // policy answers
             if let Query::Priority { .. } = q {
                 return Answer::Bool(false);
             }
             return h.table.answer(game, seat, q);
         }
-        if !h.seats[seat].human {
+        if me == seat && !h.seats[seat].human {
+            // a Career opponent's personality: after the AI's own attackers, the ones its leanings add or hold back
+            if let Query::Attackers { creatures } = q {
+                // what's left of another turn's (the engine stopped asking) isn't this one's
+                if h.leaned_turn != game.turn {
+                    h.lean_queue.clear();
+                }
+                if let Some(next) = h.lean_queue.pop_front() {
+                    h.table.record(game, q, &next);
+                    return next;
+                }
+                let a = h.table.answer(game, seat, q);
+                let personality = h.setup.as_ref().and_then(|s| s.personality);
+                if let (Some(p), true) =
+                    (personality, !matches!(a, Answer::Obj(_) | Answer::Stop) && h.leaned_turn != game.turn)
+                {
+                    h.leaned_turn = game.turn;
+                    // the turn's own dice: the same after an undo, a rollback or a carried-on game's prelude
+                    let mut dice = JavaRandom::new(h.lean_seed ^ ((game.turn as i64) << 24) ^ 0x5ca1_ab1e);
+                    let moves = lean(game, seat, creatures, p, &mut dice);
+                    if !moves.is_empty() {
+                        h.table.take_back();
+                        h.lean_queue.extend(moves.into_iter().map(Answer::Obj));
+                        h.lean_queue.push_back(a);
+                        let next = h.lean_queue.pop_front().unwrap();
+                        h.table.record(game, q, &next);
+                        return next;
+                    }
+                }
+                return a;
+            }
             // the AI's clock runs while it thinks at priority (`ComputerPlayer7.priority`)
             if !matches!(q, Query::Priority { .. }) || !h.clock.on() {
                 return h.table.answer(game, seat, q);
@@ -1818,23 +2256,23 @@ impl Decider for HostDecider<'_> {
             }
             // `HumanPlayer.priority`: a spell just cast (an ability just activated) passes at once when the player's
             // settings say so, unless they held priority for it
-            if let Some((obj, before)) = h.seats[seat].just_played.take() {
+            if let Some((obj, before)) = h.seats[me].just_played.take() {
                 let item = game.stack.iter().skip(before).find(|i| i.card == obj && i.controller == seat);
-                let settings = &h.seats[seat].settings;
+                let settings = &h.seats[me].settings;
                 let pass = match item {
                     Some(i) if i.ability.is_none() && i.delayed.is_none() => settings.pass_after_cast,
                     Some(_) => settings.pass_after_activation,
                     None => false,
                 };
-                if pass && !h.seats[seat].passing.holding {
-                    h.seats[seat].passing.holding = false;
+                if pass && !h.seats[me].passing.holding {
+                    h.seats[me].passing.holding = false;
                     h.table.record(game, q, &Answer::Bool(false));
                     return Answer::Bool(false);
                 }
             }
             // held for one action: the next priority asks again
-            h.seats[seat].passing.holding = false;
-            let p = &mut h.seats[seat];
+            h.seats[me].passing.holding = false;
+            let p = &mut h.seats[me];
             if p.passing.passes(game, seat, &p.settings) {
                 h.table.record(game, q, &Answer::Bool(false));
                 return Answer::Bool(false);
@@ -1843,7 +2281,7 @@ impl Decider for HostDecider<'_> {
         // `useFirstManaAbility`: a permanent with several mana abilities uses its first
         if let Query::ChooseAbility { source, abilities } = q {
             let def = &game.obj(*source).def;
-            if h.seats[seat].settings.use_first_mana_ability
+            if h.seats[me].settings.use_first_mana_ability
                 && abilities.len() > 1
                 && abilities.iter().all(|i| def.abilities.get(*i).is_some_and(is_mana_ability))
             {
@@ -1853,7 +2291,7 @@ impl Decider for HostDecider<'_> {
             }
         }
         if let Query::YesNo { message } = q {
-            if let Some((_, yes)) = h.seats[seat].auto_answers.iter().find(|(t, _)| message.contains(t.as_str())) {
+            if let Some((_, yes)) = h.seats[me].auto_answers.iter().find(|(t, _)| message.contains(t.as_str())) {
                 let a = Answer::Bool(*yes);
                 h.table.record(game, q, &a);
                 return a;
@@ -1863,7 +2301,7 @@ impl Decider for HostDecider<'_> {
             let rules: Vec<String> =
                 triggers.iter().map(|(source, rule)| rule.replace("{this}", game.obj(*source).name())).collect();
             loop {
-                let open = match auto_order(&h.seats[seat].order_first, &h.seats[seat].order_last, &rules) {
+                let open = match auto_order(&h.seats[me].order_first, &h.seats[me].order_last, &rules) {
                     Ok(i) => {
                         let a = Answer::Trigger(i);
                         h.table.record(game, q, &a);
@@ -1885,7 +2323,7 @@ impl Decider for HostDecider<'_> {
                 h.open_triggers = rules.clone();
                 let q2 = q.clone();
                 // no id: "put it last" was just set, so the order is looked at again
-                let answer = h.ask(seat, prompt, &|h, c| match c {
+                let answer = h.ask(me, prompt, &|h, c| match c {
                     Call::Uuid(None) => Some(Answer::Unknown),
                     _ => h.answer_of(&q2, c),
                 });
@@ -1904,8 +2342,8 @@ impl Decider for HostDecider<'_> {
         prompts::offer_names(&mut prompt, q, &h.cards);
         let q2 = q.clone();
         h.at_priority = matches!(q, Query::Priority { .. });
-        h.open_query = Some(q.clone());
-        let answer = h.ask(seat, prompt, &|h, c| h.answer_of(&q2, c));
+        h.open_query = Some((seat, q.clone()));
+        let answer = h.ask(me, prompt, &|h, c| h.answer_of(&q2, c));
         h.open_query = None;
         h.at_priority = false;
         match answer {
@@ -1913,11 +2351,11 @@ impl Decider for HostDecider<'_> {
                 h.table.record(game, q, &a);
                 if let Query::Priority { playable } = q {
                     if let Answer::Obj(o) | Answer::Ability(o, _) = &a {
-                        h.seats[seat].just_played = Some((*o, game.stack.len()));
+                        h.seats[me].just_played = Some((*o, game.stack.len()));
                     }
                     // a permanent clicked for its mana: undoable until the player does anything else
                     let mana = matches!(a, Answer::Obj(o) if !playable.contains(&o) && game.battlefield.contains(&o));
-                    let p = &mut h.seats[seat];
+                    let p = &mut h.seats[me];
                     if !mana {
                         p.undo_point = None;
                     } else if p.undo_point.is_none() {
@@ -1984,9 +2422,12 @@ fn is_owed_choice(q: &Query) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{auto_order, is_owed_choice, TableRules};
+    use super::{auto_order, is_owed_choice, lean, CareerSetup, Edge, Personality, TableRules};
     use playmat_engine::decide::Query;
+    use playmat_engine::rng::JavaRandom;
+    use playmat_engine::state::{Game, ObjId, Seat, Zone};
     use serde_json::json;
+    use std::sync::Arc;
 
     /// a ladder bot's pin rides the table's rules and a record's, and old rules without one read as before (#435)
     #[test]
@@ -2030,5 +2471,177 @@ mod tests {
         assert!(!is_owed_choice(&color));
         let named = Query::Choice { message: "Card name".into(), choices: Vec::new() };
         assert!(!is_owed_choice(&named));
+    }
+
+    /// a Career table's setup rides the rules and a record's
+    #[test]
+    fn a_career_setup_round_trips() {
+        let v = json!({"hintsLeft": 2, "noPractice": "Practice tools are off in Career games.",
+            "setup": {"opponent": {"life": 25, "lifeBonus": 0, "cards": 1,
+                "permanents": [{"name": "Llanowar Elves", "tapped": true}], "log": " starts with an edge: 25 life."},
+                "personality": {"aggression": 60, "risk": -20, "patience": 200}}});
+        let rules = TableRules::of(&v);
+        assert_eq!(rules.hints_left, Some(2));
+        let setup = rules.setup.clone().unwrap();
+        assert!(setup.you.is_none());
+        let edge = setup.opponent.clone().unwrap();
+        assert_eq!(edge.life, Some(25));
+        assert_eq!(edge.permanents, vec![("Llanowar Elves".to_string(), true)]);
+        assert_eq!(setup.personality, Some(Personality { aggression: 60, risk: -20, patience: 100 }), "clamped");
+        assert_eq!(TableRules::of(&rules.json()), rules);
+        let plain = TableRules::of(&json!({}));
+        assert!(plain.setup.is_none() && plain.hints_left.is_none());
+        assert!(plain.json().get("setup").is_none());
+        let _ = (CareerSetup::default(), Edge::default());
+    }
+
+    /// A turn the human controls (Emrakul, the Promised End): the controlled player's questions go to the human, whose
+    /// view lists that player's hand as whole cards and what they can play; the human casts from it, paying with a
+    /// dual land of theirs (Java's `GameController.perform`, `GameSessionPlayer.processControlledPlayers`)
+    #[test]
+    fn the_controller_plays_a_controlled_turn() {
+        use super::{Call, Event, Host, HostDecider, SeatStart, Start};
+        use playmat_engine::state::Step;
+        use serde_json::Value;
+        use std::sync::mpsc::channel;
+        use std::time::Duration;
+        let seat = |name: &str, human: bool| SeatStart {
+            player_id: format!("00000000-0000-0000-0000-00000000000{}", u8::from(!human)),
+            name: name.into(),
+            human,
+            deck: vec!["Forest".to_string(); 20],
+            printings: Vec::new(),
+            user_data: None,
+        };
+        let start = Start {
+            game_id: "c0n7r01d-0000-0000-0000-000000000000".into(),
+            seed: 5,
+            seats: vec![seat("Me", true), seat("Computer", false)],
+            rules: TableRules::default(),
+            timer: crate::Timer::default(),
+            chooser: None,
+            record: None,
+            replay: None,
+            log_to: None,
+            drop_stale: false,
+            prelude: None,
+            lines: false,
+        };
+        let (calls, calls_in) = channel();
+        let (events_out, events) = channel::<Event>();
+        let thread = std::thread::spawn(move || {
+            let db = playmat_engine::cards();
+            let mut h = Host::new(start, &db, "chat".into(), calls_in, events_out);
+            let mut game = h.game.clone();
+            let spell = game.create_obj(db.get("Call of the Conclave").unwrap().clone(), 1, Zone::Hand);
+            game.player_mut(1).hand.push(spell);
+            creature(&mut game, &db, "Temple Garden", 1);
+            creature(&mut game, &db, "Forest", 1);
+            game.turn = 2;
+            game.active = Some(1);
+            game.priority = Some(1);
+            game.step = Some(Step::PrecombatMain);
+            game.controlled_by.push((1, 0));
+            h.game = game.clone();
+            let mut d = HostDecider { host: &mut h };
+            playmat_engine::rules::play_from_priority(&mut game, &mut d, 0);
+            game
+        });
+        calls.send((0, Call::Join)).unwrap();
+        let card = |v: &Value, zone: &str, name: &str| -> Option<String> {
+            v[zone].as_object()?.iter().find(|(_, c)| c["name"] == name).map(|(id, _)| id.clone())
+        };
+        let mut cast = None;
+        let mut garden_tapped = false;
+        for _ in 0..200 {
+            let e = events.recv_timeout(Duration::from_secs(30)).expect("the host asks");
+            let prompt = !matches!(e.method.as_str(), "GAME_UPDATE" | "GAME_INIT" | "CHATMESSAGE");
+            if !prompt {
+                continue;
+            }
+            assert_eq!(e.to, Some(0), "the controlled player's questions go to its controller: {}", e.method);
+            let v = &e.data["gameView"];
+            let theirs = v["players"].as_array().unwrap().iter().find(|p| p["name"] == "Computer").unwrap();
+            let land = |name: &str| {
+                theirs["battlefield"]
+                    .as_object()
+                    .unwrap()
+                    .iter()
+                    .find(|(_, c)| c["name"] == name)
+                    .map(|(id, c)| (id.clone(), c["tapped"] == true))
+            };
+            match e.method.as_str() {
+                "GAME_SELECT" if cast.is_none() => {
+                    assert_eq!(v["priorityPlayerName"], "Computer");
+                    let hand = &v["opponentHands"]["Computer"];
+                    let id =
+                        card(&v["opponentHands"], "Computer", "Call of the Conclave").expect("their hand is listed");
+                    assert_eq!(hand[&id]["manaCostLeftStr"], serde_json::json!(["{G}", "{W}"]), "a whole card view");
+                    assert_eq!(hand[&id]["cardTypes"], serde_json::json!(["SORCERY"]));
+                    assert!(v["myHand"].as_object().unwrap().is_empty(), "the controller's own hand is theirs");
+                    let playable = &v["canPlayObjects"]["objects"][&id]["basicCastAbilities"][0]["value"];
+                    assert_eq!(playable, "Cast Call of the Conclave", "{}", v["canPlayObjects"]);
+                    cast = Some(id.clone());
+                    calls.send((0, Call::Uuid(Some(id)))).unwrap();
+                }
+                "GAME_PLAY_MANA" => {
+                    let (garden, tapped) = land("Temple Garden").unwrap();
+                    let next = if tapped { land("Forest").unwrap().0 } else { garden };
+                    calls.send((0, Call::Uuid(Some(next)))).unwrap();
+                }
+                "GAME_CHOOSE_ABILITY" => {
+                    // the dual land's white
+                    let (id, _) = e.data["choices"]
+                        .as_object()
+                        .unwrap()
+                        .iter()
+                        .find(|(_, r)| r.as_str().is_some_and(|r| r.contains("{W}")))
+                        .expect("a {W} ability");
+                    garden_tapped = true;
+                    calls.send((0, Call::Uuid(Some(id.clone())))).unwrap();
+                }
+                "GAME_SELECT" => {
+                    // the spell is cast: on the stack, theirs, paid with both lands
+                    assert!(card(v, "stack", "Call of the Conclave").is_some(), "{}", v["stack"]);
+                    assert!(land("Temple Garden").unwrap().1);
+                    assert!(land("Forest").unwrap().1);
+                    assert!(garden_tapped, "the dual land asked for its color");
+                    calls.send((0, Call::Quit)).unwrap();
+                    break;
+                }
+                m => panic!("unexpected {m}: {}", e.data),
+            }
+        }
+        let game = thread.join().unwrap();
+        assert!(cast.is_some());
+        assert!(game.player(1).hand.is_empty(), "cast from the controlled hand");
+    }
+
+    fn creature(game: &mut Game, db: &playmat_engine::card::CardDb, name: &str, seat: Seat) -> ObjId {
+        let id = game.create_obj(db.get(name).unwrap().clone(), seat, Zone::Battlefield);
+        Arc::make_mut(&mut game.battlefield).push(id);
+        id
+    }
+
+    /// `ComputerPlayer6.applyPersonality`: aggression sends what would only trade, risk what dies for nothing, patience
+    /// holds the weakest back
+    #[test]
+    fn a_personality_leans_on_the_attack() {
+        let db = playmat_engine::cards();
+        let mut game = Game::new(2, JavaRandom::new(7).state());
+        let bear = creature(&mut game, &db, "Runeclaw Bear", 0);
+        let elves = creature(&mut game, &db, "Llanowar Elves", 0);
+        // the defender's 2/2 trades with the bear, and kills the elves for nothing
+        let _blocker = creature(&mut game, &db, "Runeclaw Bear", 1);
+        let mut rng = JavaRandom::new(1);
+        let all_in = Personality { aggression: 100, risk: 200, patience: 0 };
+        assert_eq!(lean(&game, 0, &[bear, elves], all_in, &mut rng), vec![bear, elves]);
+        let trades_only = Personality { aggression: 100, risk: 0, patience: 0 };
+        assert_eq!(lean(&game, 0, &[bear, elves], trades_only, &mut rng), vec![bear]);
+        let timid = Personality { aggression: -100, risk: -100, patience: 0 };
+        assert!(lean(&game, 0, &[bear, elves], timid, &mut rng).is_empty());
+        // patience 40: with the defender able to hit back, the weakest of two attackers stays home
+        let patient = Personality { aggression: 100, risk: 200, patience: 40 };
+        assert_eq!(lean(&game, 0, &[bear, elves], patient, &mut rng), vec![bear]);
     }
 }

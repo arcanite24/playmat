@@ -1,0 +1,21 @@
+# name: Train200 guild-gu-midrange-4
+# archetype: midrange
+# colors: GU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Applied Biomancy
+4 Arbor Colossus
+3 Arcane Subtraction
+2 Cemetery Prowler
+4 Cobbled Lancer
+1 Force Away
+2 Hydrosurge
+3 Lovestruck Beast
+4 Patchwork Beastie
+4 Scrapskin Drake
+3 Trystan, Callous Cultivator
+3 Verdant Rebirth
+2 Whoosh!
+4 Dreamroot Cascade
+9 Forest
+7 Island
+4 Meditation Pools

@@ -1,0 +1,23 @@
+# name: Train450 tri-bgu-bigmana-5
+# archetype: bigmana
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Bamboo Grove Archer
+3 Cleanup Crew
+4 Enraged Ceratok
+2 Guardian of Tazeem
+2 Hydra Broodmaster
+1 Juggernaut
+3 Mindwrack Demon
+2 Pharika, God of Affliction
+4 Rookie Mistake
+2 Rush of Vitality
+4 Seymour Flux
+2 Tainted Treats
+4 Venerated Rotpriest
+6 Forest
+4 Guadosalam, Farplane Gateway
+3 Island
+4 Lumbering Falls
+4 Romulus
+4 Swamp

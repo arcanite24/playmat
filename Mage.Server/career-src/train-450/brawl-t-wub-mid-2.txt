@@ -1,0 +1,55 @@
+# name: Train450 brawl-t-wub-mid-2
+# archetype: brawl_mid
+# colors: WUB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aang, Swift Savior
+1 Alley Strangler
+1 Banishing Slash
+1 Beluna's Gatekeeper
+1 Citywatch Sphinx
+1 Countervailing Winds
+1 Crushing Disappointment
+1 Despark
+1 Duskmantle Guildmage
+1 Fell
+1 Festering Mummy
+1 Free Borg Revolutionaries
+1 Gilt-Leaf Winnower
+1 Gust Walker
+1 Hardened Tactician
+1 Heirloom Auntie
+1 Hope Estheim
+1 Kemba, Kha Enduring
+1 Kykar, Zephyr Awakener
+1 Kyodai, Soul of Kamigawa
+1 Linden, the Steadfast Queen
+1 Lyev Skyknight
+1 Paradox Shaper
+1 Puncturing Light
+1 Ranger's Hawk
+1 Rotting Regisaur
+1 Seymour Flux
+1 Starnheim Aspirant
+1 Test of Conviction
+1 Theorix Charm
+1 Thief of Sanity
+1 Unnerving Grasp
+1 Veteran Ice Climber
+1 Voracious Greatshark
+1 Wail of the Forgotten
+1 Yarok's Wavecrasher
+1 Abandoned Campground
+1 Avengers Hangar
+1 Concealed Courtyard
+1 Forlorn Flats
+1 Glacial Fortress
+1 Great Arashin City
+1 Ice Tunnel
+1 Idyllic Beachfront
+1 Insomnia, Crown City
+4 Island
+4 Plains
+1 Port Town
+1 Soured Springs
+4 Swamp
+1 Underground River

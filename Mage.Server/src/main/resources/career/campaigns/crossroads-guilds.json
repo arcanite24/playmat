@@ -1,0 +1,153 @@
+{
+  "id": "crossroads-guilds",
+  "name": "Guilds of the Crossroads",
+  "text": "Step beyond mono-color basics into two-color and three-color synergies across four chapters of tactical Constructed duels.",
+  "school": false,
+  "deckType": "Constructed - Freeform",
+  "gameType": "Two Player Duel",
+  "chapters": [
+    {
+      "id": "brass-gate",
+      "name": "Chapter 1: The Brass Gate",
+      "color": "W",
+      "text": "Learn tempo and board control with Boros aggression against Azorius and Mono-White defenders.",
+      "deck": "pioneer/act1-boros-aggro.dck",
+      "deckName": "Boros Vanguard",
+      "nodes": [
+        {
+          "id": "cg-c1-1",
+          "type": "duel",
+          "name": "Watchtower Recruits",
+          "text": "An orderly white-weenie garrison holds the inner square.",
+          "opponent": { "name": "Captain Lin", "deck": "pioneer/act2-mono-white-humans.dck", "skill": 3 },
+          "requires": [],
+          "reward": { "coins": 40, "xp": 140 },
+          "before": "Two colors mean sharper curves, stranger. Let's see if your mana holds up.",
+          "after": "Fast steel and burn — you read the combat step well."
+        },
+        {
+          "id": "cg-c1-choice",
+          "type": "choice",
+          "name": "Crossroads Market",
+          "text": "A traveling guild quartermaster offers supplies before you face the Senate Arbiter.",
+          "requires": ["cg-c1-1"],
+          "options": [
+            { "id": "coins", "name": "Guild Stipend", "text": "Take 85 coins for packs or the Boutique.", "reward": { "coins": 85 } },
+            { "id": "xp", "name": "Tactical Primer", "text": "Study dual-color mana curves for 220 XP.", "reward": { "xp": 220 } }
+          ]
+        },
+        {
+          "id": "cg-c1-2",
+          "type": "duel",
+          "boss": true,
+          "name": "The Senate Bench",
+          "text": "Azorius control punishes overextending into board sweepers.",
+          "opponent": { "name": "Arbiter Vance", "deck": "pioneer/budget-azorius-control.dck", "skill": 4 },
+          "requires": ["cg-c1-choice"],
+          "reward": { "coins": 50, "xp": 170 },
+          "before": "Commit every creature to the table and my verdict will clear the lane.",
+          "after": "Disciplined pressure — you held back just enough to close after the wipe."
+        }
+      ]
+    },
+    {
+      "id": "undergrowth-market",
+      "name": "Chapter 2: The Undergrowth Market",
+      "color": "B",
+      "text": "Pilot Golgari Midrange through grindy graveyard matchups where every card counts twice.",
+      "deck": "pioneer/budget-golgari-midrange.dck",
+      "deckName": "Golgari Undergrowth",
+      "nodes": [
+        {
+          "id": "cg-c2-1",
+          "type": "duel",
+          "name": "Alleyway Informants",
+          "text": "Dimir spies trade one-for-one while digging for card advantage.",
+          "opponent": { "name": "Whisperer Kael", "deck": "pioneer/budget-dimir-aggro.dck", "skill": 4 },
+          "requires": ["cg-c1-2"],
+          "reward": { "coins": 50, "xp": 180 },
+          "before": "Information wins wars. Let's see what you keep in hand.",
+          "after": "Even with empty hands, your topdecks hit harder."
+        },
+        {
+          "id": "cg-c2-2",
+          "type": "duel",
+          "boss": true,
+          "name": "The Ossuary Broker",
+          "text": "Rakdos graveyard engines turn discarded cards into lethal threats.",
+          "opponent": { "name": "Broker Maren", "deck": "pioneer/act3-rakdos-graveyard.dck", "skill": 5 },
+          "requires": ["cg-c2-1"],
+          "reward": { "coins": 60, "xp": 200 },
+          "before": "Your graveyard is only half-used. Watch what happens when death is fuel.",
+          "after": "Clean answers at the right moments — you earned passage to the Foundry."
+        }
+      ]
+    },
+    {
+      "id": "storm-foundry",
+      "name": "Chapter 3: The Storm Foundry",
+      "color": "U",
+      "text": "Chain spells with Izzet Prowess against towering Gruul beasts and blazing spirits.",
+      "deck": "pioneer/budget-izzet-prowess.dck",
+      "deckName": "Izzet Foundry",
+      "nodes": [
+        {
+          "id": "cg-c3-1",
+          "type": "duel",
+          "name": "Timberline Crushers",
+          "text": "Gruul midrange slams oversized tramplers ahead of schedule.",
+          "opponent": { "name": "Warchief Tora", "deck": "pioneer/act2-gruul-midrange.dck", "skill": 5 },
+          "requires": ["cg-c2-2"],
+          "reward": { "coins": 60, "xp": 210 },
+          "before": "Fancy tricks won't stop four-power tramplers!",
+          "after": "Two instants and my blocker vanished — alright, clever play."
+        },
+        {
+          "id": "cg-c3-2",
+          "type": "duel",
+          "boss": true,
+          "name": "Skyward Choir",
+          "text": "Azorius Spirits contest the stack with flash flyers and tempo counters.",
+          "opponent": { "name": "Cantor Rhea", "deck": "pioneer/act3-azorius-spirits.dck", "skill": 6 },
+          "requires": ["cg-c3-1"],
+          "reward": { "coins": 70, "xp": 230 },
+          "before": "Every spell you cast must pass our chorus first.",
+          "after": "You baited the Queller and raced right past our flyers."
+        }
+      ]
+    },
+    {
+      "id": "crossroads-summit",
+      "name": "Chapter 4: The Crossroads Summit",
+      "color": "R",
+      "text": "Step into three-color synergy with Jund Sacrifice to face the Crossroads champions.",
+      "deck": "standard/budget-jund-sacrifice.dck",
+      "deckName": "Jund Crucible",
+      "nodes": [
+        {
+          "id": "cg-c4-1",
+          "type": "duel",
+          "name": "The Greasefang Syndicate",
+          "text": "Abzan three-color recursion threatens explosive graveyard swings.",
+          "opponent": { "name": "Foreman Dax", "deck": "pioneer/act2-abzan-greasefang.dck", "skill": 6 },
+          "requires": ["cg-c3-2"],
+          "reward": { "coins": 75, "xp": 250 },
+          "before": "Three colors unlock engines no guild can build alone.",
+          "after": "Your sacrifice triggers shredded my setup before combat."
+        },
+        {
+          "id": "cg-c4-2",
+          "type": "duel",
+          "boss": true,
+          "name": "Arch-Guildmaster Sol",
+          "text": "The Crossroads champion brings tuned Izzet Phoenix spell chains to the final table.",
+          "opponent": { "name": "Arch-Guildmaster Sol", "deck": "pioneer/act3-izzet-phoenix.dck", "skill": 7 },
+          "requires": ["cg-c4-1"],
+          "reward": { "coins": 150, "xp": 400, "packs": 2, "wildcard": "rare" },
+          "before": "Every guild, every shard, every spell line converges here. Show me your mastery!",
+          "after": "Brilliant play. The Crossroads recognizes a true multicolor tactician."
+        }
+      ]
+    }
+  ]
+}

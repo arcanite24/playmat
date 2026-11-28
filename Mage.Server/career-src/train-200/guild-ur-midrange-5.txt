@@ -1,0 +1,23 @@
+# name: Train200 guild-ur-midrange-5
+# archetype: midrange
+# colors: UR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Ahn-Crop Crasher
+2 Arni Brokenbrow
+1 Brazen Scourge
+2 Burning Hands
+3 Cogwork Wrestler
+2 Dragon Turtle
+1 Dwarven Mauler
+2 Fateful End
+3 Harried Artisan
+4 Into the Roil
+2 Mardu Blazebringer
+3 Quantum Riddler
+1 Shivan Dragon
+4 Soul Sear
+4 Tiger-Seal
+7 Island
+9 Mountain
+4 Peculiar Lighthouse
+4 Shivan Reef

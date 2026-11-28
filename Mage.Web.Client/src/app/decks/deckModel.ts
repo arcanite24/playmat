@@ -2,11 +2,17 @@ import type { CardView, DeckCardLists as WireDeck } from '../../protocol/generat
 import type { DeckCardInfo, DeckCardLists, DeckCoverCard } from '../../core/decks/types';
 
 /**
- * Pure deck editing: entries are counted by printing (set + collector number), zones are main and side.
+ * Pure deck editing: entries are counted by printing (set + collector number), zones are the main deck, the sideboard
+ * (a commander deck's command zone) and the maybeboard, which is never played.
  * Every function returns a new deck; nothing here touches storage or the server.
  */
 
-export type DeckZone = 'cards' | 'sideboard';
+export type DeckZone = 'cards' | 'sideboard' | 'maybeboard';
+
+/** A zone's entries; the maybeboard is optional on saved decks. */
+export function zoneList(deck: DeckCardLists, zone: DeckZone): DeckCardInfo[] {
+  return deck[zone] ?? [];
+}
 
 export interface PrintingRef {
   cardName: string;
@@ -42,7 +48,7 @@ export function copyLimit(card: Pick<CardView, 'name' | 'rules' | 'superTypes'> 
   return 4;
 }
 
-/** Copies of a card by name across both zones (the copy limit counts every printing). */
+/** Copies of a card by name in the deck and sideboard (the copy limit counts every printing; the maybeboard never counts). */
 export function copiesByName(deck: DeckCardLists, name: string): number {
   const lower = name.toLowerCase();
   return [...deck.cards, ...deck.sideboard]
@@ -51,12 +57,12 @@ export function copiesByName(deck: DeckCardLists, name: string): number {
 }
 
 export function countZone(deck: DeckCardLists, zone: DeckZone): number {
-  return deck[zone].reduce((sum, entry) => sum + entry.amount, 0);
+  return zoneList(deck, zone).reduce((sum, entry) => sum + entry.amount, 0);
 }
 
 export function addCard(deck: DeckCardLists, zone: DeckZone, printing: PrintingRef, amount = 1): DeckCardLists {
   const key = entryKey(printing);
-  const list = deck[zone];
+  const list = zoneList(deck, zone);
   const index = list.findIndex((entry) => entryKey(entry) === key);
   const next = index >= 0
     ? list.map((entry, i) => (i === index ? { ...entry, amount: entry.amount + amount } : entry))
@@ -65,25 +71,81 @@ export function addCard(deck: DeckCardLists, zone: DeckZone, printing: PrintingR
 }
 
 export function removeCard(deck: DeckCardLists, zone: DeckZone, key: string, amount = 1): DeckCardLists {
-  const next = deck[zone]
+  const next = zoneList(deck, zone)
     .map((entry) => (entryKey(entry) === key ? { ...entry, amount: entry.amount - amount } : entry))
     .filter((entry) => entry.amount > 0);
   return { ...deck, [zone]: next };
 }
 
-export function moveCard(deck: DeckCardLists, from: DeckZone, key: string, amount = 1): DeckCardLists {
-  const entry = deck[from].find((candidate) => entryKey(candidate) === key);
-  if (!entry) return deck;
+/** Copies moved to another zone (by default between the main deck and the sideboard). */
+export function moveCard(deck: DeckCardLists, from: DeckZone, key: string, amount = 1, to: DeckZone = from === 'cards' ? 'sideboard' : 'cards'): DeckCardLists {
+  const entry = zoneList(deck, from).find((candidate) => entryKey(candidate) === key);
+  if (!entry || to === from) return deck;
   const moved = Math.min(amount, entry.amount);
-  const to: DeckZone = from === 'cards' ? 'sideboard' : 'cards';
   return addCard(removeCard(deck, from, key, moved), to, { cardName: entry.cardName, setCode: entry.setCode ?? '', cardNumber: entry.cardNumber ?? '' }, moved);
+}
+
+/** What a move between zones must respect: the card's copy limit, and (a commander deck) the command zone's rules. */
+export interface MoveRules {
+  /** copies of the card the deck and sideboard may hold together */
+  limit: number;
+  /** a commander deck's sideboard is its command zone: whether this card may command, and how many fit there */
+  command?: { allowed: boolean; max: number } | null;
+}
+
+/**
+ * How many of `amount` copies may move from one zone to another. Moves out of the maybeboard count against the copy
+ * limit (moves between deck and sideboard leave the count alone), and the command zone takes only a card that may
+ * command, while it has room. Zero refuses the move.
+ */
+export function movableCopies(deck: DeckCardLists, from: DeckZone, key: string, amount: number, to: DeckZone, rules: MoveRules): number {
+  const entry = zoneList(deck, from).find((candidate) => entryKey(candidate) === key);
+  if (!entry || to === from) return 0;
+  let moved = Math.min(amount, entry.amount);
+  if (rules.command && to === 'sideboard') {
+    if (!rules.command.allowed) return 0;
+    moved = Math.min(moved, rules.command.max - countZone(deck, 'sideboard'));
+  }
+  if (from === 'maybeboard' && to !== 'maybeboard') moved = Math.min(moved, rules.limit - copiesByName(deck, entry.cardName));
+  return Math.max(0, moved);
 }
 
 /** One entry switched to another printing of the same card; copies already on that printing are merged. */
 export function changePrinting(deck: DeckCardLists, zone: DeckZone, key: string, printing: PrintingRef): DeckCardLists {
-  const entry = deck[zone].find((candidate) => entryKey(candidate) === key);
+  const entry = zoneList(deck, zone).find((candidate) => entryKey(candidate) === key);
   if (!entry || entryKey(printing) === key) return deck;
   return addCard(removeCard(deck, zone, key, entry.amount), zone, printing, entry.amount);
+}
+
+/** The player's category for a card (by name), if any. */
+export function categoryOf(deck: Pick<DeckCardLists, 'categories'>, name: string): string | undefined {
+  return deck.categories?.[name.toLowerCase()];
+}
+
+/** A card put in one of the player's categories, or taken out of it (null or blank). */
+export function setCategory(deck: DeckCardLists, name: string, category: string | null): DeckCardLists {
+  const key = name.toLowerCase();
+  const label = category?.trim().slice(0, 40) ?? '';
+  const next = { ...(deck.categories ?? {}) };
+  if (label) next[key] = label;
+  else delete next[key];
+  return { ...deck, categories: Object.keys(next).length > 0 ? next : undefined };
+}
+
+/** A category renamed on every card in it; renaming onto another category merges the two. */
+export function renameCategory(deck: DeckCardLists, from: string, to: string): DeckCardLists {
+  const label = to.trim().slice(0, 40);
+  if (!deck.categories || !label || label === from) return deck;
+  const next = Object.fromEntries(Object.entries(deck.categories).map(([name, category]) => [name, category === from ? label : category]));
+  return { ...deck, categories: next };
+}
+
+/** Every category a card still in the deck (any zone) is in, alphabetically. */
+export function deckCategories(deck: DeckCardLists): string[] {
+  if (!deck.categories) return [];
+  const present = new Set([...deck.cards, ...deck.sideboard, ...zoneList(deck, 'maybeboard')].map((entry) => entry.cardName.toLowerCase()));
+  const labels = new Set(Object.entries(deck.categories).filter(([name]) => present.has(name)).map(([, category]) => category));
+  return [...labels].sort((a, b) => a.localeCompare(b));
 }
 
 export type DeckGroupKey = 'creatures' | 'planeswalkers' | 'spells' | 'artifacts' | 'enchantments' | 'lands' | 'unknown';
@@ -218,5 +280,6 @@ function pickCover(entries: DeckCardInfo[], info: ReadonlyMap<string, CardView>)
 /** The deck as the server reads it (set and number always present, even if empty). */
 export function toWire(deck: DeckCardLists): WireDeck {
   const wire = (entry: DeckCardInfo) => ({ cardName: entry.cardName, setCode: entry.setCode ?? '', cardNumber: entry.cardNumber ?? '', amount: entry.amount });
+  // the maybeboard and categories stay in the browser: the server only plays the deck
   return { name: deck.name, cards: deck.cards.map(wire), sideboard: deck.sideboard.map(wire) };
 }

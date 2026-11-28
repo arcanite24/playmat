@@ -11,17 +11,18 @@ import support from './en/support';
 import social from './en/social';
 import home from './en/home';
 import league from './en/league';
+import guide from './en/guide';
 import es from './es';
 import { createTranslator, type Message } from './translate';
 
-const english: Record<string, Message> = { ...core, ...settings, ...events, ...about, ...career, ...match, ...legal, ...whatsNew, ...support, ...social, ...home, ...league };
+const english: Record<string, Message> = { ...core, ...settings, ...events, ...about, ...career, ...match, ...legal, ...whatsNew, ...support, ...social, ...home, ...league, ...guide };
 
 const placeholders = (message: Message) =>
   new Set((typeof message === 'string' ? [message] : Object.values(message)).flatMap((text) => [...(text ?? '').matchAll(/\{(\w+)\}/g)].map((match) => match[1])));
 
 describe('catalogs', () => {
   test('English namespaces do not reuse a key', () => {
-    const count = [core, settings, events, about, career, match, legal, whatsNew, support, social, home, league].reduce((total, catalog) => total + Object.keys(catalog).length, 0);
+    const count = [core, settings, events, about, career, match, legal, whatsNew, support, social, home, league, guide].reduce((total, catalog) => total + Object.keys(catalog).length, 0);
     expect(Object.keys(english)).toHaveLength(count);
   });
 

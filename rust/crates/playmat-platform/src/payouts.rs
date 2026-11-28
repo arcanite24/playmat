@@ -720,6 +720,7 @@ impl Pay<'_, '_> {
         let mut tracks: Vec<String> =
             ["W", "U", "B", "R", "G", "multicolor", "colorless"].iter().map(|c| format!("color_{c}")).collect();
         tracks.extend(FORMATS.iter().map(|f| format!("format_{f}")));
+        tracks.extend(["gauntlet", "horde", "archenemy", "thg"].iter().map(|m| format!("mode_{m}")));
         for track in tracks {
             let games = stats.get(&format!("games_{track}")).copied().unwrap_or(0);
             let rank = ranks.iter().take_while(|needed| games >= **needed).count() as i64;
@@ -1330,10 +1331,20 @@ pub(crate) async fn refresh_quests(
             .await?;
         Ok(())
     };
+    // the quest track preference ("any", "constructed", "commander"); defaults to "any" on older schemas
+    let quest_pref: String = sqlx::query_scalar::<_, Option<String>>("SELECT quest_pref FROM profile WHERE user = ?")
+        .bind(&user)
+        .fetch_optional(&mut *db)
+        .await
+        .ok()
+        .flatten()
+        .flatten()
+        .filter(|p| p == "commander" || p == "constructed")
+        .unwrap_or_else(|| "any".to_owned());
     // the weekly slot
     if text(db, "quest_week").await?.as_deref() != Some(week) {
         let present: HashSet<String> = rows(db).await?.into_iter().map(|(_, quest)| quest).collect();
-        if let Some(quest) = pick_quest(book, &present, true, &format!("weekly/{user}/{week}")) {
+        if let Some(quest) = pick_quest_pref(book, &present, true, &quest_pref, &format!("weekly/{user}/{week}")) {
             put(db, WEEKLY_SLOT, &quest).await?;
         }
         sqlx::query("UPDATE profile SET quest_week = ? WHERE user = ?")
@@ -1356,7 +1367,10 @@ pub(crate) async fn refresh_quests(
         while used.contains(&slot) {
             slot += 1;
         }
-        let Some(quest) = pick_quest(book, &present, false, &format!("quest/{user}/{day}/{slot}")) else { break };
+        let Some(quest) = pick_quest_pref(book, &present, false, &quest_pref, &format!("quest/{user}/{day}/{slot}"))
+        else {
+            break;
+        };
         put(db, slot, &quest).await?;
         used.insert(slot);
         present.insert(quest);
@@ -1365,16 +1379,34 @@ pub(crate) async fn refresh_quests(
     Ok(())
 }
 
-/// `CareerProgress.pickQuest`: one of the templates not present, of the kind asked, by the purpose's roll
-pub(crate) fn pick_quest(book: &Book<'_>, exclude: &HashSet<String>, weekly: bool, purpose: &str) -> Option<String> {
+/// `CareerProgress.pickQuest`: one of the templates not present, of the kind and track asked, by the purpose's roll
+pub(crate) fn pick_quest_pref(
+    book: &Book<'_>,
+    exclude: &HashSet<String>,
+    weekly: bool,
+    pref: &str,
+    purpose: &str,
+) -> Option<String> {
+    let matches_pref = |t: &Value, p: &str| {
+        if p == "any" {
+            return true;
+        }
+        match t.get("track").and_then(Value::as_str).filter(|s| !s.is_empty()) {
+            None => true,
+            Some(track) => track == p,
+        }
+    };
     let choices: Vec<&str> = book
         .quests
         .as_array()?
         .iter()
-        .filter(|t| t["weekly"].as_bool().unwrap_or(false) == weekly)
+        .filter(|t| t["weekly"].as_bool().unwrap_or(false) == weekly && matches_pref(t, pref))
         .filter_map(|t| t["id"].as_str())
         .filter(|id| !exclude.contains(*id))
         .collect();
+    if choices.is_empty() && pref != "any" {
+        return pick_quest_pref(book, exclude, weekly, "any", purpose);
+    }
     if choices.is_empty() {
         return None;
     }

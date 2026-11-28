@@ -1,0 +1,24 @@
+# name: Train450 tri-brg-midrange-1
+# archetype: midrange
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Bayou Groff
+3 Call In a Professional
+2 Deal Gone Bad
+4 Defiler of Flesh
+2 Demon of Catastrophes
+2 Fell the Pheasant
+3 Fire Prophecy
+4 Giant Adephage
+3 Gladewalker Ritualist
+2 Jaspera Sentinel
+3 Old-Growth Dryads
+3 Phyrexian Obliterator
+1 Rise of the Deathbringer
+1 Unholy Heat
+6 Forest
+4 Foul Orchard
+2 Mountain
+4 Orion
+4 Swamp
+4 Temple of Malady

@@ -1,0 +1,55 @@
+# name: Train450 brawl-t-ubr-mid-2
+# archetype: brawl_mid
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Akoum Warrior
+1 Balin, Loremaster
+1 Blitz Leech
+1 Bloodfray Giant
+1 Bloodthirsty Aerialist
+1 Disdainful Stroke
+1 Drag to the Underworld
+1 Effortless Master
+1 Flamespeaker Adept
+1 Frostbite Pyromental
+1 Goblin Electromancer
+1 Grand Ball Guest
+1 Hazoret, Godseeker
+1 Hellish Sideswipe
+1 Hunted Nightmare
+1 Iroh's Demonstration
+1 Izzet Charm
+1 Lightning Volley
+1 Manhole Missile
+1 Marauding Mako
+1 Merfolk Windrobber
+1 Moonveil Regent
+1 Opt
+1 Planetary Bombardment
+1 Pyromantic Pilgrim
+1 Quicksilver, Brash Blur
+1 Rona's Vortex
+1 Rune-Brand Juggler
+1 Ruthless Deathfang
+1 Scavenger Regent
+1 Sibsig Icebreakers
+1 Sire of Insanity
+1 Stormclaw Rager
+1 The Scorpion God
+1 Weaselback Redcap
+1 Whirler Virtuoso
+1 Dismal Backwater
+3 Island
+6 Mountain
+1 Ominous Asylum
+1 Rakdos Guildgate
+1 Serpent's Pass
+1 Shipwreck Marsh
+1 Sinister Hideout
+1 Submerged Boneyard
+3 Swamp
+1 Temple of Deceit
+1 Temple of Epiphany
+1 Thundering Falls
+1 Underground River
+1 Vector, Imperial Capital

@@ -1,7 +1,7 @@
-import { Check, Coins, Gift, RefreshCw, Shuffle, Swords, Trophy, Upload } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
+import { Check, Coins, Compass, Crown, Gift, Layers, RefreshCw, Shuffle, Swords, Trophy, Upload } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { CareerAchievement, CareerCampaign, CareerOpponent, CareerProfile, CareerShopSet, CareerQuest, CareerQuests, CareerStarter, CareerWeekly } from '../../protocol/generated/views';
+import type { CareerAchievement, CareerCampaign, CareerOpponent, CareerProfile, CareerShopSet, CareerQuest, CareerQuests, CareerStarter, CareerState, CareerWeekly } from '../../protocol/generated/views';
 import { registerMessages, useT, type MessageKey } from '../i18n';
 import messages from '../i18n/en/career';
 import { usePlay } from '../stores/play';
@@ -13,10 +13,10 @@ import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
 import { achievementMoment, useCeremonies, type CeremonyMoment } from './ceremonies';
 import {
-  importCareer, rerollQuest, setShowProgress, startCareer, useCareerAchievements, useCareerLevels, useCareerLook, useCareerOpponents,
+  acquirePrecon, importCareer, rerollQuest, setQuestPref, setShowProgress, startCareer, useCareerAchievements, useCareerCommanderOpponents, useCareerLevels, useCareerLook, useCareerOpponents,
   useCareerQuests, useCareerShop, useCareerStarters, useCareerState, useCareerUnlocks, useCareerWeekly,
 } from './careerData';
-import { useCampaigns, useChallenge, useGauntlet, useHordes, useLimited, usePuzzles } from './careerModesData';
+import { useArchenemy, useCampaigns, useChallenge, useGauntlet, useHordes, useLimited, usePuzzles, useThg } from './careerModesData';
 import { focusNode, graduated, schoolsOf, storiesOf } from './careerModesModel';
 import { useRotatingSceneArt } from './careerScene';
 import { playCareerCue } from './careerSound';
@@ -69,7 +69,7 @@ export function CareerScreen() {
     );
   }
   const profile = state.data.profile;
-  if (profile?.collection) return <CareerHub profile={profile} />;
+  if (profile?.collection) return <CareerHub profile={profile} state={state.data} />;
   if (!optedIn) return <Intro />;
   return <StarterPicker />;
 }
@@ -99,16 +99,22 @@ function Intro() {
 function StarterPicker() {
   const t = useT();
   const starters = useCareerStarters(true);
+  const [track, setTrack] = useState<'constructed' | 'commander'>('constructed');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // the pick is for good, so it's confirmed first
   const [chosen, setChosen] = useState<CareerStarter | null>(null);
 
+  const visibleStarters = useMemo(() => (starters.data ?? []).filter((starter) => {
+    const isCommander = starter.track === 'commander' || (starter.cards ?? 60) === 100;
+    return track === 'commander' ? isCommander : !isCommander;
+  }), [starters.data, track]);
+
   async function pick(starter: CareerStarter) {
     setBusy(starter.id ?? null);
     setError(null);
     try {
-      await startCareer(starter.id!, starter.name ?? '');
+      await startCareer(starter.id!, starter.name ?? '', starter.format);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
       setBusy(null);
@@ -124,15 +130,37 @@ function StarterPicker() {
       <header className={styles.pageHead}>
         <div>
           <h1 className={styles.pageTitle}>{t('career.starter.title')}</h1>
-          <p className={styles.lead}>{t('career.starter.lead', { coins: 100 })}</p>
+          <p className={styles.lead}>{t('career.starter.leadTracks', { coins: 100 })}</p>
         </div>
         <ImportButton />
       </header>
+      <div className={styles.starterTracks} role="tablist" aria-label={t('career.starter.trackLabel')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={track === 'constructed'}
+          className={[styles.starterTrackBtn, track === 'constructed' ? styles.starterTrackOn : ''].join(' ')}
+          onClick={() => setTrack('constructed')}
+        >
+          <Swords size={16} aria-hidden="true" />
+          {t('career.starter.trackConstructed')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={track === 'commander'}
+          className={[styles.starterTrackBtn, track === 'commander' ? styles.starterTrackOn : ''].join(' ')}
+          onClick={() => setTrack('commander')}
+        >
+          <Crown size={16} aria-hidden="true" />
+          {t('career.starter.trackCommander')}
+        </button>
+      </div>
       {error && <p className={styles.error} role="alert">{error}</p>}
       {starters.isPending && <p className={styles.note}>{t('career.loading')}</p>}
-      {starters.data?.length === 0 && <p className={styles.note}>{t('career.starter.none')}</p>}
+      {!starters.isPending && visibleStarters.length === 0 && <p className={styles.note}>{t('career.starter.none')}</p>}
       <ul className={styles.starters}>
-        {starters.data?.map((starter) => (
+        {visibleStarters.map((starter) => (
           <li key={starter.id}>
             <button type="button" className={styles.starter} onClick={() => setChosen(starter)} disabled={busy !== null} aria-busy={busy === starter.id || undefined}>
               <span className={styles.starterArt}>
@@ -196,17 +224,34 @@ function ImportButton() {
   );
 }
 
-/** The Career's hub: the next duel up front, every mode as a tile, the day's quests at the side. */
-function CareerHub({ profile }: { profile: CareerProfile }) {
+type CareerTrack = 'overview' | 'constructed' | 'commander' | 'pve';
+
+function savedTrack(user: string, fallback: CareerTrack): CareerTrack {
+  try {
+    const raw = localStorage.getItem(`playmat.career.track.${user.toLowerCase()}`);
+    if (raw === 'overview' || raw === 'constructed' || raw === 'commander' || raw === 'pve') return raw;
+  } catch {
+    // ignore storage errors
+  }
+  return fallback;
+}
+
+/** The Career's track-aware command hub: switcher on top, adaptive hero up front, mode tiles, and quests at the side. */
+function CareerHub({ profile, state }: { profile: CareerProfile; state: CareerState }) {
   const t = useT();
   const navigate = useNavigate();
+  const user = useSession((session) => session.userName);
+  const starters = useCareerStarters(true);
   const opponents = useCareerOpponents(true);
+  const commanderOpponents = useCareerCommanderOpponents(true);
   const campaigns = useCampaigns(true);
   const gauntlet = useGauntlet(true);
   const puzzles = usePuzzles(true);
   const limited = useLimited(true);
   const challenge = useChallenge(true);
   const hordes = useHordes(true);
+  const archenemy = useArchenemy(true);
+  const thg = useThg(true);
   const shop = useCareerShop(true);
   const capsules = useCapsuleSummary(true);
   const achievements = useCareerAchievements(true);
@@ -215,8 +260,45 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
   const deck = useCareerDeck(profile);
   const playing = usePlay((play) => play.phase !== 'idle');
   const [versus, setVersus] = useState<CareerOpponent | null>(null);
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [prefBusy, setPrefBusy] = useState(false);
+
+  const commanderStarters = useMemo(
+    () => (starters.data ?? []).filter((starter) => starter.track === 'commander' || (starter.cards ?? 60) === 100),
+    [starters.data],
+  );
+  const startedCommander = useMemo(
+    () => commanderStarters.some((starter) => starter.id === profile.starter),
+    [commanderStarters, profile.starter],
+  );
+  const [track, setTrack] = useState<CareerTrack>(() => savedTrack(user, startedCommander ? 'commander' : 'overview'));
+
+  function pickTrack(nextTrack: CareerTrack) {
+    setTrack(nextTrack);
+    try {
+      localStorage.setItem(`playmat.career.track.${user.toLowerCase()}`, nextTrack);
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  async function onQuestPref(pref: 'any' | 'constructed' | 'commander') {
+    if (prefBusy || (state.questPref ?? 'any') === pref) return;
+    setPrefBusy(true);
+    try {
+      await setQuestPref(pref);
+      notify(t('career.quests.prefSaved'), t(`career.quests.pref.${pref}` as MessageKey));
+    } catch (reason) {
+      notify(t('career.failed'), reason instanceof Error ? reason.message : String(reason), 'error');
+    } finally {
+      setPrefBusy(false);
+    }
+  }
+
   const roster = useMemo(() => opponents.data ?? [], [opponents.data]);
   const next = useMemo(() => nextOpponent(roster), [roster]);
+  const commanderRoster = useMemo(() => commanderOpponents.data ?? [], [commanderOpponents.data]);
+  const nextCommander = useMemo(() => nextOpponent(commanderRoster), [commanderRoster]);
   const still = useStill();
   useUnlockMoments(roster, campaigns.data, achievements.data, shop.data, opponents.isSuccess && campaigns.isSuccess && achievements.isSuccess && shop.isSuccess);
 
@@ -243,22 +325,65 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
   const packs = profile.packTokens ?? 0;
   const price = shop.data?.[0]?.price ?? 100;
 
-  const tiles: Tile[] = [
+  const activeCommanderSaved = useMemo(
+    () => (deck.isCommander ? deck.activeSaved : deck.commanderDecks[0] ?? null),
+    [deck.isCommander, deck.activeSaved, deck.commanderDecks],
+  );
+  const commanderCard = activeCommanderSaved?.deck?.sideboard?.[0];
+  const commanderCover = commanderCard?.cardName
+    ? { name: commanderCard.cardName, setCode: commanderCard.setCode, cardNumber: commanderCard.cardNumber }
+    : commanderStarters[0]?.cover ?? HUB_ART.league;
+
+  const allTiles: (Tile & { tracks: CareerTrack[] })[] = [
     {
       to: '/career/opponents', title: t('career.nav.home'), art: next?.cover ?? null, artName: next?.name ?? '',
       status: t('career.hub.opponents', { beaten: beatenCount(roster), total: roster.length }),
+      tracks: ['overview', 'constructed'],
     },
     {
       to: '/career/ranked', title: t('career.ranked.title'), art: HUB_ART.ranked, artName: '',
       status: t('career.hub.ranked'),
+      tracks: ['overview', 'constructed'],
     },
     {
       to: '/career/league', title: t('career.hub.leagueTitle'), art: HUB_ART.league, artName: '',
       status: t('career.hub.league'),
+      tracks: ['overview', 'constructed'],
+    },
+    {
+      to: '/career/opponents?track=commander', title: t('career.ladder.track.commander'), art: nextCommander?.cover ?? commanderCover, artName: nextCommander?.name ?? '',
+      status: t('career.hub.opponents', { beaten: beatenCount(commanderRoster), total: commanderRoster.length }),
+      tracks: ['commander'],
+    },
+    {
+      to: '/career/ranked?format=commander&queue=pod', title: t('career.hub.commanderRankedTitle'), art: HUB_ART.ranked, artName: '',
+      status: t('career.hub.commanderRanked'),
+      tracks: ['commander'],
+    },
+    {
+      to: '/career/league?format=commander', title: t('career.hub.commanderLeagueTitle'), art: HUB_ART.league, artName: '',
+      status: t('career.hub.commanderLeague'),
+      tracks: ['commander'],
+    },
+    {
+      to: '/career/deck', title: t('career.hub.commanderDeckTitle'), art: commanderCover, artName: commanderCard?.cardName ?? '',
+      status: deck.commanderDecks.length > 0
+        ? t('career.hub.commanderDecks', { count: deck.commanderDecks.length })
+        : t('career.hub.commanderDeckStart'),
+      tracks: ['commander'],
+    },
+    {
+      to: '/career/shop?cat=precons', title: t('career.shop.preconsTitle'), art: commanderStarters[1]?.cover ?? HUB_ART.shop, artName: '',
+      status: state.commanderPreconGift
+        ? t('career.hub.preconGiftShort')
+        : t('career.hub.preconShop', { owned: state.ownedPrecons?.length ?? 0, total: commanderStarters.length || 6 }),
+      badge: state.commanderPreconGift ? t('career.hub.freeBadge') : undefined,
+      tracks: ['commander'],
     },
     {
       to: '/career/campaign', title: t('career.modes.campaign'), art: chapter.node?.cover ?? null, artName: chapter.node?.name ?? '',
       status: chapter.current ? t('career.hub.campaign', { chapter: chapter.current.name ?? '', done: chapter.campaign?.done ?? 0, total: chapter.campaign?.total ?? 0 }) : t('career.hub.campaignDone'),
+      tracks: ['overview', 'constructed', 'pve'],
     },
     ...(schools.length > 0 ? [{
       to: school.current ? `/career/academy/${school.current.id}` : '/career/academy', title: t('career.academy.title'),
@@ -266,15 +391,18 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
       status: school.current
         ? t('career.hub.academy', { school: school.current.name ?? '', done: school.current.bosses ?? 0, total: school.current.chapters?.length ?? 4 })
         : t('career.hub.academyOpen', { open: schools.filter((item) => item.open).length, total: schools.length }),
+      tracks: ['overview', 'constructed', 'pve'] as CareerTrack[],
     }] : []),
     {
       to: '/career/gauntlet', title: t('career.modes.gauntlet'), art: run?.next?.cover ?? HUB_ART.gauntlet, artName: run?.next?.name ?? '',
       status: runOn ? t('career.hub.gauntletRun', { wins: run?.wins ?? 0 }) : t('career.hub.gauntletEntry', { coins: gauntlet.data?.entryCoins ?? 0 }),
       badge: runOn ? t('career.hub.inProgress') : undefined,
+      tracks: ['overview', 'commander', 'pve'],
     },
     {
       to: '/career/puzzles', title: t('career.modes.puzzles'), art: HUB_ART.puzzles, artName: '',
       status: t('career.hub.puzzles', { solved, total: puzzles.data?.length ?? 0 }),
+      tracks: ['overview', 'pve'],
     },
     {
       to: '/career/limited', title: t('career.modes.limited'), art: HUB_ART.limited, artName: '',
@@ -282,41 +410,203 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
         ? t('career.hub.limitedRun', { wins: limitedRun.wins ?? 0, losses: limitedRun.losses ?? 0 })
         : t('career.hub.limitedEntry', { sealed: limited.data?.sealedEntry ?? 0, draft: limited.data?.draftEntry ?? 0 }),
       badge: limitedRun && limitedRun.state === 'active' ? t('career.hub.inProgress') : undefined,
+      tracks: ['overview', 'pve'],
     },
     {
       to: '/career/challenge', title: t('career.modes.challenge'), art: challenge.data?.cover ?? null, artName: challenge.data?.opponentName ?? '',
       status: challenge.data?.won ? t('career.hub.challengeWon') : challenge.data?.name ?? '',
+      tracks: ['overview', 'commander', 'pve'],
     },
     ...((hordes.data ?? []).length > 0 ? [{
       to: '/career/hordes', title: t('career.modes.hordes'), art: (hordes.data ?? []).find((item) => !item.beaten)?.cover ?? hordes.data?.[0]?.cover ?? null, artName: '',
       status: t('career.horde.beatenCount', { beaten: (hordes.data ?? []).filter((item) => item.beaten).length, total: hordes.data?.length ?? 0 }),
+      tracks: ['overview', 'commander', 'pve'] as CareerTrack[],
+    }] : []),
+    ...((archenemy.data?.encounters ?? []).length > 0 ? [{
+      to: '/career/archenemy', title: t('career.archenemy.title'), art: (archenemy.data?.encounters ?? []).find((item) => !item.beaten)?.cover ?? archenemy.data?.encounters?.[0]?.cover ?? null, artName: '',
+      status: t('career.horde.beatenCount', { beaten: (archenemy.data?.encounters ?? []).filter((item) => item.beaten).length, total: archenemy.data?.encounters?.length ?? 0 }),
+      tracks: ['overview', 'commander', 'pve'] as CareerTrack[],
+    }] : []),
+    ...((thg.data?.pairs ?? []).length > 0 ? [{
+      to: '/career/thg', title: t('career.thg.title'), art: (thg.data?.pairs ?? []).find((item) => !item.beaten)?.cover ?? thg.data?.pairs?.[0]?.cover ?? null, artName: '',
+      status: t('career.horde.beatenCount', { beaten: (thg.data?.pairs ?? []).filter((item) => item.beaten).length, total: thg.data?.pairs?.length ?? 0 }),
+      tracks: ['overview', 'commander', 'pve'] as CareerTrack[],
     }] : []),
     ...(capsules ? [{
       to: '/career/capsules', title: t('capsules.title'), art: null, artName: '', image: capsules.art,
       status: t('capsules.hub', { have: capsules.have, total: capsules.total }),
       badge: capsules.tokens > 0 ? t('capsules.hubTokens', { count: capsules.tokens }) : undefined,
+      tracks: ['overview', 'commander'] as CareerTrack[],
     }] : []),
     {
-      to: '/career/shop', title: t('career.nav.shop'), art: HUB_ART.shop, artName: '',
+      to: track === 'commander' ? '/career/shop?cat=commander' : '/career/shop', title: t('career.nav.shop'), art: HUB_ART.shop, artName: '',
       status: packs > 0 ? t('career.hub.shopFree', { count: packs }) : t('career.hub.shop', { price }),
       badge: packs > 0 ? t('career.hub.packs', { count: packs }) : undefined,
+      tracks: ['overview', 'constructed', 'commander'],
     },
     {
       to: '/career/collection', title: t('career.nav.collection'), art: HUB_ART.collection, artName: '',
       status: t('career.hub.collection', { count: deck.cardCount }),
+      tracks: ['overview', 'constructed', 'commander'],
     },
     {
       to: '/career/progress', title: t('career.nav.progress'), art: HUB_ART.progress, artName: '',
       status: t('career.hub.progress', { level: profile.level ?? 1, earned }),
+      tracks: ['overview', 'constructed', 'commander', 'pve'],
     },
   ];
+  const tiles = allTiles.filter((tile) => tile.tracks.includes(track));
   // the mat behind the hub turns through the next duel and the modes' art
-  useRotatingSceneArt([next?.cover ?? deck.cover, ...tiles.map((tile) => tile.art)], still);
+  useRotatingSceneArt([track === 'commander' ? commanderCover : next?.cover ?? deck.cover, ...tiles.map((tile) => tile.art)], still);
+
+  const trackTabs: { id: CareerTrack; label: MessageKey; icon: ReactNode }[] = [
+    { id: 'overview', label: 'career.track.overview', icon: <Compass size={15} aria-hidden="true" /> },
+    { id: 'constructed', label: 'career.track.constructed', icon: <Swords size={15} aria-hidden="true" /> },
+    { id: 'commander', label: 'career.track.commander', icon: <Crown size={15} aria-hidden="true" /> },
+    { id: 'pve', label: 'career.track.pve', icon: <Layers size={15} aria-hidden="true" /> },
+  ];
+
+  const questPref = state.questPref ?? 'any';
 
   return (
     <div className={hub.hub}>
+      <div className={hub.tracksBar}>
+        <div className={hub.tracks} role="tablist" aria-label={t('career.track.switcher')}>
+          {trackTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={track === tab.id}
+              className={[hub.trackTab, track === tab.id ? hub.trackTabOn : ''].join(' ')}
+              onClick={() => pickTrack(tab.id)}
+              data-nav
+            >
+              {tab.icon}
+              {t(tab.label)}
+            </button>
+          ))}
+        </div>
+        {state.commanderPreconGift && (
+          <button type="button" className={hub.giftBanner} onClick={() => setGiftOpen(true)} data-nav>
+            <Gift size={15} aria-hidden="true" />
+            {t('career.hub.claimFreePrecon')}
+          </button>
+        )}
+      </div>
+
       <section className={hub.hero} aria-labelledby="hub-next">
-        {next ? (
+        {track === 'commander' ? (
+          state.commanderPreconGift ? (
+            <>
+              <PortraitCard
+                name={commanderStarters[0]?.name ?? t('career.track.commander')}
+                colors={commanderStarters[0]?.colors}
+                cover={commanderStarters[0]?.cover ?? HUB_ART.league}
+                size="lg"
+                className={[hub.heroCard, motion.deal].join(' ')}
+                onPick={() => setGiftOpen(true)}
+                label={t('career.hub.claimFreePrecon')}
+              />
+              <div className={hub.heroText}>
+                <p className={hub.kicker}>{t('career.track.commander')} · {t('career.hub.freeBadge')}</p>
+                <h2 id="hub-next" className={hub.heroName}>{t('career.hub.commanderGiftTitle')}</h2>
+                <p className={hub.heroLine}>{t('career.hub.commanderGiftLead')}</p>
+                <div className={hub.heroActions}>
+                  <Button variant="decision" size="xl" icon={<Gift size={22} />} onClick={() => setGiftOpen(true)} data-nav>
+                    {t('career.hub.claimFreePrecon')}
+                  </Button>
+                  <Button variant="print" size="lg" onClick={() => navigate('/career/shop?cat=commander')} data-nav>
+                    {t('career.shop.commanderPacks')}
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <PortraitCard
+                name={commanderCard?.cardName ?? activeCommanderSaved?.name ?? t('career.track.commander')}
+                cover={commanderCover}
+                size="lg"
+                className={[hub.heroCard, motion.deal].join(' ')}
+                onPick={() => navigate('/career/deck')}
+                label={t('career.deck.edit')}
+              />
+              <div className={hub.heroText}>
+                <p className={hub.kicker}>{t('career.track.commander')} · {t('career.hub.commanderHeroKicker')}</p>
+                <h2 id="hub-next" className={hub.heroName}>{activeCommanderSaved?.name ?? t('career.hub.commanderDeckTitle')}</h2>
+                <p className={hub.heroLine}>
+                  {commanderCard?.cardName ? t('career.hub.commanderLead', { commander: commanderCard.cardName }) : t('career.hub.commanderDeckStart')}
+                </p>
+                <div className={hub.heroActions}>
+                  <Button variant="decision" size="xl" icon={<Crown size={22} />} onClick={() => navigate('/career/opponents?track=commander')} data-nav>
+                    {t('career.ladder.track.commander')}
+                  </Button>
+                  <Button variant="print" size="lg" onClick={() => navigate('/career/ranked?format=commander&queue=pod')} data-nav>
+                    {t('career.ranked.queue.pod')}
+                  </Button>
+                  <Button variant="quiet" size="lg" onClick={() => navigate('/career/deck')} data-nav>
+                    {t('career.deck.edit')}
+                  </Button>
+                </div>
+                {deck.commanderDecks.length > 0 && (
+                  <div className={hub.deckPlate}>
+                    <span>
+                      {deck.commanderDecks.length > 1 ? (
+                        <select
+                          className={hub.deckSelect}
+                          aria-label={t('career.decks.choose')}
+                          value={activeCommanderSaved?.id ?? ''}
+                          onChange={(event) => void deck.selectDeck(event.target.value).catch((error) => notify(t('career.decks.switchFailed'), error instanceof Error ? error.message : String(error), 'error'))}
+                          data-nav
+                        >
+                          {deck.commanderDecks.map((item) => (
+                            <option key={item.id} value={item.id}>{item.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <b>{activeCommanderSaved?.name ?? t('career.nav.deck')}</b>
+                      )}
+                      <small>{deck.isCommander && deck.problem ? deck.problem : t('career.hub.commanderCards', { count: ((activeCommanderSaved?.deck?.cards ?? []).reduce((s, c) => s + (c.amount ?? 0), 0)) + ((activeCommanderSaved?.deck?.sideboard ?? []).reduce((s, c) => s + (c.amount ?? 0), 0)) })}</small>
+                    </span>
+                    <Button variant="quiet" size="sm" onClick={() => navigate('/career/deck')} data-nav>{t('career.deck.edit')}</Button>
+                  </div>
+                )}
+              </div>
+            </>
+          )
+        ) : track === 'pve' ? (
+          <>
+            <PortraitCard
+              name={runOn ? (run?.next?.name ?? t('career.modes.gauntlet')) : t('career.modes.gauntlet')}
+              cover={runOn ? (run?.next?.cover ?? HUB_ART.gauntlet) : (challenge.data?.cover ?? HUB_ART.gauntlet)}
+              size="lg"
+              className={[hub.heroCard, motion.deal].join(' ')}
+              onPick={() => navigate(runOn ? '/career/gauntlet' : '/career/hordes')}
+              label={t('career.modes.gauntlet')}
+            />
+            <div className={hub.heroText}>
+              <p className={hub.kicker}>{t('career.track.pve')}</p>
+              <h2 id="hub-next" className={hub.heroName}>{runOn ? t('career.modes.gauntlet') : t('career.hub.pveHeroTitle')}</h2>
+              <p className={hub.heroLine}>
+                {runOn
+                  ? t('career.hub.gauntletRun', { wins: run?.wins ?? 0 })
+                  : t('career.hub.pveHeroLead')}
+              </p>
+              <div className={hub.heroActions}>
+                <Button variant="decision" size="xl" icon={<Swords size={22} />} onClick={() => navigate('/career/gauntlet')} data-nav>
+                  {runOn ? t('career.hub.continueRun') : t('career.modes.gauntlet')}
+                </Button>
+                <Button variant="print" size="lg" onClick={() => navigate('/career/limited')} data-nav>
+                  {t('career.modes.limited')}
+                </Button>
+                <Button variant="quiet" size="lg" onClick={() => navigate('/career/hordes')} data-nav>
+                  {t('career.modes.hordes')}
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : next ? (
           <>
             <PortraitCard
               name={next.name ?? ''}
@@ -376,7 +666,23 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
 
       <aside className={hub.side}>
         <section className={[hub.panel, motion.deal].join(' ')} style={dealStyle(3)}>
-          <h2 className={styles.cardLabel}>{t('career.quests')}</h2>
+          <div className={hub.questHead}>
+            <h2 className={styles.cardLabel}>{t('career.quests')}</h2>
+            <div className={hub.questPref} role="group" aria-label={t('career.quests.prefLabel')}>
+              {(['any', 'constructed', 'commander'] as const).map((pref) => (
+                <button
+                  key={pref}
+                  type="button"
+                  disabled={prefBusy}
+                  aria-pressed={questPref === pref}
+                  className={[hub.questPrefBtn, questPref === pref ? hub.questPrefOn : ''].join(' ')}
+                  onClick={() => void onQuestPref(pref)}
+                >
+                  {t(`career.quests.pref.${pref}` as MessageKey)}
+                </button>
+              ))}
+            </div>
+          </div>
           {quests.isPending ? <p className={styles.small}>{t('career.loading')}</p> : <QuestList quests={quests.data ?? undefined} />}
         </section>
         <section className={[hub.panel, motion.deal].join(' ')} style={dealStyle(4)}>
@@ -386,7 +692,64 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
       </aside>
 
       {versus && <RosterVersus opponent={versus} deck={deck} onClose={() => setVersus(null)} />}
+      <PreconGiftDialog
+        open={giftOpen}
+        onOpenChange={setGiftOpen}
+        precons={commanderStarters}
+        onClaimed={() => pickTrack('commander')}
+      />
     </div>
+  );
+}
+
+function PreconGiftDialog({ open, onOpenChange, precons, onClaimed }: {
+  open: boolean;
+  onOpenChange(open: boolean): void;
+  precons: readonly CareerStarter[];
+  onClaimed(): void;
+}) {
+  const t = useT();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function claim(starter: CareerStarter) {
+    if (!starter.id || busy) return;
+    setBusy(starter.id);
+    try {
+      await acquirePrecon(starter.id);
+      notify(t('career.precon.claimedTitle'), t('career.precon.claimedBody', { name: starter.name ?? '' }));
+      onOpenChange(false);
+      onClaimed();
+    } catch (reason) {
+      notify(t('career.failed'), reason instanceof Error ? reason.message : String(reason), 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => !busy && onOpenChange(nextOpen)}
+      title={t('career.hub.commanderGiftTitle')}
+      description={t('career.hub.commanderGiftLead')}
+      width="lg"
+    >
+      <div className={hub.preconGrid}>
+        {precons.map((starter) => (
+          <button
+            key={starter.id}
+            type="button"
+            className={hub.preconCard}
+            disabled={busy !== null}
+            onClick={() => void claim(starter)}
+          >
+            <CardFace card={{ name: starter.cover?.name ?? starter.name, setCode: starter.cover?.setCode, cardNumber: starter.cover?.cardNumber }} size="normal" />
+            <b>{starter.name}</b>
+            <small>{busy === starter.id ? t('career.loading') : t('career.starter.cards', { count: starter.cards ?? 100 })}</small>
+          </button>
+        ))}
+      </div>
+    </Dialog>
   );
 }
 

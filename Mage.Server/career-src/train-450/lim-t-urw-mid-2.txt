@@ -1,0 +1,36 @@
+# name: Train450 lim-t-urw-mid-2
+# archetype: limited_mid
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Aeronaut Tinkerer
+2 Baird, Steward of Argive
+1 Bre of Clan Stoutarm
+1 Combat Celebrant
+1 Deem Worthy
+1 Dennick, Pious Apprentice
+1 Dorothea, Vengeful Victim
+2 Fire Elemental
+2 Gallant Fowlknight
+2 Hall Monitor
+2 Honor the God-Pharaoh
+1 Hungry Ridgewolf
+1 Jaya's Greeting
+2 Jeong Jeong, the Deserter
+1 Kiora, the Rising Tide
+1 Koth of the Homestead
+1 Narset, Jeskai Waymaster
+2 Nivix Guildmage
+1 North Wind Avatar
+1 Phalanx Tactics
+1 Rip Apart
+2 Tori D'Avenant, Fury Rider
+1 Unconventional Tactics
+2 Volt Charge
+1 War Screecher
+2 Wardscale Dragon
+4 Fatehold Annex
+4 Glacial Floodplain
+2 Island
+4 Molten Tributary
+6 Mountain
+4 Plains

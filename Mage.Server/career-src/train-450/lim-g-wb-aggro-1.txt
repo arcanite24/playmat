@@ -1,0 +1,38 @@
+# name: Train450 lim-g-wb-aggro-1
+# archetype: limited_aggro
+# colors: WB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ajani's Presence
+1 Ambrosia Whiteheart
+1 Burdened Stoneback
+2 Carrion Imp
+1 Compleat Devotion
+1 Consuming Sinkhole
+1 Cult Conscript
+1 Extended Absence
+2 Garrison Cat
+1 Gideon's Company
+1 Guardian of Pilgrims
+2 Harmonious Archon
+1 Huatli's Snubhorn
+1 Kels, Fight Fixer
+1 Loyal Pegasus
+1 Moment of Heroism
+1 Moonrise Cleric
+1 Olivia's Midnight Ambush
+1 Prehistoric Pet
+1 Risen Executioner
+1 Salt Road Patrol
+2 Sanguine Savior
+1 Scrawling Crawler
+2 Seeker of the Way
+2 Sorin's Thirst
+2 Sowing Mycospawn
+1 Thornbow Archer
+1 Vindictive Triumph
+1 Vizkopa Guildmage
+1 Water Tribe Rallier
+4 Caves of Koilos
+4 Misty Palms Oasis
+9 Plains
+6 Swamp

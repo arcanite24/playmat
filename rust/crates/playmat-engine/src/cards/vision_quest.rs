@@ -7,8 +7,8 @@ use super::*;
 pub const HANDLERS: &[Handler] = &[Handler::effect("VisionQuest.VisionQuestEffect", apply)];
 
 /// Asked first whether to search the library (up to one); nothing found there, whether to look in the graveyard
-/// (`player.choose`, up to one). The card enters under you with X +1/+1 counters, and with X 4 or more haste until
-/// end of turn; the library, if searched, is shuffled
+/// (`player.choose`, up to one, not asked over an empty graveyard). The card enters under you with X +1/+1 counters,
+/// and with X 4 or more haste until end of turn; the library, if searched, is shuffled
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let you = cx.controller();
     let x = cx.item.x.max(0);
@@ -33,7 +33,10 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             .copied()
             .filter(|c| game.filter_matches(&filter, you, Some(src), *c))
             .collect();
-        card = super::gilgamesh_master_at_arms::choose_any(game, d, you, &possible, 1)?.first().copied();
+        // (`HumanPlayer.choose` over an empty graveyard returns at once, asking nothing)
+        if !game.player(you).graveyard.is_empty() {
+            card = super::gilgamesh_master_at_arms::choose_any(game, d, you, &possible, 1)?.first().copied();
+        }
     }
     if let Some(card) = card {
         if !put_cards(game, d, you, &[card], crate::card::PutCards::Battlefield) {

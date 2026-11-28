@@ -1,0 +1,38 @@
+# name: Train450 lim-t-bgu-mid-2
+# archetype: limited_mid
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Briarpack Alpha
+1 Deathbloom Thallid
+1 Demon Wall
+1 Dreams of Laguna
+1 Fangkeeper's Familiar
+1 Fierce Witchstalker
+2 Finale of Eternity
+1 Frolicking Familiar
+1 Geth, Thane of Contracts
+2 Gravewaker
+1 Grim Reaper, Lethal Legionnaire
+1 Howling Galefang
+1 Kheru Goldkeeper
+1 Llanowar Loamspeaker
+2 Nightmarish End
+2 Pestilent Wolf
+1 Skyclave Squid
+1 Soul of Ravnica
+1 Sphinx's Approach
+1 Stalking Tiger
+2 Starwinder
+2 Strength of the Coalition
+2 Surrak, Elusive Hunter
+1 The Wandering Minstrel
+1 Ty Lee, Chi Blocker
+1 Ureni's Rebuff
+1 Wingblade Disciple
+2 Wretched Doll
+4 Forest
+4 Illegitimate Business
+4 Island
+4 Submerged Boneyard
+4 Swamp
+4 Underground Mortuary

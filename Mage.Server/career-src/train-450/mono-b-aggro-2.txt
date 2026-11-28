@@ -1,0 +1,21 @@
+# name: Train450 mono-b-aggro-2
+# archetype: aggro
+# colors: B
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Acererak the Archlich
+2 Bontu the Glorified
+3 Consuming Sinkhole
+4 Diregraf Ghoul
+2 Dockside Chef
+1 Dragon's Prey
+2 Ebondeath, Dracolich
+2 General Chang, Cold Warrior
+2 Ghoulcaller's Accomplice
+2 Inkrise Infiltrator
+4 Keeper of the Lens
+2 Ozai's Cruelty
+3 Slice from the Shadows
+3 Spatial Contortion
+4 Stitcher's Supplier
+1 Vicious Rumors
+21 Swamp

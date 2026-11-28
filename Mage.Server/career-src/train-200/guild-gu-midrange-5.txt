@@ -1,0 +1,20 @@
+# name: Train200 guild-gu-midrange-5
+# archetype: midrange
+# colors: GU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Ancient Animus
+3 Bristlebud Farmer
+3 Dragon Turtle
+4 Frost Augur
+4 Gnarled Professor
+1 Keeper of the Lens
+4 Leave in the Dust
+2 Quakestrider Ceratops
+2 Skyscythe Engulfer
+4 Sweep Away
+3 Tiger-Seal
+2 Ulvenwald Oddity
+8 Forest
+8 Island
+4 Rimewood Falls
+4 Tangled Islet

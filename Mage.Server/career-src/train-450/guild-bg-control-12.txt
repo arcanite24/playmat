@@ -1,0 +1,20 @@
+# name: Train450 guild-bg-control-12
+# archetype: control
+# colors: BG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Abstruse Interference
+1 Altanak, the Thrice-Called
+3 Corrupted Conviction
+1 Costly Plunder
+4 Crocodile of the Crossing
+2 Infernal Grasp
+4 Path of Peril
+3 Reaver Ambush
+3 Ruin Processor
+3 Savor
+4 Spell Shrivel
+2 Titan's Presence
+5 Forest
+4 Llanowar Wastes
+4 Overgrown Tomb
+13 Swamp

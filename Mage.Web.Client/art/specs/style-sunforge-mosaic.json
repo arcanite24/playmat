@@ -1,0 +1,49 @@
+{
+  "$comment": "Card styles of the Sunforge Mosaic set (Commander Vault capsule machine), written by art/machine-specs.mjs from career/machines/commander-vault.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/sunforge-mosaic",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [
+    "dmu/295",
+    "dmu/302",
+    "dmu/298"
+  ],
+  "style": "Byzantine gold-leaf and alabaster mosaic painting: warm ivory, burnished gold tesserae, terracotta and ultramarine accents, crisp mortar seams, monumental sacred geometry.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a lone cloaked silhouette walking down a sunlit golden road out of a walled marble city toward open fields",
+  "items": [
+    {
+      "id": "path-to-exile",
+      "subject": "a lone cloaked silhouette walking down a sunlit golden road out of a walled marble city toward open fields"
+    },
+    {
+      "id": "wrath-of-god",
+      "subject": "a vast pillar of blinding white-gold light descending from parted clouds onto an empty ruined plaza"
+    },
+    {
+      "id": "teferis-protection",
+      "subject": "a serene domed sanctuary shimmering inside a translucent golden veil while storm clouds break harmlessly outside"
+    },
+    {
+      "id": "smothering-tithe",
+      "subject": "a great pair of balanced golden scales overflowing with stacked coins beneath an arched treasury window"
+    },
+    {
+      "id": "generous-gift",
+      "subject": "a gentle white elephant adorned in woven gold silk standing calmly amid the fallen masonry of a shattered statue"
+    },
+    {
+      "id": "set-sunforge-mosaic",
+      "out": "public/career-art/sleeve/set-sunforge-mosaic.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

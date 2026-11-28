@@ -1,0 +1,36 @@
+# name: Train450 lim-g-wu-ctrl-6
+# archetype: limited_ctrl
+# colors: WU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Agents of S.H.I.E.L.D.
+1 Appa, Loyal Sky Bison
+1 Avenging Arrow
+1 Celestial Enforcer
+1 Dawnwing Marshal
+1 Day of Judgment
+1 Destroy Evil
+2 Devouring Light
+1 Djinn of the Fountain
+1 Duty Beyond Death
+2 Fateful Absence
+2 Geistlight Snare
+2 Grasping Giant
+1 Griffin Protector
+1 Jeskai Windscout
+1 Lumbering Laundry
+1 Mental Modulation
+1 Quench
+1 Repurposed Enforcer
+2 River Darter
+1 Shatterwing Pegasus
+1 Sigrid, God-Favored
+1 Study Break
+1 Suit Up
+2 Sunpearl Kirin
+1 Vanish into Eternity
+1 Watchful Blisterzoa
+2 Wreck Remover
+5 Island
+12 Plains
+4 Skybridge Towers
+4 Vulcan

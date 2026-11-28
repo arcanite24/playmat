@@ -1,0 +1,56 @@
+# name: Train450 brawl-t-brg-aggro-1
+# archetype: brawl_aggro
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Bloodcrazed Socialite
+1 Blossoming Defense
+1 Boggart Prankster
+1 Boneyard Lurker
+1 Camellia, the Seedmiser
+1 Dreadbore
+1 Drown in Ichor
+1 Ember Swallower
+1 Falkenrath Aristocrat
+1 Garland, Knight of Cornelia
+1 Gore-House Chainwalker
+1 Gruul Spellbreaker
+1 Homicide Investigator
+1 Hurler Cyclops
+1 Jibbirik Omnivore
+1 Konstrari Improviser
+1 Moonshadow
+1 Oread of Mountain's Blaze
+1 Pack Mastiff
+1 Persistent Specimen
+1 Phyrexian Vivisector
+1 Play with Fire
+1 Rafter Demon
+1 Rakdos, Patron of Chaos
+1 Raven of Fell Omens
+1 Red Tiger Mechan
+1 Ruthless Instincts
+1 Slip Through Space
+1 Speed, Young Avenger
+1 Spined Karok
+1 Stingerquill Charm
+1 Stinging Vitriol
+1 Swift Kick
+1 Thicket Crasher
+1 Tinybones, the Pickpocket
+1 Two-Headed Zombie
+1 Wight
+1 Boiling Rock Prison
+1 Copperline Gorge
+1 Ferenginar
+2 Forest
+1 Foul Orchard
+1 Konstrari Annex
+4 Mountain
+1 Ominous Asylum
+1 Rakdos Guildgate
+1 Subterranean Cavern
+1 Sulfurous Springs
+5 Swamp
+1 Temple of Malady
+1 Tramway Station
+1 Witherbloom Campus

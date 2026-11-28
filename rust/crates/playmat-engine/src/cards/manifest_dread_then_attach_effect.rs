@@ -20,11 +20,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         },
     };
     let made = manifest(game, d, you, &[card], false).first().copied();
-    for c in top {
-        if game.obj(c).zone == Zone::Library {
-            game.move_to(c, Zone::Graveyard);
-        }
-    }
+    manifest_dread_rest(game, you, &top);
     if let Some(p) = made {
         if cx.source_on_battlefield(game) && game.obj(p).zone == Zone::Battlefield {
             let z = game.obj(p).zcc;

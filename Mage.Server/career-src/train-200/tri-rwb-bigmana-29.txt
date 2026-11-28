@@ -1,0 +1,24 @@
+# name: Train200 tri-rwb-bigmana-29
+# archetype: bigmana
+# colors: RWB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Furnace Host Charger
+2 Glorybringer
+3 Heated Debate
+3 Ironhoof Boar
+2 Mabel's Mettle
+4 Neheb, Dreadhorde Champion
+1 Not on My Watch
+3 Resolute Watchdog
+3 Shalai, Voice of Plenty
+2 Thor, God of Thunder
+2 Tyrannical Pitlord
+2 Widow's Bite
+3 Zoraline, Cosmos Caller
+3 Zurgo Bellstriker
+4 Dedicated Commons
+6 Mountain
+4 Plains
+4 Rakdos Guildgate
+4 Sunbaked Canyon
+3 Swamp

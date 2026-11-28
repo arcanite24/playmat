@@ -207,11 +207,11 @@ public interface Game extends MageItem, Serializable, Copyable<Game> {
     /**
      * Returns opponents list in range for the given playerId. Use it to interate by starting turn order.
      * <p>
-     * Warning, it will return leaved players until end of turn. For dialogs and one shot effects use excludeLeavedPlayers
+     * Leaved players are excluded. For stats about players actions (e.g. watchers for this turn) and opponent's turn
+     * checks use excludeLeavedPlayers = false
      */
-    // TODO: check usage of getOpponents in cards and replace with correct call of excludeLeavedPlayers, see #13289
     default Set<UUID> getOpponents(UUID playerId) {
-        return getOpponents(playerId, false);
+        return getOpponents(playerId, true);
     }
 
     /**
@@ -468,6 +468,13 @@ public interface Game extends MageItem, Serializable, Copyable<Game> {
      * Critical error: a game can't continue, so end it with a technical winner and without game mechanics
      */
     void endWithTechnicalWinner(String reason);
+
+    /**
+     * Non-null if the game ended via {@link #endWithTechnicalWinner(String)}.
+     */
+    default String getTechnicalErrorReason() {
+        return null;
+    }
 
     void cleanUp();
 

@@ -222,6 +222,13 @@ button.tile:not(:disabled):hover {
   line-height: 1.25;
 }
 
+.howEarned {
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  opacity: 0.82;
+}
+
 .how svg {
   flex: none;
   translate: 0 1px;
@@ -296,6 +303,146 @@ button.tile:not(:disabled):hover {
 
 .titleTile.locked .titleName {
   opacity: 0.55;
+}
+
+/* Phase 6 Command-Zone frame preview & Pet Bond progression card */
+.stack {
+  display: grid;
+  gap: 18px;
+}
+
+.cmdPreview,
+.cmdPreviewPlain {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 66px;
+  border-radius: 6px;
+  background: rgb(var(--void-rgb) / 0.55);
+  color: var(--ink-soft);
+}
+
+.cmdPreview {
+  color: var(--cmd-ring);
+  box-shadow: 0 0 0 2px var(--cmd-ring), 0 0 0 4px var(--cmd-accent), 0 0 12px color-mix(in srgb, var(--cmd-ring) 42%, transparent);
+}
+
+.cmdPreviewPlain {
+  box-shadow: 0 0 0 1.5px var(--ink-faint);
+}
+
+.petPreview {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+
+.tierBadge {
+  position: absolute;
+  bottom: -2px;
+  right: -4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(var(--void-rgb) / 0.9);
+  border: 1px solid var(--brass);
+  color: var(--brass);
+  font-family: var(--font-print);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.bondCard {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-panel);
+  background: rgb(var(--void-rgb) / 0.42);
+  border: 1px solid rgb(var(--brass-rgb) / 0.35);
+}
+
+.bondHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 16px;
+}
+
+.bondEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--brass);
+  font-family: var(--font-print);
+  font-size: 11px;
+  letter-spacing: var(--tracking-print-wide);
+  text-transform: uppercase;
+}
+
+.bondName {
+  margin: 2px 0 0;
+  font-size: var(--text-md);
+  color: var(--ink-strong);
+}
+
+.bondStats {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+
+.bondBar {
+  height: 7px;
+  border-radius: 999px;
+  background: rgb(var(--ink-rgb) / 0.12);
+  overflow: hidden;
+}
+
+.bondBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brass), var(--copper));
+}
+
+.bondPerks {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-dim);
+}
+
+.styleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.styleChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.18);
+  background: rgb(var(--void-rgb) / 0.45);
+  color: var(--ink);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.styleChip[aria-checked='true'] {
+  border-color: var(--brass);
+  background: rgb(var(--brass-rgb) / 0.16);
+  color: var(--ink-strong);
+}
+
+.styleLocked {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.styleLocked small {
+  color: var(--ink-dim);
 }
 
 /* ---- previews */

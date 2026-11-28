@@ -1,0 +1,20 @@
+# name: Train200 guild-bg-gowide-2
+# archetype: gowide
+# colors: BG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Blight Keeper
+4 Dune Beetle
+3 Flaxen Intruder
+3 Greenbelt Rampager
+4 Patchwork Beastie
+2 Pulse of Murasa
+2 Sarkhan's Resolve
+2 Stab
+2 Tail Swipe
+4 Umbral Collar Zealot
+4 Void Grafter
+4 Vraska, the Cutting Glare
+7 Forest
+4 Jungle Hollow
+7 Swamp
+4 Woodland Cemetery

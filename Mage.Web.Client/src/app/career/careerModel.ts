@@ -7,8 +7,21 @@ import type { DeckCardLists } from '../../core/decks/types';
  */
 export const PLAYSET = 4;
 export const DECK_MIN = 60;
+export const COMMANDER_MAIN = 99;
+export const COMMANDER_TOTAL = 100;
+export const PRECON_PRICE = 800;
+export const CONSTRUCTED_FORMAT = 'Constructed - Freeform';
+export const COMMANDER_FORMAT = 'Variant Magic - Commander';
 export const WINS_TO_UNLOCK = 3;
 export const MAX_LEVEL = 100;
+
+export function isCommanderFormat(format: string | null | undefined): boolean {
+  return format === COMMANDER_FORMAT || format?.toLowerCase() === 'commander';
+}
+
+export function sideboardSize(deck: Pick<DeckCardLists, 'sideboard'>): number {
+  return deck.sideboard.reduce((sum, entry) => sum + entry.amount, 0);
+}
 
 /** Basic lands are free and unlimited in a Career. */
 const BASICS = new Set(

@@ -198,13 +198,19 @@ export function HomeScreen() {
         </div>
 
         <div className={styles.playZone} role="group" aria-labelledby="play-zone-label">
-          <h2 id="play-zone-label" className={styles.zoneLabel}>{t('home.play')}</h2>
+          <div className={styles.zoneHead}>
+            <h2 id="play-zone-label" className={styles.zoneLabel}>{t('home.play')}</h2>
+            <button type="button" className={styles.guideLink} onClick={() => navigate('/guide')}>
+              {t('home.guide')}
+            </button>
+          </div>
           {emailUnconfirmed && <Suspense fallback={null}><EmailBanner /></Suspense>}
           {!firstGameDone && (
             <div className={styles.firstGame}>
               <p className={styles.firstGameText}>{t('home.firstGame.text')}</p>
               <span className={styles.firstGameActions}>
                 <Button variant="quiet" size="sm" onClick={skipFirstGame} disabled={busy}>{t('home.firstGame.skip')}</Button>
+                <Button variant="quiet" size="sm" onClick={() => navigate('/guide')} disabled={busy}>{t('home.guide')}</Button>
                 <Button variant="print" size="sm" onClick={() => selected && void play.playVsAi(selected.id, { guided: true })} disabled={busy || !selected}>
                   {t('home.firstGame.start')}
                 </Button>
@@ -262,6 +268,19 @@ export function HomeScreen() {
               <span className={styles.aiSetupAction}>{t('home.change')}</span>
             </button>
           )}
+          {mode === 'meta' && (
+            <button type="button" className={styles.aiSetup} onClick={() => setAiOpen(true)} disabled={busy}>
+              <SlidersHorizontal size={16} aria-hidden="true" />
+              {/* the format's pool deals the AI's deck and the format's rules apply: only its pod size follows the setting */}
+              <span>{describeAi(
+                t,
+                { ...play.aiOptions, rules: 'casual', opponents: pickedFormat && formatRules(pickedFormat).commandZone !== null ? play.aiOptions.opponents : 1 },
+                t('ai.summary.metaDeck'),
+                soloReady ? t('solo.adaptive.summary') : undefined,
+              )}</span>
+              <span className={styles.aiSetupAction}>{t('home.change')}</span>
+            </button>
+          )}
           {mode === 'meta' && soloReady && <Suspense fallback={null}><MetaFormatPicker formats={metaFormats} value={pickedFormat} disabled={busy} onChange={setMetaFormat} /></Suspense>}
           {mode === 'practice' && <p className={styles.modeNote}>{t('home.practiceNote')}</p>}
           {mode === 'friend' && <p className={styles.modeNote}>{t('home.friendNote')}</p>}
@@ -293,7 +312,7 @@ export function HomeScreen() {
           </div>
         )}
       </section>
-      {aiLoaded && <Suspense fallback={null}><AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} /></Suspense>}
+      {aiLoaded && <Suspense fallback={null}><AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} formatDeck={mode === 'meta'} /></Suspense>}
     </div>
   );
 }

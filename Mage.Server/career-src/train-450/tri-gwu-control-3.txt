@@ -1,0 +1,24 @@
+# name: Train450 tri-gwu-control-3
+# archetype: control
+# colors: GWU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Aetherwind Basker
+2 Decisive Denial
+3 Failed Inspection
+1 Gigantosaurus
+3 Highly Illogical
+3 Kozilek's Return
+4 Natural End
+1 Refocus
+1 Runic Shot
+1 Sagittars' Volley
+3 Spectacular Tactics
+3 Spell Rupture
+4 Steel Leaf Champion
+2 Void Snare
+4 Canopy Vista
+6 Forest
+4 Grove of the Guardian
+6 Island
+2 Plains
+4 Vulcan

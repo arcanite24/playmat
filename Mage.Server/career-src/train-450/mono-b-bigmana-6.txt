@@ -1,0 +1,18 @@
+# name: Train450 mono-b-bigmana-6
+# archetype: bigmana
+# colors: B
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Archfiend of Ifnir
+4 Drainpipe Vermin
+1 Dreadwurm
+2 Hero's Downfall
+4 Morkrut Necropod
+3 Pitiless Horde
+3 Qarsi Revenant
+2 Raven of Fell Omens
+2 Rotten Reunion
+2 Scales of Shale
+2 The End
+4 The Masters of Evil
+4 Twilight Prophet
+25 Swamp

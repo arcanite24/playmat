@@ -1,0 +1,23 @@
+# name: Train200 guild-rw-midrange-4
+# archetype: midrange
+# colors: RW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Appa, Steadfast Guardian
+2 Bovine Intervention
+4 Bronzeplate Boar
+4 Charging Strifeknight
+2 Glorious Protector
+3 Goblin Maskmaker
+1 Lightning Shrieker
+1 Manhole Missile
+3 Nova Hellkite
+2 Pyrrhic Strike
+3 Raze to the Ground
+4 Reinforced Ronin
+1 Resolute Watchdog
+1 Slaying Fire
+3 Stone by Sunlight
+4 Asgardian Citadel
+4 Elegant Parlor
+11 Mountain
+5 Plains

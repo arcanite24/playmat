@@ -1,0 +1,20 @@
+# name: Train200 guild-wb-aggro-3
+# archetype: aggro
+# colors: WB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Aggressive Sabotage
+4 Command Subadjunct
+4 Forsaken Miner
+1 Gas Guzzler
+4 Master of the Feast
+3 Moment of Heroism
+3 Moonshadow
+4 Mythos of Nethroi
+2 Raven Eagle
+4 Serrated Scorpion
+4 Veteran Survivor
+3 Vicious Rumors
+4 Caves of Koilos
+4 Forlorn Flats
+4 Plains
+9 Swamp

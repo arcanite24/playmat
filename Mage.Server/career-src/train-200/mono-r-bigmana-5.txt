@@ -1,0 +1,18 @@
+# name: Train200 mono-r-bigmana-5
+# archetype: bigmana
+# colors: R
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Bomat Courier
+1 Charging Tuskodon
+3 Firion, Wild Rose Warrior
+2 Kami's Flare
+2 Kindled Heroism
+1 Kolaghan Warmonger
+3 Lightning Shrieker
+4 Mutant Town Musicians
+4 Open Fire
+3 Purifying Dragon
+4 Terror of the Peaks
+2 Traxos, Scourge of Kroog
+2 Wayward Guide-Beast
+25 Mountain

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Square, Swords } from 'lucide-react';
+import { Shield, Square, Swords, UserRound } from 'lucide-react';
 import { groupSize, type AttackGroup } from '../../core/game/attackGroups';
+import type { DefenderOption } from '../../core/game/multiplayer';
 import { useT } from '../i18n';
 import './matchMessages';
 import styles from './AttackGroups.module.css';
@@ -11,19 +12,51 @@ const MAX_GROUPS = 5;
  * While you declare attackers with a board of identical creatures (tokens, mostly): one row per kind with how many
  * of them attack, set with a slider or typed, and All / None. The clicks are made for you (useAttackGroups).
  */
-export function AttackGroups({ groups, wanted, busy, remaining, onWant, onStop }: {
+export function AttackGroups({ groups, wanted, busy, remaining, onWant, onStop, defenders = [], defender = null, onDefender }: {
   groups: readonly AttackGroup[];
   wanted: ReadonlyMap<string, number>;
   busy: boolean;
   remaining: number;
   onWant(group: AttackGroup, count: number): void;
   onStop(): void;
+  defenders?: readonly DefenderOption[];
+  defender?: string | null;
+  onDefender?(id: string | null): void;
 }) {
   const t = useT();
   if (groups.length === 0) return null;
+  const showDefenders = defenders.length > 1 && !!onDefender;
+  const multiPlayer = defenders.filter((option) => option.kind === 'player').length > 1;
   return (
     <section className={styles.panel} aria-label={t('match.attackGroups.title')} data-pad>
       <h3 className={styles.title}><Swords size={18} aria-hidden="true" /> {t('match.attackGroups.title')}</h3>
+      {showDefenders && (
+        <div className={styles.targets} role="radiogroup" aria-label={t('match.attackGroups.target')}>
+          <span className={styles.targetLabel}>{t('match.attackGroups.target')}</span>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={defender === null}
+            className={[styles.targetChip, defender === null ? styles.targetOn : ''].join(' ')}
+            onClick={() => onDefender(null)}
+          >
+            {t(multiPlayer ? 'match.attackGroups.ask' : 'match.attackGroups.default')}
+          </button>
+          {defenders.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              role="radio"
+              aria-checked={defender === option.id}
+              className={[styles.targetChip, defender === option.id ? styles.targetOn : ''].join(' ')}
+              onClick={() => onDefender(option.id)}
+            >
+              {option.kind === 'player' ? <UserRound size={14} aria-hidden="true" /> : <Shield size={14} aria-hidden="true" />}
+              <span>{option.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <ul className={styles.rows}>
         {groups.slice(0, MAX_GROUPS).map((group) => (
           <Row key={group.key} group={group} count={wanted.get(group.key) ?? group.attacking.length} onWant={onWant} />

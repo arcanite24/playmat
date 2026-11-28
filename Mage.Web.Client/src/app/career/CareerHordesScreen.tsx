@@ -1,11 +1,15 @@
-import { Check, Swords } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Check, Crown, Infinity as InfinityIcon, Swords } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import type { CareerHorde } from '../../protocol/generated/views';
+import { isCommanderFormat } from '../../core/decks/formats';
 import { api } from '../connection';
-import { registerMessages, useT } from '../i18n';
+import { toWire } from '../decks/deckModel';
+import { registerMessages, useT, type MessageKey } from '../i18n';
 import messages from '../i18n/en/career';
+import { useDecks } from '../stores/decks';
 import { usePlay } from '../stores/play';
+import { useDeckRoster } from '../stores/useDeckRoster';
 import { Button } from '../ui/Button';
 import { useCareerState } from './careerData';
 import { playMode, useHordes, useMetaLibrary } from './careerModesData';
@@ -19,9 +23,16 @@ import styles from './CareerModes.module.css';
 
 registerMessages(messages);
 
+function difficultyKey(difficulty: string | undefined): MessageKey {
+  if (difficulty === 'mythic') return 'career.horde.diff.mythic';
+  if (difficulty === 'heroic') return 'career.horde.diff.heroic';
+  return 'career.horde.diff.normal';
+}
+
 /**
- * Hordes (S036): a deck that plays itself, flipping permanents onto the battlefield every upkeep and attacking with
- * everything. Bring a deck from the meta library and live through its turns; the board ranks turns lived, then life.
+ * Hordes 2.0: ten hordes across Normal, Heroic, and Mythic difficulties. Bring any personal deck,
+ * Career deck, 100-card Commander deck (auto-scaled to 40 life & 12 waves), or Meta Library loaner,
+ * with optional Endless Waves mode.
  */
 export function CareerHordesScreen() {
   const t = useT();
@@ -64,7 +75,7 @@ export function CareerHordesScreen() {
                       data-nav
                     >
                       <b>{item.name}</b>
-                      <small>{t('career.horde.survive', { count: item.survive ?? 0 })}</small>
+                      <small>{t(difficultyKey(item.difficulty))} · {t('career.horde.survive', { count: item.survive ?? 0 })}</small>
                       {item.beaten && <Check size={16} aria-label={t('career.horde.beaten')} />}
                     </button>
                   </li>
@@ -82,17 +93,49 @@ export function CareerHordesScreen() {
   );
 }
 
-/** One horde: its rules, your best, a deck to bring, and the fight. */
+/** One horde: its rules, your best, any deck to bring (personal, Commander, or meta), Endless toggle, and the fight. */
 function HordeDetail({ horde }: { horde: CareerHorde }) {
   const t = useT();
   const playing = usePlay((play) => play.phase !== 'idle');
   const meta = useMetaLibrary(true);
-  const formats = useMemo(() => constructedFormats(meta.data), [meta.data]);
-  const [deckFile, setDeckFile] = useState('');
+  const roster = useDeckRoster();
+  const loaded = useDecks((d) => d.loaded);
+  const refresh = useDecks((d) => d.refresh);
+  const loadList = useDecks((d) => d.loadList);
+  const formats = useMemo(() => {
+    const base = constructedFormats(meta.data);
+    const cmdr = (meta.data ?? []).find((f) => f.id === 'commander');
+    if (cmdr && cmdr.decks && cmdr.decks.length > 0 && !base.some((f) => f.id === 'commander')) {
+      return [...base, { id: cmdr.id ?? 'commander', name: cmdr.name ?? 'Commander', decks: cmdr.decks }];
+    }
+    return base;
+  }, [meta.data]);
+  const personalDecks = useMemo(() => roster.filter((d) => d.cardCount >= 40), [roster]);
+  const [selection, setSelection] = useState('');
+  const [endless, setEndless] = useState(false);
   const [versus, setVersus] = useState(false);
   const rules = hordeLines(horde);
-  const chosenFile = deckFile || formats[0]?.decks[0]?.file || '';
-  const chosenDeck = formats.flatMap((format) => format.decks).find((deck) => deck.file === chosenFile);
+
+  useEffect(() => {
+    if (!loaded) void refresh();
+  }, [loaded, refresh]);
+
+  const defaultSel = personalDecks[0]
+    ? `deck:${personalDecks[0].id}`
+    : formats[0]?.decks[0]?.file
+      ? `meta:${formats[0].decks[0].file}`
+      : '';
+  const activeSel = selection || defaultSel;
+  const pickedPersonal = activeSel.startsWith('deck:') ? personalDecks.find((d) => `deck:${d.id}` === activeSel) : null;
+  const pickedMeta = activeSel.startsWith('meta:')
+    ? formats.flatMap((format) => format.decks).find((deck) => `meta:${deck.file}` === activeSel)
+    : null;
+  const isCommanderDeck = pickedPersonal
+    ? isCommanderFormat(pickedPersonal.format) && pickedPersonal.cardCount >= 98
+    : !!pickedMeta?.deckType?.includes('Commander');
+  const chosenName = pickedPersonal?.name ?? pickedMeta?.name ?? '';
+  const chosenColors = pickedPersonal ? pickedPersonal.colors.join('') : pickedMeta?.colors;
+
   useSceneArt(horde.cover);
 
   return (
@@ -103,11 +146,18 @@ function HordeDetail({ horde }: { horde: CareerHorde }) {
       <div className={styles.detailBody}>
         <header className={styles.detailHead}>
           <h2 id="horde-name">{horde.name}</h2>
+          <span className={styles.stateTag}>{t(difficultyKey(horde.difficulty))}</span>
           {horde.beaten && <span className={[styles.stateTag, styles.tag_done].join(' ')}>{t('career.horde.beaten')}</span>}
         </header>
         {horde.text && <p className={styles.small}>{horde.text}</p>}
         <h3 className={styles.subhead}>{t('career.horde.rules')}</h3>
         <LineList lines={rules} className={styles.twists} />
+        {isCommanderDeck && (
+          <p className={styles.small}><Crown size={14} aria-hidden="true" /> {t('career.horde.commanderScale')}</p>
+        )}
+        {endless && (
+          <p className={styles.small}><InfinityIcon size={14} aria-hidden="true" /> {t('career.horde.endlessRule')}</p>
+        )}
         <h3 className={styles.subhead}>{t('career.challenge.yours')}</h3>
         <p className={styles.small}>
           {(horde.attempts ?? 0) === 0
@@ -118,28 +168,47 @@ function HordeDetail({ horde }: { horde: CareerHorde }) {
         </p>
         <label className={styles.field}>
           <span>{t('career.horde.deck')}</span>
-          <select value={chosenFile} onChange={(event) => setDeckFile(event.target.value)} disabled={formats.length === 0}>
+          <select value={activeSel} onChange={(event) => setSelection(event.target.value)} disabled={!activeSel}>
+            {personalDecks.length > 0 && (
+              <optgroup label={t('career.horde.yourDecks')}>
+                {personalDecks.map((deck) => <option key={deck.id} value={`deck:${deck.id}`}>{deck.name}</option>)}
+              </optgroup>
+            )}
             {formats.map((format) => (
               <optgroup key={format.id} label={format.name}>
-                {format.decks.map((deck) => <option key={deck.file} value={deck.file}>{deck.name}</option>)}
+                {format.decks.map((deck) => <option key={deck.file} value={`meta:${deck.file}`}>{deck.name}</option>)}
               </optgroup>
             ))}
           </select>
         </label>
+        <label className={styles.field}>
+          <input type="checkbox" checked={endless} onChange={(event) => setEndless(event.target.checked)} />{' '}
+          <span>{t('career.horde.endlessToggle')}</span>
+        </label>
         {meta.isError && <p className={styles.error} role="alert">{t('career.failed')}</p>}
         <div className={styles.actions}>
-          <Button variant="decision" size="lg" icon={<Swords size={18} />} disabled={playing || !chosenFile} onClick={() => setVersus(true)} data-nav>
+          <Button variant="decision" size="lg" icon={<Swords size={18} />} disabled={playing || !activeSel} onClick={() => setVersus(true)} data-nav>
             {t((horde.attempts ?? 0) > 0 ? 'career.horde.again' : 'career.horde.play')}
           </Button>
         </div>
       </div>
       {versus && (
         <Versus
-          kicker={t('career.horde.title')}
+          kicker={endless ? `${t('career.horde.title')} · ${t('career.horde.endlessTag')}` : t('career.horde.title')}
           opponent={{ name: horde.name ?? '', tagline: horde.text, cover: horde.cover, boss: true }}
-          deck={{ name: chosenDeck?.name ?? '', colors: chosenDeck?.colors }}
-          stakes={rules.map((line) => t(line.key, line.vars))}
-          onFight={() => playMode('horde', () => api.careerHordePlay(horde.id ?? '', chosenFile))}
+          deck={{ name: chosenName, colors: chosenColors }}
+          stakes={[
+            ...rules.map((line) => t(line.key, line.vars)),
+            ...(isCommanderDeck ? [t('career.horde.commanderScale')] : []),
+            ...(endless ? [t('career.horde.endlessRule')] : []),
+          ]}
+          onFight={() => playMode('horde', async () => {
+            if (pickedPersonal) {
+              const list = await loadList(pickedPersonal.id);
+              return api.careerHordePlay(horde.id ?? '', null, toWire(list) as never, endless);
+            }
+            return api.careerHordePlay(horde.id ?? '', pickedMeta?.file ?? '', null, endless);
+          })}
           onClose={() => setVersus(false)}
         />
       )}

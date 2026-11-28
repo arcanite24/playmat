@@ -1,6 +1,6 @@
 import { deckStorage } from '../../core/decks/DeckStorageService';
 import { formatRules, isCommanderFormat } from '../../core/decks/formats';
-import { pickMetaDeck } from '../../core/decks/metaDecks';
+import { pickMetaDeck, type MetaDeck, type MetaTier } from '../../core/decks/metaDecks';
 import type { DeckCardLists } from '../../core/decks/types';
 import { META_PREFIX, rosterOf, STARTER_PREFIX, useDecks } from './decks';
 import { cardCount, MIN_DECK_SIZE, type RandomPool } from './play';
@@ -29,6 +29,12 @@ export interface AiDeckOptions {
   pool?: RandomPool;
   /** the player's own deck (its roster id), which random picks leave out */
   own?: string | null;
+  /** allowed meta-deck tiers for random picks (#383); undefined allows every tier */
+  poolTiers?: readonly MetaTier[];
+  /** allowed formats for random format-deck picks (#383); empty/undefined allows any matching format */
+  poolFormats?: readonly string[];
+  /** roster/meta/starter ids excluded from random AI picks (#383) */
+  excludedIds?: readonly string[];
 }
 
 /** A saved deck worth a random seat: enough cards, and a commander if it plays one. */
@@ -44,9 +50,20 @@ function complete(deck: DeckCardLists, commander: boolean): boolean {
  * (commander or not); the 'every' pool draws evenly from starters, format decks and the player's saved decks of the
  * right kind. Never the same deck twice while there are others.
  */
-export async function aiDecks(chosenIds: readonly (string | null)[], count: number, commander: boolean, { format = null, avoid = null, pool = 'starters', own = null }: AiDeckOptions = {}): Promise<DeckCardLists[]> {
+export async function aiDecks(
+  chosenIds: readonly (string | null)[],
+  count: number,
+  commander: boolean,
+  { format = null, avoid = null, pool = 'starters', own = null, poolTiers, poolFormats, excludedIds }: AiDeckOptions = {},
+): Promise<DeckCardLists[]> {
   const state = useDecks.getState();
   const fits = (deckFormat: string | null | undefined, inFormat: string | null) => isCommanderFormat(deckFormat) === commander && (!inFormat || deckFormat === inFormat);
+  const excluded = new Set(excludedIds ?? []);
+  const allowedFormats = poolFormats && poolFormats.length > 0 ? new Set(poolFormats) : null;
+  const metaAllowed = (deck: MetaDeck) =>
+    !excluded.has(META_PREFIX + deck.file)
+    && (poolTiers === undefined || poolTiers.includes(deck.tier))
+    && (!allowedFormats || allowedFormats.has(deck.format));
   // roster ids already dealt; the player's own format deck isn't dealt to the AI too
   const taken = new Set<string>(avoid ? [META_PREFIX + avoid] : []);
 
@@ -71,14 +88,17 @@ export async function aiDecks(chosenIds: readonly (string | null)[], count: numb
 
   async function randomStarter(): Promise<DeckCardLists> {
     const metaTaken = new Set([...taken].filter((id) => id.startsWith(META_PREFIX)).map((id) => id.slice(META_PREFIX.length)));
-    const meta = format ? pickMetaDeck(state.metaDecks, format, metaTaken) : null;
+    const allowedMeta = state.metaDecks.filter(metaAllowed);
+    const meta = format ? pickMetaDeck(allowedMeta, format, metaTaken) : null;
     if (meta) {
       taken.add(META_PREFIX + meta.file);
       return metaDeck(meta.file, meta.name);
     }
     const fitting = state.starters.filter((starter) => fits(starter.format, null));
-    const fresh = fitting.filter((starter) => !taken.has(STARTER_PREFIX + starter.file));
-    const candidates = fresh.length > 0 ? fresh : fitting;
+    const allowedStarters = fitting.filter((starter) => !excluded.has(STARTER_PREFIX + starter.file));
+    const usable = allowedStarters.length > 0 ? allowedStarters : fitting;
+    const fresh = usable.filter((starter) => !taken.has(STARTER_PREFIX + starter.file));
+    const candidates = fresh.length > 0 ? fresh : usable;
     if (candidates.length === 0) throw new Error(commander ? 'No commander deck is available for the AI.' : 'No deck available for the AI.');
     const starter = candidates[Math.floor(Math.random() * candidates.length)];
     taken.add(STARTER_PREFIX + starter.file);
@@ -87,8 +107,8 @@ export async function aiDecks(chosenIds: readonly (string | null)[], count: numb
 
   const everyIds = pool === 'every'
     ? [
-      ...rosterOf(state).map((deck) => deck.id).filter((id) => id !== own),
-      ...state.metaDecks.filter((deck) => fits(deck.format, format)).map((deck) => META_PREFIX + deck.file),
+      ...rosterOf(state).map((deck) => deck.id).filter((id) => id !== own && !excluded.has(id)),
+      ...state.metaDecks.filter((deck) => fits(deck.format, format) && metaAllowed(deck)).map((deck) => META_PREFIX + deck.file),
     ]
     : [];
   async function randomAny(): Promise<DeckCardLists> {

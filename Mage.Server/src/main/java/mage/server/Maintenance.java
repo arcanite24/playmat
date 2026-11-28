@@ -127,7 +127,8 @@ public final class Maintenance {
         if (left > 0 || !current.restartWhenIdle) {
             return;
         }
-        int games = managers.gameManager().getNumberActiveGames();
+        // Rust-hosted games too: the restart stops the gateway that plays them
+        int games = managers.gameManager().getNumberActiveGames() + RustHost.running();
         if (games > 0) {
             return;
         }

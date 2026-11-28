@@ -1,0 +1,21 @@
+[package]
+name = "playmat-worker-wasm"
+description = "Browser and mobile (WASM) Mana@Home worker runtime (S6, docs/swarm/S6.md): single-deal strict selfplay and answer-log replay"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+playmat-ai = { path = "../playmat-ai" }
+playmat-engine = { path = "../playmat-engine" }
+playmat-swarm-proto = { path = "../playmat-swarm-proto" }
+serde.workspace = true
+serde_json.workspace = true
+
+[features]
+default = ["strict"]
+strict = ["playmat-ai/strict"]

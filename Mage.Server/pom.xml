@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.mage</groupId>
         <artifactId>mage-root</artifactId>
-        <version>1.4.62</version>
+        <version>1.4.63</version>
     </parent>
 
     <artifactId>mage-server</artifactId>
@@ -480,6 +480,13 @@
                                 <class>mage.server.websocket.api.LadderApi$LadderOpponent</class>
                                 <class>mage.server.websocket.api.LadderApi$LadderMatch</class>
                                 <class>mage.server.websocket.api.LadderApi$LadderResult</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderFieldEntry</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderDeckStat</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderArchetypeStat</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderContract</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderDeckCard</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderOpponentDeck</class>
+                                <class>mage.server.websocket.api.LadderApi$LadderMythicRow</class>
                                 <class>mage.server.career.CareerLeague$LeagueState</class>
                                 <class>mage.server.career.CareerLeague$LeagueFormat</class>
                                 <class>mage.server.career.CareerLeague$LeagueStarter</class>
@@ -495,6 +502,7 @@
                                 <class>mage.server.career.CareerService$CareerSavedDeck</class>
                                 <class>mage.server.career.CareerService$CareerShopSet</class>
                                 <class>mage.server.career.CareerService$CareerPackResult</class>
+                                <class>mage.server.career.CareerService$CareerPreconResult</class>
                                 <class>mage.server.career.CareerCard</class>
                                 <class>mage.server.career.CareerProgress$CareerQuests</class>
                                 <class>mage.server.career.CareerProgress$CareerQuest</class>
@@ -513,9 +521,12 @@
                                 <class>mage.server.career.CareerProgress$CareerAchievementTier</class>
                                 <class>mage.server.career.CareerProgress$CareerHall</class>
                                 <class>mage.server.career.CareerProgress$CareerMoment</class>
+                                <class>mage.server.career.CareerPets$CareerPetProgress</class>
+                                <class>mage.server.career.CareerPets$CareerPetBondResult</class>
                                 <class>mage.server.career.CareerCosmetics$CareerCatalogItem</class>
                                 <class>mage.server.career.CareerCapsules$CareerMachines</class>
                                 <class>mage.server.career.CareerCapsules$CareerPullResult</class>
+                                <class>mage.server.career.CareerCapsules$CareerSwarmRedeemResult</class>
                                 <class>mage.server.career.CareerCosmetics$CareerSticker</class>
                                 <class>mage.server.career.CareerCosmetics$CareerCosmeticSource</class>
                                 <class>mage.server.game.PlayerEmote</class>
@@ -537,6 +548,8 @@
                                 <class>mage.server.career.MetaLibrary$MetaFormat</class>
                                 <class>mage.server.career.CareerLimited$LimitedShape</class>
                                 <class>mage.server.career.CareerHordes$CareerHorde</class>
+                                <class>mage.server.career.CareerArchenemy$CareerArchenemyState</class>
+                                <class>mage.server.career.CareerTwoHeadedGiant$CareerThgState</class>
                                 <class>mage.server.career.CareerPuzzles$CareerDailyPuzzle</class>
                                 <class>mage.server.career.CareerPuzzles$CareerMinedPuzzle</class>
                                 <class>mage.server.solo.PuzzleKit$PuzzleExport</class>

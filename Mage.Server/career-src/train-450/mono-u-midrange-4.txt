@@ -1,0 +1,18 @@
+# name: Train450 mono-u-midrange-4
+# archetype: midrange
+# colors: U
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Arrester's Admonition
+3 Curator of Mysteries
+4 Galestrike
+2 Gingerbrute
+3 Hinterland Drake
+1 Into the Flood Maw
+2 Pillar of War
+3 Rescue
+2 Rishadan Airship
+4 Sire of Stagnation
+4 Storm Fleet Aerialist
+2 Storyteller Pixie
+2 Triton Shorethief
+24 Island

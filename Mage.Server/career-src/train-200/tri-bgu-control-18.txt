@@ -1,0 +1,24 @@
+# name: Train200 tri-bgu-control-18
+# archetype: control
+# colors: BGU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Agonasaur Rex
+2 Alchemist's Retrieval
+2 Ammit Eternal
+1 Bontu's Last Reckoning
+2 Bring the Ending
+3 Disdainful Stroke
+3 Don't Make a Sound
+4 Heartless Act
+2 Marang River Regent
+4 Out of the Way
+2 Seedship Impact
+2 Subtle Strike
+3 Sunbringer's Touch
+2 Swarmborn Giant
+4 Breeding Pool
+4 Forest
+6 Island
+4 Shipwreck Marsh
+4 Swamp
+4 Temple of Deceit

@@ -1,0 +1,54 @@
+# name: Train450 brawl-t-gur-ramp-3
+# archetype: brawl_ramp
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Autonomous Assembler
+1 Bounding Krasis
+1 Burrog Befuddler
+1 Chandra's Embercat
+1 Cinderslash Ravager
+1 Cragplate Baloth
+1 Desolation of Smaug
+1 Dreams of Laguna
+1 Dryad Greenseeker
+1 Galerider Sliver
+1 Genghis Frog
+1 High-Rise Sawjack
+1 Honored Hydra
+1 Junkblade Bruiser
+1 Kraul Foragers
+1 Migloz, Maze Crusher
+1 Nezahal, Primal Tide
+1 Nobody
+1 Ojer Axonil, Deepest Might
+1 Open Communications
+1 Ranging Raptors
+1 Riftburst Hellion
+1 Select for Inspection
+1 Skewer the Critics
+1 Slick Sequence
+1 Sphinx Mindbreaker
+1 Spider Food
+1 Stensia Innkeeper
+1 Sylvan Primordial
+1 The Lion-Turtle
+1 Troublemaker Ouphe
+1 Vantress Transmuter
+1 Vestige of Emrakul
+1 Wild Slash
+1 Wistfulness
+1 Bleeding Woods
+5 Forest
+1 Gongaga, Reactor Town
+1 Highland Lake
+1 Innovative Commons
+4 Island
+1 Izzet Guildgate
+4 Mountain
+1 Omashu City
+1 Prismari Campus
+1 Savage Mansion
+1 Stormcarved Coast
+1 Temple of Epiphany
+1 Temple of Mystery
+1 Transformative Commons

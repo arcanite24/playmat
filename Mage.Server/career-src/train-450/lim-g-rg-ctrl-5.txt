@@ -1,0 +1,35 @@
+# name: Train450 lim-g-rg-ctrl-5
+# archetype: limited_ctrl
+# colors: RG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Advocate of the Beast
+1 Aerid Konstrari
+1 Back to Nature
+1 Bristlebane Battler
+2 Burst Lightning
+1 Direct Current
+2 Fire Prophecy
+1 Hiveheart Shaman
+2 Hivespine Wolverine
+1 Horribly Awry
+1 Judgment Bolt
+1 Kessig Naturalist
+1 Lightning Berserker
+1 Longhorn Sharpshooter
+2 Migrating Ketradon
+1 No Admittance
+1 Nylea's Intervention
+1 Nylea, Keen-Eyed
+1 Pit Fight
+1 Polis Crusher
+2 Shivan Fire
+2 Skyraker Giant
+2 Spring-Leaf Avenger
+1 Stromkirk Occultist
+1 Ulrich's Kindred
+2 Void Shatter
+1 Yavimaya Iconoclast
+8 Forest
+9 Mountain
+4 Racers' Ring
+4 Savage Mansion

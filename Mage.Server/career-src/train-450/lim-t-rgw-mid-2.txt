@@ -1,0 +1,40 @@
+# name: Train450 lim-t-rgw-mid-2
+# archetype: limited_mid
+# colors: RGW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Ageless Guardian
+1 Arborea Pegasus
+1 Artifist Acumen
+1 Aurelia, Exemplar of Justice
+1 Cobblebrute
+1 Dauntless Bodyguard
+2 Defiler of Vigor
+1 Desperate Stand
+1 Firemane Avenger
+1 Forge Devil
+1 Full Bore
+1 Harnessed Snubhorn
+1 Herald of Anafenza
+1 Horde Ambusher
+1 Inspiring Cleric
+1 Intrepid Provisioner
+1 Jazal Goldmane
+1 Kurkesh, Onakke Ancient
+1 Lightning Wolf
+1 Loxodon Eavesdropper
+2 Mina and Denn, Wildborn
+1 Pawpatch Formation
+2 Reckless Amplimancer
+2 Ride's End
+1 Sacred Fire
+2 Seismic Wave
+1 Swooping Protector
+1 Territorial Bruntar
+1 Two-Headed Hunter
+1 Vorinclex, Monstrous Raider
+4 Blossoming Sands
+4 Dimension X
+3 Forest
+4 Fortified Village
+5 Mountain
+4 Plains

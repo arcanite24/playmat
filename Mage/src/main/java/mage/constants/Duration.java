@@ -7,7 +7,7 @@ public enum Duration {
     OneUse("", true, true),
     EndOfGame("for the rest of the game", false, false),
     WhileOnBattlefield("", false, false),
-    WhileControlled("for as long as you control {this}", true, false),
+    WhileControlled("for as long as you control {this}", true, true),
     WhileOnStack("", false, true),
     WhileInGraveyard("", false, false),
     EndOfTurn("until end of turn", true, true),

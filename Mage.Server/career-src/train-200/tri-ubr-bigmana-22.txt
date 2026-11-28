@@ -1,0 +1,22 @@
+# name: Train200 tri-ubr-bigmana-22
+# archetype: bigmana
+# colors: UBR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Bloodthirsty Aerialist
+4 Captive Weird
+3 Ephara's Dispersal
+4 Faerie Formation
+4 Flamewake Phoenix
+2 Hazoret, Godseeker
+2 Hill Gigas
+1 Lathliss, Dragon Queen
+2 Monstrous Rage
+4 Niv-Mizzet, Dracogenius
+3 Ravenous Necrotitan
+3 Stingerquill Charm
+4 Fiery Islet
+5 Island
+5 Mountain
+4 Qo'noS
+4 Restless Vents
+3 Swamp

@@ -1,0 +1,21 @@
+# name: Train200 guild-wu-control-8
+# archetype: control
+# colors: WU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Citywide Bust
+4 Countervailing Winds
+2 Curator of Destinies
+3 Cut Short
+4 Dust Stalker
+4 Expel from Orazca
+2 Into the Roil
+2 March of Otherworldly Light
+2 Rally for the Throne
+2 Soul of New Phyrexia
+4 Spell Rupture
+1 Sungold Barrage
+2 Tolarian Geyser
+4 Fatehold Annex
+11 Island
+7 Plains
+4 Sharlayan, Nation of Scholars

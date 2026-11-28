@@ -3,10 +3,9 @@ import { useMemo } from 'react';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
 import { useSession } from '../stores/session';
-import { useSettings } from '../stores/settings';
 import { Art } from './Art';
 import { badgeOf, SHOWCASE_SIZE, tierName } from './badges';
-import { useCareerAchievements, useCareerLook } from './careerData';
+import { useCareerAchievements, useCareerLook, useProgressionOn } from './careerData';
 import { badgeLabel, rankIndex, rankName } from './hallModel';
 import styles from './ShowcaseBadges.module.css';
 
@@ -51,9 +50,8 @@ export default function CareerShowcase({ name, points, rank, badges }: { name: s
   const isMe = me.toLowerCase() === name.toLowerCase();
   const mine = useCareerLook((look) => (isMe ? look.looks[me.toLowerCase()]?.badges : undefined));
   const shown = (isMe && mine ? mine : badges ?? []).slice(0, SHOWCASE_SIZE);
-  // achievement names come from your own catalogue, when you have a Career
-  const optedIn = useSettings((settings) => settings.settings.careerOptIn);
-  const achievements = useCareerAchievements(optedIn && shown.length > 0);
+  // achievement names come from your own catalogue, on servers with progression
+  const achievements = useCareerAchievements(useProgressionOn() && shown.length > 0);
   const names = useMemo(() => new Map((achievements.data ?? []).map((achievement) => [achievement.id ?? '', achievement.name ?? ''])), [achievements.data]);
   const index = rankIndex(rank);
   const rankLabel = index >= 0 ? rankName(t, index) : rank;

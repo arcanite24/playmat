@@ -1,0 +1,38 @@
+# name: Train450 lim-t-wbg-aggro-1
+# archetype: limited_aggro
+# colors: WBG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Ambulatory Edifice
+1 Bladed Ambassador
+1 Bristlebane Battler
+1 Built to Last
+1 Clandestine Meddler
+2 Clarion Conqueror
+1 Creeping Chill
+2 Dreg Mangler
+1 Dryad Militant
+2 Elas il-Kor, Sadistic Pilgrim
+2 Flourishing Hunter
+1 Foggy Swamp Vinebender
+1 Fragmentize
+1 Hidetsugu, Devouring Chaos
+1 Huatli's Raptor
+1 Inkling Mascot
+1 Maelstrom Pulse
+2 Rip, Spawn Hunter
+1 Scrapheap Scrounger
+1 Slumbering Trudge
+2 South Pole Voyager
+1 Teething Wurmlet
+2 Tethermage's Advantage
+1 Vicious Rumors
+2 Void Extrapolator
+2 Wander Off
+1 Wardens of the Cycle
+1 Wild Pack Squad
+3 Forest
+4 Indatha Triome
+4 Plains
+4 Radiant Grove
+4 Shineshadow Snarl
+4 Swamp

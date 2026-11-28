@@ -102,6 +102,7 @@ services:
       XMAGE_REPLAYS: ${XMAGE_REPLAYS:-}
       XMAGE_REPLAY_DAYS: ${XMAGE_REPLAY_DAYS:-}
       XMAGE_REPLAY_MAX: ${XMAGE_REPLAY_MAX:-}
+      XMAGE_DISK_MIN_FREE_MB: ${XMAGE_DISK_MIN_FREE_MB:-}
       XMAGE_MAILGUN_API_KEY: ${XMAGE_MAILGUN_API_KEY:-}
       XMAGE_MAILGUN_DOMAIN: ${XMAGE_MAILGUN_DOMAIN:-}
       XMAGE_MAIL_SMTP_HOST: ${XMAGE_MAIL_SMTP_HOST:-}
@@ -120,6 +121,9 @@ services:
       XMAGE_KOFI_TOKEN: ${XMAGE_KOFI_TOKEN:-}
       XMAGE_GITHUB_SPONSORS_SECRET: ${XMAGE_GITHUB_SPONSORS_SECRET:-}
       XMAGE_HOOKS_PORT: ${XMAGE_HOOKS_PORT:-}
+      # Mana@Home cosmetics credit redemption bridge (docs/swarm/S6.md)
+      SWARM_BRIDGE_SECRET: ${SWARM_BRIDGE_SECRET:-}
+      MANA_COORDINATOR_URL: ${MANA_COORDINATOR_URL:-}
     volumes:
       - xmage-db:/opt/xmage/db         # user data only (accounts, stats, table records, feedback, support ledger)
       - xmage-cards:/opt/xmage/cards-db # card database cache, rebuilt when the image changes

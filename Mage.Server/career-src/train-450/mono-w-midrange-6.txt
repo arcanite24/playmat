@@ -1,0 +1,18 @@
+# name: Train450 mono-w-midrange-6
+# archetype: midrange
+# colors: W
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Angel of Vitality
+3 Bastion Mastodon
+1 Bounding Felidar
+4 Devouring Light
+2 Elite Spellbinder
+2 Exemplar of Light
+4 Expose Evil
+3 Get Lost
+4 Momo, Playful Pet
+4 Novice Knight
+1 Seraph of the Sword
+3 Volatile Rig
+1 Your Fate Ends Here
+24 Plains

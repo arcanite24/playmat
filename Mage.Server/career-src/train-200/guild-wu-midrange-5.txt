@@ -1,0 +1,22 @@
+# name: Train200 guild-wu-midrange-5
+# archetype: midrange
+# colors: WU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Archangel Avacyn
+2 Attack-in-the-Box
+1 Brazen Borrower
+4 Dragon Turtle
+4 Galestrike
+3 Gran-Gran
+2 High Sentinels of Arashin
+2 Humbling Elder
+2 Kill Shot
+3 Oblivion Sower
+3 Path to Exile
+3 Reluctant Dounguard
+3 Spectral Sailor
+3 Test of Priorities
+10 Island
+6 Plains
+4 Seachrome Coast
+4 Temple of Enlightenment

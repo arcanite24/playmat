@@ -1,0 +1,90 @@
+name: Mana@Home worker releases
+
+# Standalone strict `playmat-worker` binaries with SHA-256 checksums for volunteers who prefer running a native
+# binary or `playmat-worker ui` instead of Docker. Built natively per target so the strict build is verified on each.
+on:
+  push:
+    tags:
+      - "mana-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: playmat-worker (${{ matrix.target_name }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target_name: linux-amd64
+            runner: ubuntu-24.04
+            bin: playmat-worker
+            ext: ""
+          - target_name: linux-arm64
+            runner: ubuntu-24.04-arm
+            bin: playmat-worker
+            ext: ""
+          - target_name: macos-arm64
+            runner: macos-15
+            bin: playmat-worker
+            ext: ""
+          - target_name: windows-amd64
+            runner: windows-2022
+            bin: playmat-worker.exe
+            ext: ".exe"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build strict playmat-worker
+        shell: bash
+        env:
+          PLAYMAT_BUILD: ${{ github.sha }}
+          MANA_RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cargo build --manifest-path rust/Cargo.toml --release --locked -p playmat-worker --features strict
+          mkdir -p dist
+          cp "rust/target/release/${{ matrix.bin }}" "dist/playmat-worker-${{ matrix.target_name }}${{ matrix.ext }}"
+          (cd dist && sha256sum "playmat-worker-${{ matrix.target_name }}${{ matrix.ext }}" > "playmat-worker-${{ matrix.target_name }}.sha256")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: playmat-worker-${{ matrix.target_name }}
+          path: dist/*
+
+  checksums:
+    name: Assemble release checksums
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: playmat-worker-*
+          merge-multiple: true
+          path: release-files
+      - name: Combine SHA256SUMS and sign
+        env:
+          MANA_RELEASE_SIGNING_KEY: ${{ secrets.MANA_RELEASE_SIGNING_KEY }}
+        run: |
+          cd release-files
+          cat *.sha256 | sort > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          if [ -n "${MANA_RELEASE_SIGNING_KEY:-}" ]; then
+            chmod +x playmat-worker-linux-amd64
+            ./playmat-worker-linux-amd64 sign-sums --sums SHA256SUMS.txt --out SHA256SUMS.txt.sig
+            ./playmat-worker-linux-amd64 verify-sig --sums SHA256SUMS.txt --sig SHA256SUMS.txt.sig
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mana-worker-release
+          path: release-files/*
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/mana-v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release-files/* \
+            --title "Mana@Home worker ${GITHUB_REF_NAME}" \
+            --notes "Strict-math standalone Mana@Home worker binaries and SHA-256 checksums."

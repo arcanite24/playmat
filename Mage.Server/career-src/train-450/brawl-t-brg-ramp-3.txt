@@ -1,0 +1,54 @@
+# name: Train450 brawl-t-brg-ramp-3
+# archetype: brawl_ramp
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Adorned Crocodile
+1 Back to Nature
+1 Emberhorn Minotaur
+1 Felhide Spiritbinder
+1 Fire Nation Engineer
+1 Gaea's Courser
+1 Ghitu Lavarunner
+1 Goreclaw, Terror of Qal Sisma
+1 Heritage Reclamation
+1 Hostile Minotaur
+1 Jake Sisko, War Correspondent
+1 Jungle Creeper
+1 Kalonian Tusker
+1 Krenko's Enforcer
+1 Oviya Pashiri, Sage Lifecrafter
+1 Quartzwood Crasher
+1 Ravager Wurm
+1 Release the Gremlins
+1 Riveteers Charm
+1 Samut, Hazoret's Champion
+1 Scheming Silvertongue
+1 Scorchwalker
+1 Shatterskull Minotaur
+1 Sidisi, Undead Vizier
+1 Smash to Smithereens
+1 Soul of Innistrad
+1 Spider-Islanders
+1 Spring-Leaf Avenger
+1 Stomped by the Foot
+1 Taborax, Hope's Demise
+1 Tainted Treats
+1 Tormenting Voice
+1 Vorinclex, Monstrous Raider
+1 Wayward Giant
+1 Workshop Warchief
+5 Forest
+1 Foul Orchard
+1 Goblin-town
+1 Gohn, Town of Ruin
+1 Haunted Ridge
+1 Karplusan Forest
+5 Mountain
+1 Omashu City
+1 Overgrown Tomb
+1 Restless Cottage
+1 Rugged Highlands
+3 Swamp
+1 Vector, Imperial Capital
+1 Witherbloom Campus
+1 Wooded Ridgeline

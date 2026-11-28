@@ -382,6 +382,24 @@ export interface CareerAdminView {
     xp?: number;
 }
 
+export interface CareerArchenemyEncounter {
+    archenemyLife?: number;
+    beaten?: boolean;
+    challengerLife?: number;
+    commander?: boolean;
+    cover?: CareerCover;
+    id?: string;
+    mode?: string;
+    name?: string;
+    opponents?: string[];
+    text?: string;
+}
+
+export interface CareerArchenemyState {
+    encounters?: CareerArchenemyEncounter[];
+    schemes?: CareerScheme[];
+}
+
 export interface CareerAscension {
     level?: number;
     text?: string;
@@ -445,6 +463,7 @@ export interface CareerCatalogItem {
     mastery?: string;
     name?: string;
     path?: string;
+    price?: number;
     rank?: number;
     rarity?: string;
     ring?: string;
@@ -467,6 +486,7 @@ export interface CareerChallenge {
     id?: string;
     name?: string;
     opponentName?: string;
+    planeChase?: boolean;
     rule?: string;
     skill?: number;
     text?: string;
@@ -553,6 +573,7 @@ export interface CareerGameResult {
     opened?: string[];
     opponent?: string;
     packs?: number;
+    petBond?: CareerPetBondResult;
     quests?: CareerQuestProgress[];
     renownAfter?: number;
     renownBefore?: number;
@@ -596,6 +617,7 @@ export interface CareerHorde {
     bestTurns?: number;
     cover?: CareerCover;
     deckSize?: number;
+    difficulty?: string;
     flip?: number;
     id?: string;
     life?: number;
@@ -698,8 +720,19 @@ export interface CareerMachine {
 }
 
 export interface CareerMachineItem {
+    accent?: string;
     card?: string;
+    color?: string;
+    dark?: string;
+    dye?: string;
+    es?: string;
     id?: string;
+    kind?: string;
+    light?: string;
+    name?: string;
+    ring?: string;
+    shades?: string[];
+    style?: string;
     subject?: string;
 }
 
@@ -832,12 +865,15 @@ export interface CareerOpponent {
     bounty?: number;
     colors?: string;
     cover?: CareerCover;
+    format?: string;
     id?: string;
     lines?: CareerLines;
     lists?: number;
     name?: string;
     nemesis?: boolean;
     pips?: number;
+    pod?: boolean;
+    podNames?: string[];
     raid?: boolean;
     rivalBefore?: string;
     rivalChapter?: number;
@@ -873,6 +909,27 @@ export interface CareerPayout {
     xp?: number;
 }
 
+export interface CareerPetBondResult {
+    nextTierXp?: number;
+    petId?: string;
+    tier?: number;
+    tieredUp?: boolean;
+    unlockedTitle?: string;
+    xp?: number;
+    xpGained?: number;
+}
+
+export interface CareerPetProgress {
+    games?: number;
+    id?: string;
+    nextTierXp?: number;
+    style?: string;
+    tier?: number;
+    unlockedStyles?: string[];
+    wins?: number;
+    xp?: number;
+}
+
 export interface CareerPoolCard {
     cardNumber?: string;
     colors?: string;
@@ -884,6 +941,13 @@ export interface CareerPoolCard {
     rating?: number;
     removal?: boolean;
     setCode?: string;
+}
+
+export interface CareerPreconResult {
+    deck?: CareerSavedDeck;
+    free?: boolean;
+    profile?: CareerProfile;
+    starterId?: string;
 }
 
 export interface CareerProfile {
@@ -921,8 +985,10 @@ export interface CareerPublicProfile {
 export interface CareerPull {
     card?: string;
     item?: string;
+    kind?: string;
     machineDone?: boolean;
     machineRewards?: CareerCosmetic[];
+    name?: string;
     set?: string;
     setDone?: boolean;
     setReward?: CareerCosmetic;
@@ -1021,6 +1087,7 @@ export interface CareerRun {
     bosses?: CareerRunBoss[];
     choices?: string[];
     colors?: string;
+    commander?: CareerRunCard;
     deck?: CareerRunCard[];
     deckSize?: number;
     ended?: number;
@@ -1031,6 +1098,7 @@ export interface CareerRun {
     mode?: string;
     next?: CareerRunBoss;
     offer?: CareerOffer;
+    planeChase?: boolean;
     relics?: CareerRelic[];
     runCoins?: number;
     seed?: string;
@@ -1047,7 +1115,9 @@ export interface CareerRunBoss {
     cover?: CareerCover;
     name?: string;
     number?: number;
+    secondName?: string;
     skill?: number;
+    skirmish?: boolean;
     twists?: CareerTwists;
     type?: string;
 }
@@ -1084,11 +1154,18 @@ export interface CareerRunReward {
 export interface CareerSavedDeck {
     active?: boolean;
     deck?: DeckCardLists;
+    format?: string;
     id?: string;
     missing?: string[];
     name?: string;
     source?: string;
     updated?: number;
+}
+
+export interface CareerScheme {
+    id?: string;
+    name?: string;
+    text?: string;
 }
 
 export interface CareerSeat {
@@ -1105,6 +1182,7 @@ export interface CareerSetProgress {
 }
 
 export interface CareerShopSet {
+    category?: string;
     cover?: CareerCover;
     locked?: boolean;
     name?: string;
@@ -1118,14 +1196,19 @@ export interface CareerStarter {
     cards?: number;
     colors?: string;
     cover?: CareerCover;
+    format?: string;
     id?: string;
     name?: string;
+    track?: string;
 }
 
 export interface CareerState {
     adaptive?: AdaptiveView;
+    commanderPreconGift?: boolean;
     enabled?: boolean;
+    ownedPrecons?: string[];
     profile?: CareerProfile;
+    questPref?: string;
     rank?: CareerRank;
     recent?: CareerPayout[];
 }
@@ -1134,6 +1217,39 @@ export interface CareerSticker {
     es?: string;
     id?: string;
     phrase?: string;
+}
+
+export interface CareerSwarmRedeemResult {
+    account?: string;
+    capsuleTokensAwarded?: number;
+    creditRemaining?: number;
+    creditSpent?: number;
+    tokens?: number;
+}
+
+export interface CareerThgPair {
+    beaten?: boolean;
+    commander?: boolean;
+    cover?: CareerCover;
+    enemies?: string[];
+    id?: string;
+    name?: string;
+    teamLife?: number;
+    text?: string;
+}
+
+export interface CareerThgPartner {
+    archetype?: string;
+    commander?: boolean;
+    cover?: CareerCover;
+    id?: string;
+    name?: string;
+    text?: string;
+}
+
+export interface CareerThgState {
+    pairs?: CareerThgPair[];
+    partners?: CareerThgPartner[];
 }
 
 export interface CareerTip {
@@ -1340,6 +1456,12 @@ export interface DirectoryPlayer {
     status?: string;
 }
 
+export interface Disk {
+    free?: number;
+    problem?: string;
+    total?: number;
+}
+
 export interface DraftClientMessage extends Serializable {
     draftPickView?: DraftPickView;
     draftView?: DraftView;
@@ -1444,6 +1566,7 @@ export interface GameEndView extends Serializable {
     loses?: number;
     matchInfo?: string;
     matchView?: MatchView;
+    opponentDecks?: { [index: string]: string };
     players?: PlayerView[];
     startTime?: DateAsNumber;
     wins?: number;
@@ -1496,6 +1619,7 @@ export interface GameView extends Serializable {
     canPlayObjects?: PlayableObjectsList;
     combat?: CombatGroupView[];
     companion?: RevealedView[];
+    daytime?: boolean;
     events?: GameEventView[];
     exiles?: { [index: string]: CardView }[];
     gameCycle?: number;
@@ -1633,34 +1757,105 @@ export interface JobSpec {
     skillB?: number;
 }
 
-export interface LadderGame {
-    deck?: string;
-    ended?: number;
+export interface LadderArchetypeStat {
+    archetype?: string;
+    drew?: number;
+    lost?: number;
+    won?: number;
+}
+
+export interface LadderContract {
+    done?: boolean;
     id?: string;
+    progress?: number;
+    target?: number;
+}
+
+export interface LadderDeckCard {
+    amount?: number;
+    name?: string;
+}
+
+export interface LadderDeckStat {
+    deck?: string;
+    drew?: number;
+    lost?: number;
+    won?: number;
+}
+
+export interface LadderFieldEntry {
+    archetype?: string;
+    decks?: number;
+    lost?: number;
+    sampleDecks?: string[];
+    won?: number;
+}
+
+export interface LadderGame {
+    botArchetype?: string;
+    deck?: string;
+    delta?: number;
+    ended?: number;
+    gameScore?: string;
+    id?: string;
+    inspectable?: boolean;
     opponent?: LadderOpponent;
     started?: number;
     status?: string;
     stepAfter?: number;
     stepBefore?: number;
+    turns?: number;
 }
 
 export interface LadderMatch {
     opponent?: LadderOpponent;
+    podOpponents?: LadderOpponent[];
     tableId?: string;
     warm?: CareerCover[];
 }
 
+export interface LadderMythicRow {
+    archetype?: string;
+    bot?: boolean;
+    colors?: string;
+    deckName?: string;
+    games?: number;
+    name?: string;
+    rank?: number;
+    rating?: number;
+    you?: boolean;
+}
+
 export interface LadderOpponent {
+    archetype?: string;
     avatar?: string;
     botId?: string;
     colors?: string;
+    deckHidden?: boolean;
     deckName?: string;
     frame?: string;
+    keyCards?: string[];
     name?: string;
     playmat?: string;
     search?: string;
     sleeve?: string;
+    tagline?: string;
+    tier?: string;
     title?: string;
+    vsLost?: number;
+    vsWon?: number;
+}
+
+export interface LadderOpponentDeck {
+    archetype?: string;
+    botId?: string;
+    colors?: string;
+    deckName?: string;
+    gameId?: string;
+    main?: LadderDeckCard[];
+    opponentName?: string;
+    sideboard?: LadderDeckCard[];
+    tagline?: string;
 }
 
 export interface LadderPastSeason {
@@ -1685,6 +1880,8 @@ export interface LadderResult {
     mythicRating?: number;
     opponent?: LadderOpponent;
     packs?: number;
+    placement?: number;
+    podOpponents?: LadderOpponent[];
     queue?: string;
     reached?: string[];
     status?: string;
@@ -1697,7 +1894,12 @@ export interface LadderResult {
 }
 
 export interface LadderState {
+    archetypeStats?: LadderArchetypeStat[];
+    contracts?: LadderContract[];
+    deckStats?: LadderDeckStat[];
     drew?: number;
+    fieldMeta?: LadderFieldEntry[];
+    floorLabel?: string;
     format?: string;
     formats?: string[];
     label?: string;
@@ -1705,11 +1907,15 @@ export interface LadderState {
     lost?: number;
     mythicRating?: number;
     mythicStep?: number;
+    nextRewardRank?: string;
+    nextRewardToken?: boolean;
     peakLabel?: string;
     peakStep?: number;
     pips?: number;
     pipsPerTier?: number;
     playing?: boolean;
+    promotionNext?: boolean;
+    promotionTarget?: string;
     queue?: string;
     rank?: string;
     recent?: LadderGame[];
@@ -1785,6 +1991,7 @@ export interface LeagueFormat {
     mixed?: boolean;
     startPacks?: number;
     started?: boolean;
+    starterCount?: number;
     starters?: LeagueStarter[];
     tokens?: number;
 }
@@ -2067,6 +2274,7 @@ export interface PlayerLook {
     badges?: string[];
     cardStyles?: { [index: string]: string };
     cloth?: string;
+    commandFrame?: string;
     deckTokens?: { [index: string]: string };
     flair?: string;
     frame?: string;
@@ -2074,6 +2282,8 @@ export interface PlayerLook {
     level?: number;
     name?: string;
     pet?: string;
+    petStyle?: string;
+    petTier?: number;
     sleeve?: string;
     spark?: string;
     stamp?: string;
@@ -2375,6 +2585,7 @@ export interface ServerStats {
     backup?: BackupRun;
     bridge?: BridgeSnapshot;
     commit?: string;
+    disk?: Disk;
     heapMax?: number;
     heapUsed?: number;
     maintenance?: MaintenancePlan;
@@ -2486,6 +2697,7 @@ export interface StartOptions {
     cubeCards?: string[];
     cubeId?: string;
     mode?: string;
+    planeChase?: boolean;
     seed?: string;
     setCode?: string;
     variant?: string;
@@ -2817,7 +3029,7 @@ export type SkillLevel = "BEGINNER" | "CASUAL" | "SERIOUS";
 
 export type SoundToPlay = "PlayerLeft" | "PlayerQuitTournament" | "PlayerSubmittedDeck" | "PlayerWhispered";
 
-export type SubType = "ADVENTURE" | "ARCANE" | "LESSON" | "OMEN" | "TRAP" | "VENGEANCE" | "SIEGE" | "FOREST" | "ISLAND" | "MOUNTAIN" | "PLAINS" | "SWAMP" | "CAVE" | "DESERT" | "GATE" | "LAIR" | "LOCUS" | "MINE" | "PLANET" | "POWER_PLANT" | "SPHERE" | "TOWER" | "TOWN" | "URZAS" | "AURA" | "BACKGROUND" | "CARTOUCHE" | "CASE" | "CLASS" | "CURSE" | "PLAN" | "ROLE" | "ROOM" | "RUNE" | "SAGA" | "SHARD" | "SHRINE" | "ATTRACTION" | "BLOOD" | "BOBBLEHEAD" | "BOOK" | "CLUE" | "COMMUNICATOR" | "CONTRAPTION" | "EQUIPMENT" | "FOOD" | "FORTIFICATION" | "GOLD" | "HEARTWOOD" | "INCUBATOR" | "INFINITY" | "JUNK" | "LANDER" | "MAP" | "MUTAGEN" | "POWERSTONE" | "SPACECRAFT" | "STONE" | "TREASURE" | "VEHICLE" | "VIBRANIUM" | "ADVISOR" | "AENAR" | "AETHERBORN" | "ALIEN" | "ALLY" | "ANDORIAN" | "ANDROID" | "ANGEL" | "ANTELOPE" | "ANZELLAN" | "APE" | "AQUALISH" | "ARCHER" | "ARCHON" | "ARCONA" | "ARMADILLO" | "ARMY" | "ARTIFICER" | "ASSASSIN" | "ASSEMBLY_WORKER" | "ASTARTES" | "ATAT" | "ATHLETE" | "ATOG" | "AUROCHS" | "AUTOBOT" | "AVATAR" | "AZRA" | "BADGER" | "BAJORAN" | "BALLOON" | "BARABEL" | "BARBARIAN" | "BARD" | "BASILISK" | "BAT" | "BEAR" | "BEAST" | "BEAVER" | "BEEBLE" | "BEHOLDER" | "BERSERKER" | "BETAZOID" | "BIRD" | "BISON" | "BITH" | "BLINKMOTH" | "BOAR" | "BOLIAN" | "BORG" | "BRAINIAC" | "BRIKAR" | "BRINGER" | "BRUSHWAGG" | "CTAN" | "CAITIAN" | "CALAMARI" | "CAMARID" | "CAMEL" | "CAPYBARA" | "CARIBOU" | "CARRIER" | "CAT" | "CENTAUR" | "CEREAN" | "CHILD" | "CHIMERA" | "CHISS" | "CITIZEN" | "CLAMFOLK" | "CLERIC" | "CLOWN" | "COCKATRICE" | "CONSTRUCT" | "COW" | "COWARD" | "COYOTE" | "CRAB" | "CROCODILE" | "CROLUTE" | "CUSTODES" | "CYBERMAN" | "CYBORG" | "CYCLOPS" | "DALEK" | "DATHOMIRIAN" | "DAUTHI" | "DEMIGOD" | "DEMON" | "DENOBULAN" | "DESERTER" | "DETECTIVE" | "DEVIL" | "DINOSAUR" | "DJINN" | "DOCTOR" | "DOG" | "DRAGON" | "DRAKE" | "DREADNOUGHT" | "DRIX" | "DROID" | "DRONE" | "DRUID" | "DRYAD" | "DWARF" | "ECHIDNA" | "EFREET" | "EGG" | "EL_AURIAN" | "ELDER" | "ELDRAZI" | "ELEMENTAL" | "ELEPHANT" | "ELF" | "ELK" | "EMPLOYEE" | "ETERNAL" | "EWOK" | "EXPANSION_SYMBOL" | "EXCALBIAN" | "EYE" | "FAERIE" | "FERENGI" | "FERRET" | "FISH" | "FLAGBEARER" | "FOX" | "FRACTAL" | "FROG" | "FUNGUS" | "GAMER" | "GAMMA" | "GAMORREAN" | "GAND" | "GARGOYLE" | "GERM" | "GIANT" | "GIRAFFE" | "GITH" | "GLIMMER" | "GNOLL" | "GNOME" | "GOAT" | "GOBLIN" | "GOD" | "GOLEM" | "GORGON" | "GORN" | "GRAVEBORN" | "GREMLIN" | "GRIFFIN" | "GUEST" | "GUNGAN" | "HAG" | "HALFLING" | "HAMSTER" | "HARPY" | "HEDGEHOG" | "HELLION" | "HERO" | "HIPPO" | "HIPPOGRIFF" | "HIROGEN" | "HOMARID" | "HOMUNCULUS" | "HORROR" | "HORSE" | "HUMAN" | "HUNTER" | "HUTT" | "HYDRA" | "HYENA" | "ILLUSION" | "ILLYRIAN" | "IMP" | "INCARNATION" | "INHUMAN" | "INKLING" | "INQUISITOR" | "INSECT" | "ITHORIAN" | "JACKAL" | "JAWA" | "JEDI" | "JELLYFISH" | "JUGGERNAUT" | "KALEESH" | "KANGAROO" | "KAVU" | "KELDOR" | "KELPIEN" | "KILLBOT" | "KIRIN" | "KITHKIN" | "KLINGON" | "KNIGHT" | "KOBOLD" | "KOORIVAR" | "KOR" | "KRAKEN" | "KREE" | "KWEJIAN" | "LADYOFPROPERETIQUETTE" | "LAMIA" | "LAMMASU" | "LANTHANITE" | "LEECH" | "LEMUR" | "LEVIATHAN" | "LHURGOYF" | "LICID" | "LIZARD" | "LLAMA" | "LOBSTER" | "MANTELLIAN" | "MANTICORE" | "MASTICORE" | "MEDUSAN" | "MERCENARY" | "MERFOLK" | "METATHRAN" | "MINION" | "MINDLESS_ONE" | "MINOTAUR" | "MIRIALAN" | "MITE" | "MOLE" | "MONGER" | "MONGOOSE" | "MONK" | "MONKEY" | "MOOGLE" | "MOONFOLK" | "MOUNT" | "MOUSE" | "MUTANT" | "MYR" | "MYSTIC" | "NAUTILUS" | "NAUTOLAN" | "NECRON" | "NEIMOIDIAN" | "NEPHILIM" | "NIGHTMARE" | "NIGHTSTALKER" | "NINJA" | "NOBLE" | "NOGGLE" | "NOMAD" | "NYMPH" | "OCTOPUS" | "OFFICER" | "OGRE" | "OOZE" | "ORB" | "ORC" | "ORGG" | "ORION" | "ORTOLAN" | "OTTER" | "OUPHE" | "OX" | "OYSTER" | "PANGOLIN" | "PEASANT" | "PEGASUS" | "PENTAVITE" | "PERFORMER" | "PEST" | "PHELDDAGRIF" | "PHOENIX" | "PHYREXIAN" | "PILOT" | "PINCHER" | "PIRATE" | "PLANT" | "PLATYPUS" | "PORCUPINE" | "POSSUM" | "PRAETOR" | "PRIMARCH" | "PRISM" | "PROCESSOR" | "PUREBLOOD" | "Q" | "QU" | "QUARREN" | "RABBIT" | "RACCOON" | "RAIDER" | "RANGER" | "RAT" | "REBEL" | "REFLECTION" | "RHINO" | "RIGGER" | "ROBOT" | "RODIAN" | "ROGUE" | "ROMULAN" | "SABLE" | "SALAMANDER" | "SAMURAI" | "SAND" | "SAPROLING" | "SATYR" | "SCARECROW" | "SCIENTIST" | "SCION" | "SCORPION" | "SCOUT" | "SCULPTURE" | "SEAL" | "SERF" | "SERPENT" | "SERVO" | "SHADE" | "SHAMAN" | "SHAPESHIFTER" | "SHARK" | "SHEEP" | "SHIAR" | "SIREN" | "SITH" | "SKELETON" | "SKRULL" | "SKUNK" | "SLITH" | "SLIVER" | "SLOTH" | "SLUG" | "SNAIL" | "SNAKE" | "SOLDIER" | "SOLTARI" | "SORCERER" | "SPAWN" | "SPECTER" | "SPELLSHAPER" | "SPHINX" | "SPIDER" | "SPIKE" | "SPIRIT" | "SPLINTER" | "SPLITTER" | "SPONGE" | "SPY" | "SQUID" | "SQUIRREL" | "STARFISH" | "STARSHIP" | "SULLUSTAN" | "SURRAKAR" | "SURVIVOR" | "SYMBIOTE" | "SYNTH" | "TALOSIAN" | "TELLARITE" | "TENTACLE" | "TETRAVITE" | "THALAKOS" | "THOLIAN" | "THOPTER" | "THRULL" | "TIEFLING" | "TIME_LORD" | "TOSK" | "TOY" | "TRANDOSHAN" | "TREEFOLK" | "TRIBBLE" | "TRILL" | "TRILOBITE" | "TRISKELAVITE" | "TROLL" | "TROOPER" | "TURTLE" | "TUSKEN" | "TWILEK" | "TYRANID" | "UGNAUGHT" | "UNICORN" | "UTROM" | "VAMPIRE" | "VARMINT" | "VEDALKEN" | "VILLAIN" | "VOLVER" | "VORTA" | "VULCAN" | "WALL" | "WALRUS" | "WARLOCK" | "WARRIOR" | "WEASEL" | "WEEQUAY" | "WEIRD" | "WEREWOLF" | "WHALE" | "WIZARD" | "WOLF" | "WOLVERINE" | "WOMBAT" | "WOOKIEE" | "WORM" | "WRAITH" | "WURM" | "XINDI" | "YETI" | "ZABRAK" | "ZOMBIE" | "ZUBERA" | "AJANI" | "AMINATOU" | "ANGRATH" | "ARLINN" | "ARZAKON" | "ASHIOK" | "AURRA" | "BAHAMUT" | "BASRI" | "BOLAS" | "CALIX" | "CHANDRA" | "COMET" | "DACK" | "DAKKON" | "DARETTI" | "DAVRIEL" | "DELLIAN" | "DIHADA" | "DOMRI" | "DOOKU" | "DOVIN" | "DYFED" | "ELLYWICK" | "ELMINSTER" | "ELSPETH" | "ESTRID" | "FEROZ" | "FREYALISE" | "GARRUK" | "GIDEON" | "GREENSLEEVES" | "GRIST" | "GUFF" | "HUATLI" | "INZERVA" | "JACE" | "JARED" | "JAYA" | "JESKA" | "KAITO" | "KARN" | "KASMINA" | "KAYA" | "KIORA" | "KOTH" | "LILIANA" | "LOLTH" | "LUKE" | "LUKKA" | "MINSC" | "MORDENKAINEN" | "NAHIRI" | "NARSET" | "NIKO" | "NISSA" | "NIXILIS" | "OBI_WAN" | "OKO" | "QUINTORIUS" | "RAL" | "REY" | "ROWAN" | "SAHEELI" | "SAMUT" | "SARKHAN" | "SERRA" | "SIDIOUS" | "SIFA" | "SIVITRI" | "SNOKE" | "SORIN" | "SZAT" | "TAMIYO" | "TASHA" | "TEFERI" | "TEYO" | "TEZZERET" | "TIBALT" | "TYVAR" | "UGIN" | "URZA" | "VENSER" | "VIVIEN" | "VRASKA" | "VRONOS" | "WILL" | "WINDGRACE" | "WORZEL" | "WRENN" | "XENAGOS" | "YANGGU" | "YANLING" | "YODA" | "ZARIEL";
+export type SubType = "ADVENTURE" | "ARCANE" | "LESSON" | "OMEN" | "TRAP" | "VENGEANCE" | "SIEGE" | "FOREST" | "ISLAND" | "MOUNTAIN" | "PLAINS" | "SWAMP" | "CAVE" | "DESERT" | "DIMENSION" | "GATE" | "LAIR" | "LOCUS" | "MINE" | "PLANET" | "POWER_PLANT" | "SPHERE" | "TOWER" | "TOWN" | "URZAS" | "AURA" | "BACKGROUND" | "CARTOUCHE" | "CASE" | "CLASS" | "CURSE" | "PLAN" | "ROLE" | "ROOM" | "RUNE" | "SAGA" | "SHARD" | "SHRINE" | "ATTRACTION" | "BLOOD" | "BOBBLEHEAD" | "BOOK" | "CLUE" | "COMMUNICATOR" | "CONTRAPTION" | "EQUIPMENT" | "FOOD" | "FORTIFICATION" | "GOLD" | "HEARTWOOD" | "INCUBATOR" | "INFINITY" | "JUNK" | "LANDER" | "MAP" | "MUTAGEN" | "POWERSTONE" | "SPACECRAFT" | "STONE" | "TREASURE" | "VEHICLE" | "VIBRANIUM" | "ADVISOR" | "AENAR" | "AETHERBORN" | "ALIEN" | "ALLY" | "ANDORIAN" | "ANDROID" | "ANGEL" | "ANTELOPE" | "ANZELLAN" | "APE" | "AQUALISH" | "ARCHER" | "ARCHON" | "ARCONA" | "ARMADILLO" | "ARMY" | "ARTIFICER" | "ASSASSIN" | "ASSEMBLY_WORKER" | "ASTARTES" | "ATAT" | "ATHLETE" | "ATOG" | "AUROCHS" | "AUTOBOT" | "AVATAR" | "AZRA" | "BADGER" | "BAJORAN" | "BALLOON" | "BARABEL" | "BARBARIAN" | "BARD" | "BASILISK" | "BAT" | "BEAR" | "BEAST" | "BEAVER" | "BEEBLE" | "BEHOLDER" | "BERSERKER" | "BETAZOID" | "BIRD" | "BISON" | "BITH" | "BLINKMOTH" | "BOAR" | "BOLIAN" | "BORG" | "BRAINIAC" | "BRIKAR" | "BRINGER" | "BRUSHWAGG" | "CTAN" | "CAITIAN" | "CALAMARI" | "CAMARID" | "CAMEL" | "CAPYBARA" | "CARDASSIAN" | "CARIBOU" | "CARRIER" | "CAT" | "CENTAUR" | "CEREAN" | "CHILD" | "CHIMERA" | "CHISS" | "CITIZEN" | "CLAMFOLK" | "CLERIC" | "CLOWN" | "COCKATRICE" | "CONSTRUCT" | "COW" | "COWARD" | "COYOTE" | "CRAB" | "CROCODILE" | "CROLUTE" | "CUSTODES" | "CYBERMAN" | "CYBORG" | "CYCLOPS" | "DALEK" | "DATHOMIRIAN" | "DAUTHI" | "DEMIGOD" | "DEMON" | "DENOBULAN" | "DESERTER" | "DETECTIVE" | "DEVIL" | "DINOSAUR" | "DJINN" | "DOCTOR" | "DOG" | "DRAGON" | "DRAKE" | "DREADNOUGHT" | "DRIX" | "DROID" | "DRONE" | "DRUID" | "DRYAD" | "DWARF" | "ECHIDNA" | "EDOSIAN" | "EFREET" | "EGG" | "EL_AURIAN" | "ELDER" | "ELDRAZI" | "ELEMENTAL" | "ELEPHANT" | "ELF" | "ELK" | "EMPLOYEE" | "ETERNAL" | "EWOK" | "EXPANSION_SYMBOL" | "EXCALBIAN" | "EYE" | "FAERIE" | "FERENGI" | "FERRET" | "FISH" | "FLAGBEARER" | "FOX" | "FRACTAL" | "FROG" | "FUNGUS" | "GAMER" | "GAMMA" | "GAMORREAN" | "GAND" | "GARGOYLE" | "GERM" | "GIANT" | "GIRAFFE" | "GITH" | "GLIMMER" | "GNOLL" | "GNOME" | "GOAT" | "GOBLIN" | "GOD" | "GOLEM" | "GORGON" | "GORN" | "GRAVEBORN" | "GREMLIN" | "GRIFFIN" | "GUEST" | "GUNGAN" | "HAG" | "HALFLING" | "HAMSTER" | "HARPY" | "HEDGEHOG" | "HELLION" | "HERO" | "HIPPO" | "HIPPOGRIFF" | "HIROGEN" | "HOMARID" | "HOMUNCULUS" | "HORROR" | "HORSE" | "HUMAN" | "HUNTER" | "HUTT" | "HYDRA" | "HYENA" | "ILLUSION" | "ILLYRIAN" | "IMP" | "INCARNATION" | "INHUMAN" | "INKLING" | "INQUISITOR" | "INSECT" | "ITHORIAN" | "JACKAL" | "JAWA" | "JEDI" | "JELLYFISH" | "JEMHADAR" | "JUGGERNAUT" | "KALEESH" | "KANGAROO" | "KAVU" | "KELDOR" | "KELPIEN" | "KILLBOT" | "KIRIN" | "KITHKIN" | "KLINGON" | "KNIGHT" | "KOBOLD" | "KOORIVAR" | "KOR" | "KRAKEN" | "KREE" | "KWEJIAN" | "LADYOFPROPERETIQUETTE" | "LAMIA" | "LAMMASU" | "LANTHANITE" | "LEECH" | "LEMUR" | "LEVIATHAN" | "LHURGOYF" | "LICID" | "LIZARD" | "LLAMA" | "LOBSTER" | "MANTELLIAN" | "MANTICORE" | "MASTICORE" | "MEDUSAN" | "MELKOTIAN" | "MERCENARY" | "MERFOLK" | "METATHRAN" | "MINION" | "MINDLESS_ONE" | "MINOTAUR" | "MIRIALAN" | "MITE" | "MOLE" | "MONGER" | "MONGOOSE" | "MONK" | "MONKEY" | "MOOGLE" | "MOONFOLK" | "MOUNT" | "MOUSE" | "MUTANT" | "MYR" | "MYSTIC" | "NAKUHL" | "NAUTILUS" | "NAUTOLAN" | "NECRON" | "NEIMOIDIAN" | "NEPHILIM" | "NIGHTMARE" | "NIGHTSTALKER" | "NINJA" | "NOBLE" | "NOGGLE" | "NOMAD" | "NYMPH" | "OCAMPA" | "OCTOPUS" | "OFFICER" | "OGRE" | "OOZE" | "ORB" | "ORC" | "ORGG" | "ORION" | "ORTOLAN" | "OTTER" | "OUPHE" | "OX" | "OYSTER" | "PANGOLIN" | "PEASANT" | "PEGASUS" | "PENTAVITE" | "PERFORMER" | "PEST" | "PHELDDAGRIF" | "PHOENIX" | "PHYREXIAN" | "PILOT" | "PINCHER" | "PIRATE" | "PLANT" | "PLATYPUS" | "PORCUPINE" | "POSSUM" | "PRAETOR" | "PRIMARCH" | "PRISM" | "PROCESSOR" | "PUREBLOOD" | "Q" | "QU" | "QUARREN" | "RABBIT" | "RACCOON" | "RAIDER" | "RANGER" | "RAT" | "REBEL" | "REFLECTION" | "RHINO" | "RIGGER" | "ROBOT" | "RODIAN" | "ROGUE" | "ROMULAN" | "SABLE" | "SALAMANDER" | "SAMURAI" | "SAND" | "SAPROLING" | "SATYR" | "SCARECROW" | "SCIENTIST" | "SCION" | "SCORPION" | "SCOUT" | "SCULPTURE" | "SEAL" | "SERF" | "SERPENT" | "SERVO" | "SHADE" | "SHAMAN" | "SHAPESHIFTER" | "SHARK" | "SHEEP" | "SHIAR" | "SIREN" | "SITH" | "SKELETON" | "SKRULL" | "SKUNK" | "SLITH" | "SLIVER" | "SLOTH" | "SLUG" | "SNAIL" | "SNAKE" | "SOLDIER" | "SOLTARI" | "SORCERER" | "SPAWN" | "SPECTER" | "SPELLSHAPER" | "SPHINX" | "SPIDER" | "SPIKE" | "SPIRIT" | "SPLINTER" | "SPLITTER" | "SPONGE" | "SPY" | "SQUID" | "SQUIRREL" | "STARFISH" | "STARSHIP" | "SULLUSTAN" | "SURRAKAR" | "SURVIVOR" | "SYMBIOTE" | "SYNTH" | "TALAXIAN" | "TALOSIAN" | "TAMARIAN" | "TELLARITE" | "TENTACLE" | "TETRAVITE" | "THALAKOS" | "THOLIAN" | "THOPTER" | "THRULL" | "TIEFLING" | "TIME_LORD" | "TOSK" | "TOY" | "TRANDOSHAN" | "TREEFOLK" | "TRIBBLE" | "TRILL" | "TRILOBITE" | "TRISKELAVITE" | "TROLL" | "TROOPER" | "TURTLE" | "TUSKEN" | "TWILEK" | "TYRANID" | "UGNAUGHT" | "UNICORN" | "UTROM" | "VAMPIRE" | "VARMINT" | "VAU_NAKAT" | "VEDALKEN" | "VILLAIN" | "VOLVER" | "VORTA" | "VULCAN" | "WALL" | "WALRUS" | "WARLOCK" | "WARRIOR" | "WEASEL" | "WEEQUAY" | "WEIRD" | "WEREWOLF" | "WHALE" | "WIZARD" | "WOLF" | "WOLVERINE" | "WOMBAT" | "WOOKIEE" | "WORM" | "WRAITH" | "WURM" | "XINDI" | "YETI" | "ZABRAK" | "ZOMBIE" | "ZUBERA" | "AJANI" | "AMINATOU" | "ANGRATH" | "ARLINN" | "ARZAKON" | "ASHIOK" | "AURRA" | "BAHAMUT" | "BASRI" | "BOLAS" | "CALIX" | "CHANDRA" | "COMET" | "DACK" | "DAKKON" | "DARETTI" | "DAVRIEL" | "DELLIAN" | "DIHADA" | "DOMRI" | "DOOKU" | "DOVIN" | "DYFED" | "ELLYWICK" | "ELMINSTER" | "ELSPETH" | "ESTRID" | "FEROZ" | "FREYALISE" | "GARRUK" | "GIDEON" | "GREENSLEEVES" | "GRIST" | "GUFF" | "HUATLI" | "INZERVA" | "JACE" | "JARED" | "JAYA" | "JESKA" | "KAITO" | "KARN" | "KASMINA" | "KAYA" | "KIORA" | "KOTH" | "LILIANA" | "LOLTH" | "LUKE" | "LUKKA" | "MINSC" | "MORDENKAINEN" | "NAHIRI" | "NARSET" | "NIKO" | "NISSA" | "NIXILIS" | "OBI_WAN" | "OKO" | "QUINTORIUS" | "RAL" | "REY" | "ROWAN" | "SAHEELI" | "SAMUT" | "SARKHAN" | "SERRA" | "SIDIOUS" | "SIFA" | "SIVITRI" | "SNOKE" | "SORIN" | "SZAT" | "TAMIYO" | "TASHA" | "TEFERI" | "TEYO" | "TEZZERET" | "TIBALT" | "TYVAR" | "UGIN" | "URZA" | "VENSER" | "VIVIEN" | "VRASKA" | "VRONOS" | "WILL" | "WINDGRACE" | "WORZEL" | "WRENN" | "XENAGOS" | "YANGGU" | "YANLING" | "YODA" | "ZARIEL";
 
 export type SuperType = "BASIC" | "ELITE" | "LEGENDARY" | "ONGOING" | "SNOW" | "WORLD";
 

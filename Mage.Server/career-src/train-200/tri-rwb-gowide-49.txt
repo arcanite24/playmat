@@ -1,0 +1,23 @@
+# name: Train200 tri-rwb-gowide-49
+# archetype: gowide
+# colors: RWB
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Ambush Paratrooper
+3 Bonecrusher Giant
+3 Flare of Faith
+2 Greasewrench Goblin
+3 Leonin Skyhunter
+4 Ob Nixilis's Cruelty
+1 Perils of the Past
+3 Reinforced Ronin
+3 Rustwing Falcon
+3 Seedglaive Mentor
+3 Soldier of the Pantheon
+4 Spiteful Hexmage
+2 Wartime Protestors
+4 Foot Headquarters
+3 Mountain
+5 Plains
+4 Raucous Theater
+4 Scoured Barrens
+2 Swamp

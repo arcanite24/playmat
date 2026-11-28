@@ -303,6 +303,9 @@ pub(crate) struct Handler {
     pub start: Option<StartFn>,
     /// a resolving static whose class lasts `Duration.UntilYourNextTurn` (its constructor's, not an argument)
     pub until_your_next_turn: bool,
+    /// a resolving static whose class lasts until its own check ends it (`Duration.WhileControlled`), kept past the
+    /// turn's cleanup (`Handler::lasting`)
+    pub lasting: bool,
     /// a trigger class's `getRule` adding what it triggered with, on the stack (`Handler::stack_info`)
     pub stack_info: Option<StackInfoFn>,
 }
@@ -325,6 +328,7 @@ impl Handler {
             any_zone: false,
             start: None,
             until_your_next_turn: false,
+            lasting: false,
             stack_info: None,
         }
     }
@@ -405,6 +409,13 @@ impl Handler {
     /// chapter II): it lasts until its controller's next turn, as one with that `Duration` argument does
     pub const fn until_your_next_turn(mut self) -> Handler {
         self.until_your_next_turn = true;
+        self
+    }
+
+    /// a resolving static whose class's duration ends by its handler's own check (`Duration.WhileControlled`:
+    /// Extraction Specialist's "for as long as you control {this}"): it outlasts the turn
+    pub const fn lasting(mut self) -> Handler {
+        self.lasting = true;
         self
     }
 

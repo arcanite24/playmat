@@ -1,0 +1,55 @@
+# name: Train450 brawl-t-gur-mid-2
+# archetype: brawl_mid
+# colors: GUR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Atarka Beastbreaker
+1 Avatar of Burgeoning Echoes
+1 Axgard Cavalry
+1 Baral and Kari Zev
+1 Battery Bearer
+1 Birgi, God of Storytelling
+1 Blisterspit Gremlin
+1 Cunning Strike
+1 Dinotomaton
+1 Disruption Protocol
+1 Eternal Scourge
+1 Explosive Entry
+1 Flame Spill
+1 Graf Mole
+1 Heated Argument
+1 Hugs, Grisly Guardian
+1 Illusionist's Stratagem
+1 Intrepid Tenderfoot
+1 Marauding Brinefang
+1 Ormos, Archive Keeper
+1 Orthion, Hero of Lavabrink
+1 Pelakka Wurm
+1 Pinecone Strike
+1 Prismari Apprentice
+1 Prismari Command
+1 Scaleguard Sentinels
+1 Siege Dragon
+1 Smoke Teller
+1 Spectacle Mage
+1 Splatter Technique
+1 Stickytongue Sentinel
+1 Tether Technician
+1 Vedalken Blademaster
+1 Vicious Clown
+1 Wizard's Lightning
+1 Woolly Loxodon
+1 Botanical Sanctum
+1 Copperline Gorge
+3 Forest
+1 Innovative Commons
+4 Island
+1 Lumbering Falls
+1 Meditation Pools
+5 Mountain
+1 Simic Guildgate
+1 Swiftwater Cliffs
+1 Tangled Islet
+1 Temple of Abandon
+1 Temple of Epiphany
+1 Vineglimmer Snarl
+1 Volatile Fjord

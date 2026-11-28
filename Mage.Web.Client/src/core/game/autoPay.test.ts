@@ -189,6 +189,16 @@ describe('parseCostOptions', () => {
     expect(parseCostOptions('Pay {2/W}')).toEqual([{ generic: 0, colored: { W: 1 } }, { generic: 2, colored: {} }]);
     expect(parseCostOptions('Pay {B/P}{B/P}')).toEqual([{ generic: 0, colored: { B: 2 } }]);
     expect(parseCostOptions('Pay {G/U/P}')).toEqual([{ generic: 0, colored: { G: 1 } }, { generic: 0, colored: { U: 1 } }]);
+    expect(parseCostOptions('Pay {C/U}{C/G}')).toEqual([
+      { generic: 0, colored: { U: 1, G: 1 } }, { generic: 0, colored: { U: 1, C: 1 } },
+      { generic: 0, colored: { C: 1, G: 1 } }, { generic: 0, colored: { C: 2 } },
+    ]);
+    // Ulalek, Fused Atrocity with four Wastes and an Island: the {U} reading, and the Island is tapped first
+    const ulalek = orderReadings(parseCostOptions('Pay {C/W}{C/U}{C/B}{C/R}{C/G}')!, [
+      land('w1', 'C'), land('w2', 'C'), land('w3', 'C'), land('w4', 'C'), land('island', 'U'),
+    ]);
+    expect(ulalek[0]).toEqual({ generic: 0, colored: { U: 1, C: 4 } });
+    expect(nextSource(ulalek[0], [land('w1', 'C'), land('w2', 'C'), land('w3', 'C'), land('w4', 'C'), land('island', 'U')])).toBe('island');
   });
   it('still refuses X and snow, and hybrid when not asked to read it', () => {
     expect(parseCostOptions('Pay {X}{R}')).toBeNull();

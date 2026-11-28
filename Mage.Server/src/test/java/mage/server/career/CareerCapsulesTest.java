@@ -61,9 +61,12 @@ public class CareerCapsulesTest {
         CareerCapsules.addTokens(store, user, tokens, "test", 0);
     }
 
-    /** every card class in Mage.Sets, by file name, with whether it's a single-faced card */
+    /** every card class in Mage.Sets (plus basic lands), by file name, with whether it's a single-faced card */
     private static Map<String, Boolean> cardClasses() throws IOException {
         Map<String, Boolean> classes = new HashMap<>();
+        for (String basic : java.util.Arrays.asList("Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes")) {
+            classes.put(basic, true);
+        }
         try (Stream<Path> files = Files.walk(Paths.get("../Mage.Sets/src/mage/cards"))) {
             for (Path path : files.filter(one -> one.toString().endsWith(".java")).collect(Collectors.toList())) {
                 String name = path.getFileName().toString().replace(".java", "");
@@ -98,12 +101,13 @@ public class CareerCapsulesTest {
             assertNotNull(machine.name, machine.id);
             assertNotNull(machine.es, machine.id);
             assertNotNull(machine.cabinet, machine.id);
-            assertTrue(CareerCosmetics.KINDS.contains(machine.kind), machine.id);
+            boolean mixed = "mixed".equals(machine.kind);
+            assertTrue(mixed || CareerCosmetics.KINDS.contains(machine.kind), machine.id);
             assertNotNull(catalog.find(machine.reward.kind, machine.reward.id), machine.id + "'s reward is in the catalog");
             assertNotNull(catalog.find(machine.title.kind, machine.title.id), machine.id + "'s title is in the catalog");
             assertEquals(10, machine.sets.size(), machine.id + " has ten sets");
-            Set<String> cards = new HashSet<>();
             for (CareerCapsules.CareerMachineSet set : machine.sets) {
+                Set<String> cards = new HashSet<>();
                 assertTrue(ids.add(set.id), set.id + " is unique");
                 assertTrue(set.capsule.matches("#[0-9a-f]{6}"), set.id);
                 assertNotNull(set.style, set.id);
@@ -111,16 +115,23 @@ public class CareerCapsulesTest {
                 assertNotNull(catalog.find("sleeve", set.reward.id), set.id + "'s sleeve is in the catalog");
                 assertTrue(Files.exists(CLIENT_ART.resolve("sleeve/" + set.reward.id + ".webp")), set.id + "'s sleeve is painted");
                 for (CareerCapsules.CareerMachineItem item : set.items) {
+                    String itemKind = CareerCapsules.itemKind(machine, item);
+                    assertTrue(CareerCosmetics.KINDS.contains(itemKind), item.id + " has valid kind " + itemKind);
                     assertTrue(ids.add(item.id), item.id + " is unique");
                     assertTrue(item.id.startsWith(set.id + "-"), item.id);
                     assertTrue(item.id.matches("[a-z0-9-]+"), item.id);
-                    assertTrue(cards.add(item.card), item.card + " is in " + machine.id + " once");
-                    Boolean single = classes.get(className(item.card));
-                    assertNotNull(single, item.card + " is a card");
-                    assertTrue(single, item.card + " has one face");
-                    assertNotNull(catalog.find(machine.kind, item.id), item.id + " is in the catalog");
-                    String slug = item.id.substring(set.id.length() + 1);
-                    assertTrue(Files.exists(CLIENT_ART.resolve(machine.kind + "/" + set.id + "/" + slug + ".webp")), item.id + " is painted");
+                    assertNotNull(catalog.find(itemKind, item.id), item.id + " is in the catalog");
+                    if (CareerCapsules.CARD_STYLE.equals(itemKind)) {
+                        assertTrue(cards.add(item.card), item.card + " is in " + set.id + " once");
+                        Boolean single = classes.get(className(item.card));
+                        assertNotNull(single, item.card + " is a card");
+                        assertTrue(single, item.card + " has one face");
+                        String slug = item.id.substring(set.id.length() + 1);
+                        assertTrue(Files.exists(CLIENT_ART.resolve("cardstyle/" + set.id + "/" + slug + ".webp")), item.id + " is painted");
+                    } else {
+                        String dir = "pet".equals(itemKind) ? "companion" : "frame".equals(itemKind) ? "plate-frame" : itemKind;
+                        assertTrue(Files.exists(CLIENT_ART.resolve(dir + "/" + item.id + ".webp")), item.id + " is painted");
+                    }
                 }
             }
         }
@@ -228,5 +239,41 @@ public class CareerCapsulesTest {
         assertEquals(item.id, capsules.worn("fay").get(item.card));
         List<String> owned = capsules.shop("fay").owned;
         assertTrue(owned.contains(item.id));
+    }
+
+    @Test
+    public void stagedMachinesUseValidSingleFacedCardsAndUniqueSetIds() throws Exception {
+        Map<String, Boolean> classes = cardClasses();
+        CareerCosmetics catalog = CareerCosmetics.get();
+        com.google.gson.Gson gson = new com.google.gson.Gson();
+        Set<String> allIds = new HashSet<>();
+        for (String id : java.util.Arrays.asList("full-art", "commander-vault", "planar-horizons")) {
+            try (java.io.InputStream in = CareerCapsules.class.getResourceAsStream("/career/machines/" + id + ".json")) {
+                assertNotNull(in, "Missing machine file: " + id);
+                CareerCapsules.CareerMachine machine = gson.fromJson(
+                        new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8),
+                        CareerCapsules.CareerMachine.class
+                );
+                assertEquals(id, machine.id);
+                assertNotNull(machine.name, id);
+                assertNotNull(machine.es, id);
+                assertNotNull(catalog.find(machine.reward.kind, machine.reward.id), id + " reward in catalog");
+                assertNotNull(catalog.find(machine.title.kind, machine.title.id), id + " title in catalog");
+                assertEquals(10, machine.sets.size(), id + " has ten sets");
+                for (CareerCapsules.CareerMachineSet set : machine.sets) {
+                    assertTrue(allIds.add(set.id), set.id + " is globally unique");
+                    assertEquals(5, set.items.size(), set.id + " has five items");
+                    Set<String> setCards = new HashSet<>();
+                    for (CareerCapsules.CareerMachineItem item : set.items) {
+                        assertTrue(allIds.add(item.id), item.id + " is globally unique");
+                        assertTrue(item.id.startsWith(set.id + "-"), item.id);
+                        assertTrue(setCards.add(item.card), item.card + " appears once in " + set.id);
+                        Boolean single = classes.get(className(item.card));
+                        assertNotNull(single, item.card + " exists in Mage.Sets or basic lands");
+                        assertTrue(single, item.card + " is single-faced");
+                    }
+                }
+            }
+        }
     }
 }

@@ -80,6 +80,9 @@ public class ShadowGamesTest {
         String schools = System.getProperty(PREFIX + ".schools", "pioneer,standard");
         String deckDir = System.getProperty(PREFIX + ".decks", "");
         CardScanner.scan();
+        // TokenRepository.init() is not synchronized; initialize it before spawning worker threads
+        // so token lists are never populated twice (which would alter RandomUtil image selection).
+        mage.cards.repository.TokenRepository.instance.init();
 
         List<String> names = new ArrayList<>();
         List<DeckCardLists> decks = new ArrayList<>();
@@ -91,8 +94,7 @@ public class ShadowGamesTest {
             }
             Arrays.sort(files);
             for (File file : files) {
-                StringBuilder errors = new StringBuilder();
-                decks.add(DeckImporter.importDeckFromFile(file.toString(), errors, false));
+                decks.add(importDeck(file));
                 names.add(folder.getName() + "/" + file.getName().replace(".txt", ""));
             }
         }
@@ -100,28 +102,67 @@ public class ShadowGamesTest {
         out.mkdirs();
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
         int n = decks.size();
-        // .seeds=a,b,c: those games only, instead of .first and .games (recording a few of a run again)
+        // .seeds=a,b,c or .seedsFile=<path>: those games only, instead of .first and .games
         List<Integer> seeds = new ArrayList<>();
         String only = System.getProperty(PREFIX + ".seeds", "");
+        String seedsFile = System.getProperty(PREFIX + ".seedsFile", "");
+        if (!seedsFile.isEmpty()) {
+            only = new String(Files.readAllBytes(new File(seedsFile).toPath()), StandardCharsets.UTF_8).trim();
+        }
         if (only.isEmpty()) {
             for (int i = first; i < first + games; i++) {
                 seeds.add(i);
             }
         } else {
-            for (String seed : only.split(",")) {
-                seeds.add(Integer.parseInt(seed.trim()));
+            for (String seed : only.split("[,\\s]+")) {
+                if (!seed.isEmpty()) {
+                    seeds.add(Integer.parseInt(seed.trim()));
+                }
             }
         }
-        for (int i : seeds) {
-            int a = i % n;
-            int b = (a + 1 + (i / n) % (n - 1)) % n;
-            Map<String, Object> record = play(i, names.get(a), decks.get(a), names.get(b), decks.get(b), turns, null);
-            Files.write(new File(out, String.format("game-%05d.json", i)).toPath(),
-                    gson.toJson(record).getBytes(StandardCharsets.UTF_8));
-            System.out.println("[shadow] game " + i + " " + names.get(a) + " vs " + names.get(b) + ": "
-                    + record.get("result") + ", " + ((List<?>) record.get("decisions")).size() + " answers, "
-                    + ((List<?>) record.get("trace")).size() + " trace entries");
+        int threads = Math.max(1, Integer.getInteger(PREFIX + ".threads", 1));
+        if (threads == 1 || seeds.size() <= 1) {
+            for (int i : seeds) {
+                recordOne(i, n, names, decks, turns, out, gson);
+            }
+        } else {
+            ExecutorService pool = Executors.newFixedThreadPool(Math.min(threads, seeds.size()));
+            List<java.util.concurrent.Future<?>> futures = new ArrayList<>(seeds.size());
+            for (int i : seeds) {
+                futures.add(pool.submit(() -> {
+                    recordOne(i, n, names, decks, turns, out, gson);
+                    return null;
+                }));
+            }
+            pool.shutdown();
+            Throwable firstErr = null;
+            for (java.util.concurrent.Future<?> f : futures) {
+                try {
+                    f.get();
+                } catch (java.util.concurrent.ExecutionException e) {
+                    if (firstErr == null) {
+                        firstErr = e.getCause();
+                    }
+                    e.getCause().printStackTrace();
+                }
+            }
+            if (firstErr != null) {
+                throw new RuntimeException("shadow game recording failed", firstErr);
+            }
         }
+    }
+
+    private static void recordOne(int i, int n, List<String> names, List<DeckCardLists> decks, int turns, File out, Gson gson) throws Exception {
+        int a = i % n;
+        int b = (a + 1 + (i / n) % (n - 1)) % n;
+        Map<String, Object> record = play(i, names.get(a), decks.get(a), names.get(b), decks.get(b), turns, null);
+        File target = new File(out, String.format("game-%05d.json", i));
+        File tmp = new File(out, String.format(".game-%05d.json.tmp", i));
+        Files.write(tmp.toPath(), gson.toJson(record).getBytes(StandardCharsets.UTF_8));
+        Files.move(tmp.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        System.out.println("[shadow] game " + i + " " + names.get(a) + " vs " + names.get(b) + ": "
+                + record.get("result") + ", " + ((List<?>) record.get("decisions")).size() + " answers, "
+                + ((List<?>) record.get("trace")).size() + " trace entries");
     }
 
     @Test
@@ -131,6 +172,9 @@ public class ShadowGamesTest {
         Assume.assumeFalse("shadow games are replayed only with -D" + PREFIX + ".replay=<dir> -D" + PREFIX + "=<dir>",
                 dir.isEmpty() || in.isEmpty());
         CardScanner.scan();
+        // TokenRepository.init() is not synchronized; initialize it before spawning worker threads
+        // so token lists are never populated twice (which would alter RandomUtil image selection).
+        mage.cards.repository.TokenRepository.instance.init();
         File out = new File(dir);
         out.mkdirs();
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
@@ -299,6 +343,24 @@ public class ShadowGamesTest {
         record.put("trace", entries);
         record.put("result", result);
         return record;
+    }
+
+    /**
+     * Fail on a deck that loads empty rather than record games with it. Several recording processes share the card
+     * database, and one that loses the race to open it ("Lock file recently modified") finds no card at all.
+     */
+    private static DeckCardLists importDeck(File file) {
+        StringBuilder messages = new StringBuilder();
+        DeckCardLists list = DeckImporter.importDeckFromFile(file.toString(), messages, false);
+        String errors = messages.toString().trim();
+        if (list.getCards().isEmpty()) {
+            throw new IllegalStateException("deck " + file + " didn't load: " + (errors.isEmpty() ? "no cards" : errors));
+        }
+        if (!errors.isEmpty()) {
+            // a card the database lacks: the deck plays without it, as it always has
+            System.out.println("[shadow] deck " + file.getName() + ": " + errors);
+        }
+        return list;
     }
 
     private static Map<String, Object> deck(String name, DeckCardLists list) {

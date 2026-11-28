@@ -1,0 +1,35 @@
+# name: Train450 lim-g-gu-aggro-1
+# archetype: limited_aggro
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Artisan's Sorrow
+2 Blizzard Brawl
+1 Brineborn Cutthroat
+1 Campus Composer
+1 Cankerbloom
+2 Chorus of the Tides
+2 Consuming Sinkhole
+1 Gloomwidow
+2 Icetill Explorer
+1 Ichorplate Golem
+1 Michelangelo, Improviser
+1 Might of the Masses
+2 Mistbreath Elder
+1 Mossbeard Ancient
+2 Prizefight
+1 Pteramander
+1 Silvergill Mentor
+2 Spiders-Man, Heroic Horde
+1 Taunting Arbormage
+1 Tetsuko Umezawa, Fugitive
+1 Thorn Elemental
+2 Thousand-Faced Shadow
+1 Tide Shaper
+2 Tony Stark
+1 Ulvenwald Oddity
+1 Venomous Brutalizer
+1 Wayward Swordtooth
+4 Dreamroot Cascade
+10 Forest
+5 Island
+4 Temple of Mystery

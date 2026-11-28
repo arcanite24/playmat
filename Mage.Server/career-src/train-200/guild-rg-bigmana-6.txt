@@ -1,0 +1,20 @@
+# name: Train200 guild-rg-bigmana-6
+# archetype: bigmana
+# colors: RG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Ashroot Animist
+3 Carnage Tyrant
+3 Champion of the Path
+3 Gigantosaurus
+4 Hazoret, Godseeker
+4 Jaya's Greeting
+2 Lupine Prototype
+3 Maze Rusher
+2 Ornamental Courage
+2 Quartzwood Crasher
+4 Volcanic Villain
+2 Warg Tactics
+4 Commercial District
+7 Forest
+10 Mountain
+4 Sheltered Thicket

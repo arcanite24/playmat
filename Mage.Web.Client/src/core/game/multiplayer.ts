@@ -75,6 +75,33 @@ export function defenderChoice(prompt: Prompt | null | undefined, view: GameView
 }
 
 /**
+ * Every opponent in range, plus their planeswalkers and any battles on the table, as attackable defender options.
+ * Used when declaring attackers in batches so the player can aim a group of tokens at a specific defender.
+ */
+export function possibleDefenders(view: GameView | null | undefined, myId: string | null): DefenderOption[] {
+  if (!view || !myId) return [];
+  const options: DefenderOption[] = [];
+  for (const player of view.players ?? []) {
+    const id = player.playerId;
+    if (!id || id === myId || player.hasLeft || !inRange(view, myId, id)) continue;
+    options.push({ id, kind: 'player', name: player.name ?? 'Player', value: String(player.life ?? 0), controllerName: null });
+  }
+  for (const player of view.players ?? []) {
+    const controllerId = player.playerId;
+    if (!controllerId || player.hasLeft) continue;
+    for (const [id, permanent] of Object.entries(player.battlefield ?? {})) {
+      const types = permanent.cardTypes ?? [];
+      if (types.includes('BATTLE')) {
+        options.push({ id, kind: 'battle', name: permanent.name ?? 'Battle', value: permanent.defense || null, controllerName: player.name ?? null });
+      } else if (types.includes('PLANESWALKER') && controllerId !== myId && inRange(view, myId, controllerId)) {
+        options.push({ id, kind: 'planeswalker', name: permanent.name ?? 'Planeswalker', value: permanent.loyalty || null, controllerName: player.name ?? null });
+      }
+    }
+  }
+  return options;
+}
+
+/**
  * The creature a "what does it attack?" question is about. The server doesn't say: while declaring attackers it is
  * the creature just clicked; when that one is already attacking, the question is for a creature put onto the
  * battlefield attacking (a token "tapped and attacking"): the one tapped creature of ours not yet in combat. Null

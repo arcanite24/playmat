@@ -1,0 +1,22 @@
+# name: Train200 guild-gw-gowide-10
+# archetype: gowide
+# colors: GW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Ambush Wolf
+4 Bristlepack Sentry
+3 Display of Dominance
+3 Dryad Militant
+4 Dust Animus
+1 Epic Confrontation
+3 Expedition Envoy
+3 Exultant Skymarcher
+4 Greenbelt Rampager
+2 Kinjalli's Sunwing
+4 Spiders-Man, Heroic Horde
+3 Sudden Spinnerets
+1 Tear Asunder
+2 Wayward Swordtooth
+4 Canopy Vista
+9 Forest
+5 Plains
+4 Tranquil Expanse

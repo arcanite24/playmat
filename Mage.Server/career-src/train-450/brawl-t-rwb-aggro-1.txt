@@ -1,0 +1,56 @@
+# name: Train450 brawl-t-rwb-aggro-1
+# archetype: brawl_aggro
+# colors: RWB
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Arahbo, the First Fang
+1 Blacklance Paragon
+1 Blazing Bomb
+1 Blazing Hope
+1 Body Dropper
+1 Caustic Bronco
+1 Cloudspire Captain
+1 Codespell Cleric
+1 Dismember
+1 Dog Walker
+1 Dreadhorde Arcanist
+1 Egon, God of Death
+1 Fate Unraveler
+1 Fireblade Artist
+1 Frontline Devastator
+1 Goblin Glasswright
+1 Grim Wanderer
+1 Heartflame Duelist
+1 Honor the God-Pharaoh
+1 Lava Dart
+1 Leonin Surveyor
+1 Marauding Raptor
+1 Mardu Charm
+1 Martial Glory
+1 Merchant of the Vale
+1 Molten Blast
+1 Olivia, Mobilized for War
+1 Ozai, the Phoenix King
+1 Pitiless Horde
+1 Raiyuu, Storm's Edge
+1 Sea Gate Banneret
+1 Shock
+1 Steel Hellkite
+1 Thunder Strike
+1 Wanderbrine Trapper
+1 War-Trained Slasher
+1 Zirda, the Dawnwaker
+1 Abraded Bluffs
+1 Concealed Courtyard
+1 Fisk Tower
+1 Foot Headquarters
+1 Foreboding Ruins
+1 Forlorn Flats
+1 Haunted Ridge
+5 Mountain
+3 Plains
+1 Restless Vents
+1 Scoured Barrens
+1 Shattered Sanctum
+1 Smoldering Marsh
+3 Swamp
+1 Temple of Triumph

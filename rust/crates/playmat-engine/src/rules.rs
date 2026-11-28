@@ -34,7 +34,13 @@ pub fn play_from_priority_question(game: &mut Game, d: &mut dyn Decider, stop_on
 
 fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: bool) {
     let mut first = true;
+    let mut step_iters: u32 = 0;
     while !game.over && !d.stopped() {
+        step_iters += 1;
+        if step_iters > 5_000 {
+            game.over = true;
+            break;
+        }
         let step = match game.step {
             Some(s) => s,
             None => return,
@@ -190,7 +196,13 @@ fn next_step(game: &Game, step: Step) -> Option<Step> {
 /// begins (Java's extra `CleanupStep` turn mod), which checks again. `resume`: a copy taken while a seat was asked at
 /// this priority plays on from it.
 fn cleanup_priority(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
+    let mut cleanup_iters: u32 = 0;
     loop {
+        cleanup_iters += 1;
+        if cleanup_iters > 200 {
+            game.over = true;
+            return;
+        }
         if !std::mem::take(&mut resume) {
             if !check_state_and_triggered(game, d) || game.over || d.stopped() {
                 return;
@@ -238,10 +250,15 @@ fn note(
     }
 }
 
-/// `source`'s effect countered `spell`
-fn note_countered(game: &mut Game, spell: ObjId, source: ObjId) {
+/// `source`'s effect, controlled by `by`, countered `spell`
+fn note_countered(game: &mut Game, spell: ObjId, source: ObjId, by: Seat) {
     let player = Some(game.obj(spell).controller);
     note(game, EventKind::Countered, player, Some(source), Some(Target::Obj(spell)), 0);
+    // `COUNTERED`: "whenever a spell or ability you control counters a spell", the controller of the stack object
+    // that countered it
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::SpellCounteredYou) && you == by);
+    game.pending.extend(fired);
 }
 
 /// Whether a resolved "doesn't untap" effect keeps `id` tapped in `active`'s untap step: one for as long as its
@@ -269,12 +286,16 @@ fn dont_untap_now(game: &Game, id: ObjId, active: Seat) -> bool {
 
 fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
     let active = game.active.unwrap_or(0);
+    if step == Step::BeginCombat {
+        // `BEGIN_COMBAT_STEP_PRE` (Storrev, Devkarin Lich's watcher)
+        game.watch.to_graveyard_this_combat.clear();
+    }
     match step {
         Step::Untap => {
             note(game, EventKind::Turn, Some(active), None, None, 0);
             // 726.2: the previous turn's active player cast no spells: day becomes night; two or more: night
             // becomes day (`UntapStep.handleDayNight`, before untapping)
-            if game.day.is_some() && game.turn > 1 {
+            if game.day.is_some() && game.turn > 1 && !game.skip_untap_steps.contains(&active) {
                 let previous = game.player((active + game.seats() - 1) % game.seats()).spells_cast;
                 let change = match game.day {
                     Some(true) => previous == 0,
@@ -316,6 +337,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             // "until your next turn" ends as it begins
             game.attacks_opponent.retain(|(s, _)| *s != active);
             game.flash_until_next_turn.retain(|(s, _, _)| *s != active);
+            game.player_abilities_until_next_turn.retain(|(s, _, _)| *s != active);
+            game.goaded.retain(|(_, _, goader)| *goader != active);
             game.attacks_if_able_next.retain(|(s, _, _)| *s != active);
             game.card_statics.retain(|r| r.until_turn_of != Some(active));
             game.lost_until_turn_of.retain(|(_, _, _, s)| *s != active);
@@ -341,11 +364,31 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 Arc::make_mut(&mut game.boosts).retain(|b| b.until_turn_of != Some(active));
             }
             game.triggered_this_turn.clear();
-            game.watch = crate::state::TurnWatch::default();
+            let last = std::mem::take(&mut game.watch);
+            game.watch = crate::state::TurnWatch {
+                entered_last_turn: last
+                    .entered
+                    .iter()
+                    .zip(last.entered_permanents.iter())
+                    .map(|(e, p)| (e.0, e.2, p.0))
+                    .collect(),
+                ..Default::default()
+            };
             game.creature_died = false;
             game.creatures_died = 0;
             game.void_this_turn = false;
             game.activated_this_turn.clear();
+            // a skipped untap step (`TurnMod.withSkipStep(UNTAP)`: `UntapStep` isn't played, day and night not
+            // checked, nothing phases in or untaps; the turn's own resets above still happen); its permanents are no longer summoning sick all the same
+            if let Some(at) = game.skip_untap_steps.iter().position(|s| *s == active) {
+                game.skip_untap_steps.remove(at);
+                for id in Arc::clone(&game.battlefield).iter().copied() {
+                    if game.obj(id).controller == active {
+                        game.obj_mut(id).sick = false;
+                    }
+                }
+                return;
+            }
             // 502.1: the active player's phased-out permanents phase in, before the untap (`PlayerImpl.phasing`);
             // what phased out indirectly comes back with what it's attached to
             let phasing_in: Vec<ObjId> = game
@@ -390,7 +433,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             || matches!(e, EffectDef::DontUntapInControllersUntapStepAllEffect { controller, filter, .. }
                                 if (controller != "you" || g.obj(src).controller == active)
                                     && g.filter_matches(filter, g.obj(src).controller, Some(src), id))
-                    }) || dont_untap_now(game, id, active);
+                    }) || dont_untap_now(game, id, active)
+                        || cards::cant_untap(game, id);
                     // `DontUntapInControllersNextUntapStepTargetEffect`: used up by this untap step
                     let zcc = game.obj(id).zcc;
                     let skipped = game.skip_next_untap.contains(&(id, zcc));
@@ -419,10 +463,18 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             if g.obj(src).controller != active
                                 && g.obj(id).controller == g.obj(src).controller
                                 && g.filter_matches(filter, g.obj(src).controller, Some(src), id))
+                }) || game.command_static(|g, src, e| {
+                    // an emblem's (Teferi, Who Slows the Sunset's)
+                    matches!(e, EffectDef::UntapAllDuringEachOtherPlayersUntapStepEffect { filter }
+                            if g.obj(src).controller != active
+                                && g.obj(id).controller == g.obj(src).controller
+                                && g.filter_matches(filter, g.obj(src).controller, Some(src), id))
                 }) {
                     // "untap this during each other player's untap step" (a rules effect, once each untap step)
                     let was = game.obj(id).tapped;
-                    untap(game.obj_mut(id));
+                    if !cards::cant_untap(game, id) {
+                        untap(game.obj_mut(id));
+                    }
                     if was && !game.obj(id).tapped {
                         fire_untapped(game, id);
                     }
@@ -502,7 +554,23 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     if !game.watch.exerted.contains(&at) {
                         game.watch.exerted.push(at);
                     }
-                    let fired = game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted));
+                    // BECOMES_EXERTED: this one's own triggers, and "whenever you exert a creature"
+                    let seat = game.obj(a).controller;
+                    let fired = if game.battlefield.iter().any(|b| {
+                        game.obj(*b)
+                            .def
+                            .abilities
+                            .iter()
+                            .any(|x| matches!(x.trigger(), Some(Trigger::ExertedCreatureYou)))
+                    }) {
+                        let all: Vec<ObjId> = game.battlefield.iter().copied().collect();
+                        game.triggers(all, |_, src, ctrl, t| {
+                            matches!(t, Trigger::Exerted) && src == a
+                                || matches!(t, Trigger::ExertedCreatureYou) && ctrl == seat
+                        })
+                    } else {
+                        game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted))
+                    };
                     let n = fired.len();
                     match game.attack_taps.iter().find(|(x, _)| *x == a).map(|(_, at)| *at) {
                         Some(at) => {
@@ -579,21 +647,31 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             // ATTACKER_DECLARED triggers, in the order the attackers are listed
             game.trigger_cause = Some(TriggerCause::Attacked);
             let alone = attackers(game).len() == 1;
+            let alone_at_player = attackers(game).iter().filter(|a| game.obj(**a).attacking_pw.is_none()).count() == 1;
             for a in attackers(game) {
                 let sources: Vec<ObjId> = game.trigger_sources();
                 let fired = game.triggers(sources, |g, src, you, t| match t {
                     Trigger::EntersOrAttacks | Trigger::AttacksOrBlocks | Trigger::AttackerDeclared => src == a,
                     Trigger::AttacksFirstTime => src == a && first_attack.contains(&a),
                     Trigger::AttacksAll { filter, .. } => g.filter_matches(filter, you, Some(src), a),
-                    Trigger::AttacksAloneAll { filter } => alone && g.filter_matches(filter, you, Some(src), a),
-                    Trigger::AttacksAttached => g.attached(src) == Some(a),
+                    Trigger::AttacksAloneAll { filter, player } => {
+                        (if *player { alone_at_player && g.obj(a).attacking_pw.is_none() } else { alone })
+                            && g.filter_matches(filter, you, Some(src), a)
+                    }
+                    Trigger::AttacksAttached | Trigger::AttacksOrBlocksAttached => g.attached(src) == Some(a),
+                    Trigger::AttacksThisOrAttached => src == a || g.attached(src) == Some(a),
                     _ => false,
                 });
                 for mut t in fired {
                     let all = t.ability.and_then(|(i, _)| game.item_def(&t).abilities[i].trigger().cloned());
                     let at_attacker = matches!(
                         all,
-                        Some(Trigger::AttacksAll { .. } | Trigger::AttacksAloneAll { .. } | Trigger::AttacksAttached)
+                        Some(
+                            Trigger::AttacksAll { .. }
+                                | Trigger::AttacksAloneAll { .. }
+                                | Trigger::AttacksAttached
+                                | Trigger::AttacksThisOrAttached
+                        )
                     );
                     if at_attacker && set_target_pointer(game, &t) {
                         t.targets = vec![vec![Target::Obj(a)]];
@@ -715,6 +793,15 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             game.pending.push(item);
                         }
                     }
+                    // a card's own "whenever one or more creatures attack you" (`AttacksYou`): those creatures
+                    let sources = game.trigger_sources();
+                    let fired =
+                        game.triggers(sources, |_, _, you, t| matches!(t, Trigger::AttacksYou) && you == defender);
+                    for mut t in fired {
+                        t.targets = vec![at_player.iter().map(|(a, _)| Target::Obj(*a)).collect()];
+                        t.target_zcc = vec![at_player.iter().map(|(_, z)| *z).collect()];
+                        game.pending.push(t);
+                    }
                 }
             }
             game.trigger_cause = None;
@@ -783,6 +870,16 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             // the draw step's draw comes before its triggers
             if step == Step::Draw {
                 draw(game, active, 1);
+                // `DrawStep`: then each other player who draws on an opponent's turn (`setDrawsOnOpponentsTurn`: Teferi,
+                // Who Slows the Sunset's emblem), in turn order from the active player
+                for i in 1..game.seats() {
+                    let p = (active + i) % game.seats();
+                    if game.command_static(|g, src, e| {
+                        matches!(e, EffectDef::DrawsOnOpponentsTurnEffect) && g.obj(src).controller == p
+                    }) {
+                        draw(game, p, 1);
+                    }
+                }
             }
             let name = match step {
                 Step::Upkeep => "upkeep",
@@ -815,7 +912,24 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         && name == "upkeep"
                         && you == active
                         && g.obj(src).zone == Zone::Battlefield)
+                    // a Career turn twist: any player's upkeep, from its turn on (`UPKEEP_STEP_PRE`)
+                    || (matches!(t, Trigger::CareerTurn { turn } if g.turn >= *turn)
+                        && name == "upkeep"
+                        && g.obj(src).zone == Zone::Command)
+                    // `EchoAbility`: your upkeep if echo hasn't already triggered under your control
+                    || (matches!(t, Trigger::EchoUpkeep)
+                        && name == "upkeep"
+                        && you == active
+                        && g.obj(src).zone == Zone::Battlefield
+                        && g.obj(src).echo_paid != Some(you))
             });
+            if step == Step::Upkeep {
+                for t in &fired {
+                    if matches!(game.trigger_of(t), Some(Trigger::EchoUpkeep)) {
+                        game.obj_mut(t.card).echo_paid = Some(t.controller);
+                    }
+                }
+            }
             // "at the beginning of the next end step" delayed triggers: `GameState.handleEvent` checks the delayed
             // ones before the others
             if step == Step::EndTurn {
@@ -864,10 +978,12 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             EffectDef::MillCardsTargetEffect { .. }
                             | EffectDef::DamageTargetEffect { .. }
                             | EffectDef::DrawCardTargetEffect { .. }
+                            | EffectDef::DiscardTargetEffect { .. }
                             | EffectDef::LoseLifeTargetEffect { .. }
                             // (Sorin, Solemn Visitor's emblem: "that player sacrifices a creature of their choice")
                             | EffectDef::SacrificeEffect { .. } => true,
                             EffectDef::CardEffect { handler, .. } => handler.java() == "LoseHalfLifeTargetEffect",
+                            EffectDef::Effects { effects, .. } => effects.iter().any(at_that_player),
                             EffectDef::ConditionalOneShotEffect { effect, otherwise, also, .. } => {
                                 effect.as_deref().is_some_and(at_that_player)
                                     || otherwise.as_deref().is_some_and(at_that_player)
@@ -1180,7 +1296,13 @@ fn priority_round(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
         // `GameImpl.playPriority` starts the loop count again
         game.loop_count = 0;
     }
+    let mut round_iters: u32 = 0;
     loop {
+        round_iters += 1;
+        if round_iters > 500 {
+            game.over = true;
+            return;
+        }
         let mut seat = active;
         if std::mem::take(&mut resume) {
             seat = game.priority.unwrap_or(active);
@@ -1191,7 +1313,13 @@ fn priority_round(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
         }
         loop {
             game.priority = Some(seat);
+            let mut seat_iters: u32 = 0;
             while !game.player(seat).passed {
+                seat_iters += 1;
+                if seat_iters > 500 {
+                    game.over = true;
+                    return;
+                }
                 check_state_and_triggered(game, d);
                 if game.over || d.stopped() {
                     return;
@@ -1303,6 +1431,11 @@ fn check_infinite_loop(game: &mut Game, d: &mut dyn Decider, source: ObjId) {
                         let line = format!("For {} the game is a draw.", log::player(seat));
                         log::inform(game, line);
                     }
+                    let alive = (0..game.seats()).filter(|s| !game.player(*s).lost && !game.player(*s).drew).count();
+                    if alive <= 1 && !game.over {
+                        game.over = true;
+                        traced(game, d);
+                    }
                 }
             }
             game.over = true;
@@ -1328,6 +1461,7 @@ pub fn devourer_first_upkeep(game: &mut Game, card: ObjId, seat: Seat) {
         effects: vec![EffectDef::LookLibraryAndPickControllerEffect {
             look: 4,
             look_count: None,
+            look_amount: None,
             pick: 1,
             filter: Default::default(),
             picked: crate::card::PutCards::TopAny,
@@ -1335,6 +1469,7 @@ pub fn devourer_first_upkeep(game: &mut Game, card: ObjId, seat: Seat) {
             up_to: true,
             optional: false,
             pick_x: false,
+            otherwise: Vec::new(),
         }],
         source_zcc: game.obj(card).zcc,
         fixed: Vec::new(),
@@ -1491,7 +1626,8 @@ fn priority(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     let step = game.step.unwrap_or(Step::Upkeep);
     if game.stack.is_empty()
         && !stops_in(step)
-        && !game.player(seat).every_priority
+        // (a turn another player controls: theirs is asked as they are)
+        && !game.player(game.turn_controller(seat)).every_priority
         && pass_with_mana_pool_check(game, d, seat)
     {
         return;
@@ -1549,7 +1685,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
         if o.is(CardType::Land) {
             // a land with an adventure (Jidoor's Overture): its spell, with or without a land to play
             // (a land with disguise, Branch of Vitu-Ghazi: cast face down, with or without a land to play)
-            if can_play_land(game, seat)
+            if can_play_land(game, seat) && !cards::cant_play_lands_from_hand(game, seat)
                 || !activatable(game, seat, *id).is_empty()
                 || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
                 || morph(game, seat, *id).is_some()
@@ -1578,7 +1714,9 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || plot(game, seat, *id).is_some()
             || suspend(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
-            || o.def.back.as_ref().is_some_and(|b| b.is(CardType::Land) && can_play_land(game, seat))
+            || o.def.back.as_ref().is_some_and(|b| {
+                b.is(CardType::Land) && can_play_land(game, seat) && !cards::cant_play_lands_from_hand(game, seat)
+            })
             || o.def.back.as_ref().is_some_and(|b| !b.is(CardType::Land) && castable(game, seat, *id, b))
         {
             out.push(*id);
@@ -1660,6 +1798,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
                     || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
                     || spectacle(game, seat, *id).is_some()
                     || morph(game, seat, *id).is_some()
+                    || cleave(game, seat, *id).is_some()
                     // (cast for its mutate cost: Hex Magic's exiled cards)
                     || mutate(game, seat, *id).is_some()
                     // a modal double-faced card's back (Birgi exiled by Harnfel: Harnfel cast from exile)
@@ -1825,12 +1964,16 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                             out.push((id, 0, PlayKind::Adventure, Some(1)));
                         }
                     }
-                    if o.zone == Zone::Hand {
+                    // (a Room from exile too, while an effect lets you cast it: Release to the Wind's, free)
+                    let room_free = o.zone == Zone::Exile && o.play_free;
+                    if o.zone == Zone::Hand || o.zone == Zone::Exile && !def.room.is_empty() {
                         for (h, half) in def.room.iter().enumerate() {
-                            if (!def.aftermath || h == 0) && castable(game, seat, id, half) {
+                            if (!def.aftermath || h == 0) && castable(game, seat, id, &free_half(half, room_free)) {
                                 out.push((id, h, PlayKind::RoomHalf, None));
                             }
                         }
+                    }
+                    if o.zone == Zone::Hand {
                         // a fused split card's halves together (`h2`)
                         if def.fused_spell().is_some_and(|f| castable(game, seat, id, &f)) {
                             out.push((id, 2, PlayKind::RoomHalf, None));
@@ -1942,8 +2085,61 @@ fn unlock_cost(game: &Game, seat: Seat, id: ObjId, index: usize) -> Option<ManaC
     Some(c)
 }
 
+fn split_second_on_stack(game: &Game) -> bool {
+    game.stack.iter().any(|s| {
+        s.ability.is_none()
+            && s.delayed.is_none()
+            && game.item_def(s).has(&AbilityDef::SplitSecondAbility)
+    })
+}
+
+fn step_in_phase(step: Step, phase: &str) -> bool {
+    match phase {
+        "BEGINNING" => matches!(step, Step::Untap | Step::Upkeep | Step::Draw),
+        "PRECOMBAT_MAIN" => matches!(step, Step::PrecombatMain),
+        "COMBAT" => matches!(
+            step,
+            Step::BeginCombat
+                | Step::DeclareAttackers
+                | Step::DeclareBlockers
+                | Step::FirstCombatDamage
+                | Step::CombatDamage
+                | Step::EndCombat
+        ),
+        "POSTCOMBAT_MAIN" => matches!(step, Step::PostcombatMain),
+        "END" => matches!(step, Step::EndTurn | Step::Cleanup),
+        _ => true,
+    }
+}
+
+fn cast_phase_step_allowed(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
+    for a in &def.abilities {
+        if let AbilityDef::CastOnlyDuringPhaseStepSourceAbility { phase, step, condition, .. } = a {
+            if let Some(p) = phase {
+                if !game.step.is_some_and(|st| step_in_phase(st, p)) {
+                    return false;
+                }
+            }
+            if let Some(s) = step {
+                if !game.step.is_some_and(|st| st.name() == s.as_str()) {
+                    return false;
+                }
+            }
+            if let Some(c) = condition {
+                if !game.condition_holds(Some(c), seat, id) {
+                    return false;
+                }
+            }
+        }
+    }
+    true
+}
+
 /// A permanent's activated abilities (not mana abilities) its controller can activate now, by index.
 fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
+    if split_second_on_stack(game) {
+        return Vec::new();
+    }
     let o = game.obj(id);
     // a card in a graveyard is its owner's
     if (o.zone == Zone::Graveyard && o.owner != seat) || (o.zone != Zone::Graveyard && o.controller != seat) {
@@ -2016,7 +2212,10 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
                 continue;
             }
         }
-        if matches!(a, AbilityDef::PowerUpAbility { .. }) && o.powered_up {
+        // (`maxActivationsPerGame = 1`, which a `MAX_ACTIVATIONS` handler can raise)
+        if matches!(a, AbilityDef::PowerUpAbility { .. })
+            && u32::from(o.powered_up) >= cards::max_activations(game, seat, id, i, 1)
+        {
             continue;
         }
         if matches!(a, AbilityDef::ExhaustAbility { .. }) && o.marks.contains(&format!("exhaust{i}")) {
@@ -2129,6 +2328,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
         CostDef::SacrificeXTargetCost { .. }
+        | CostDef::SacrificeAnyNumberCopyCost { .. }
         | CostDef::TapXTargetCost { .. }
         | CostDef::RemoveXCountersSourceCost { .. } => true,
         // `CrewCost.canPay` looks without a source, so "another" doesn't leave out the vehicle itself (crewed, it
@@ -2142,7 +2342,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
             }
             sum >= *value
         }
-        CostDef::DiscardCardCost { filter, amount } => {
+        CostDef::DiscardCardCost { filter, amount, .. } => {
             game.player(seat).hand.iter().filter(|c| game.filter_matches(filter, seat, Some(id), **c)).count()
                 >= *amount
         }
@@ -2172,7 +2372,9 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::DiscardHandCost => true,
         // either one (`OrCost`)
         CostDef::OrCost { costs } => costs.iter().any(|c| or_cost_payable(game, seat, id, c)),
-        CostDef::ForageCost => can_pay_cost(game, seat, id, &forage_cost()),
+        // (its `TargetCardInYourGraveyard(3)` counts the card itself while it's still there: a creature card
+        // Osteomancer Adept lets you cast from your graveyard is playable with two others)
+        CostDef::ForageCost => game.player(seat).graveyard.len() >= 3 || can_pay_cost(game, seat, id, &forage_cost()),
         CostDef::BlightCost { .. } => !controlled_creatures(game, seat).is_empty(),
         // its options are {0} to {N-1} generic (`WaterbendCost`): `canPay` holds with nothing to tap or pay
         CostDef::WaterbendCost { .. } => true,
@@ -2326,6 +2528,9 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         && !cards::cant_cast(game, seat, id, def)
         && (game.player(seat).no_noncreature_turn != Some(game.turn) || def.is(CardType::Creature))
         && game.player(seat).no_spells_turn != Some(game.turn)
+        && !type_cast_forbidden(game, seat, def)
+        && !split_second_on_stack(game)
+        && cast_phase_step_allowed(game, seat, id, def)
         && {
             // Java's playable check counts conditional mana for any spell (the payment then enforces it)
             game.paying_for.set(Some(ANY_SPELL));
@@ -2365,7 +2570,7 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
                         _ => true,
                     })
                 });
-            let ok = pays(def.cost.clone())
+            let ok = (!def.cost.unpayable && pays(def.cost.clone()))
                 || evoke.is_some_and(pays)
                 || alternative
                 // an alternate mana cost an effect set (`getCastSourceIdWithAlternateMana`): `ManaCosts.canPay`
@@ -2494,9 +2699,11 @@ fn prototype(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     castable(game, seat, id, &def).then_some((k, def))
 }
 
-/// Bestow: the card's ability index and the card as it's cast that way, an Aura spell, if it can be, from hand
+/// Bestow: the card's ability index and the card as it's cast that way, an Aura spell, if it can be, from hand (or
+/// from exile, where an effect lets the card be played: Spiteful Returned exiled by Syr Carah, the Bold)
 fn bestow(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
-    if game.obj(id).zone != Zone::Hand {
+    let zone = game.obj(id).zone;
+    if zone != Zone::Hand && !(zone == Zone::Exile && game.may_play_now(id, seat)) {
         return None;
     }
     let (k, def) = game.obj(id).def.bestow()?;
@@ -2546,14 +2753,29 @@ fn blitz(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     castable(game, seat, id, &def).then_some((k, def))
 }
 
-/// Foretell, a special action: the ability's index, if the card is in hand during its owner's turn with {2} to pay
+/// Foretell, a special action: the ability's index, if the card is in hand during its owner's turn (any turn with
+/// an `ALLOW_FORETELL_ANYTIME` handler: Cosmos Charger) with its cost to pay
 fn foretell(game: &Game, seat: Seat, id: ObjId) -> Option<usize> {
     let o = game.obj(id);
-    if o.zone != Zone::Hand || game.active != Some(seat) {
+    if o.zone != Zone::Hand || game.active != Some(seat) && !cards::foretell_any_time(game, seat) {
         return None;
     }
     let (k, _) = o.def.foretold()?;
-    can_pay(game, seat, &ManaCost { generic: 2, ..ManaCost::default() }).then_some(k)
+    can_pay(game, seat, &foretell_cost(game, seat, id, k)).then_some(k)
+}
+
+/// Foretell's {2}, changed by the static handlers as `CostModificationEffect`s see a `ForetellAbility` (Cosmos
+/// Charger's "foretelling cards from your hand costs {1} less"), by `CostModificationType`
+fn foretell_cost(game: &Game, seat: Seat, id: ObjId, k: usize) -> ManaCost {
+    let mut cost = ManaCost { generic: 2, ..ManaCost::default() };
+    let o = game.obj(id);
+    if let Some(a) = o.def.abilities.get(k) {
+        let of = cards::CostCx { seat, card: id, face: &o.def, ability: Some(a) };
+        for kind in [cards::CostKind::Increase, cards::CostKind::Reduce, cards::CostKind::Set] {
+            cards::change_cost(game, kind, &of, &mut cost);
+        }
+    }
+    cost
 }
 
 /// Plot, a special action: the ability's index and cost, if the card is in hand as a sorcery with the cost to pay
@@ -2562,7 +2784,15 @@ fn plot(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, ManaCost)> {
     if o.zone != Zone::Hand || o.owner != seat || !sorcery_speed(game, seat) {
         return None;
     }
-    let (k, cost) = o.def.plot()?;
+    let (k, mut cost) = o.def.plot()?;
+    // `PlotAbility` is an activated ability to `costModification` (Doc Aurlock's "plotting cards from your hand
+    // costs {2} less"): the static handlers' changes, by `CostModificationType`
+    if let Some(a) = o.def.abilities.get(k) {
+        let of = cards::CostCx { seat, card: id, face: &o.def, ability: Some(a) };
+        for kind in [cards::CostKind::Increase, cards::CostKind::Reduce, cards::CostKind::Set] {
+            cards::change_cost(game, kind, &of, &mut cost);
+        }
+    }
     // counted like a spell's cost: conditional mana counts too
     game.paying_for.set(Some(ANY_SPELL));
     let ok = can_pay(game, seat, &cost);
@@ -2843,7 +3073,7 @@ fn play_from_library(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
     // the back's play ability after the front's abilities
     let index = |p: LibraryPlay| -> usize {
         match p {
-            LibraryPlay::Land | LibraryPlay::Cast => usize::from(def.adventure.is_some()),
+            LibraryPlay::Land | LibraryPlay::Cast => usize::from(def.adventure.is_some() || def.prepare.is_some()),
             LibraryPlay::Adventure => 0,
             LibraryPlay::Back => {
                 b + def
@@ -2854,8 +3084,10 @@ fn play_from_library(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
             }
         }
     };
+    // (a prepare card's creature too, a1: upstream 31c3adcc8cf)
     let picker = plays.len() > 1
         || def.adventure.is_some()
+        || def.prepare.is_some()
         || def.back.is_some()
         || (plays[0] == LibraryPlay::Cast && def.cost.mana_value() == 0);
     let play = if picker {
@@ -2922,9 +3154,11 @@ fn valgavoth_def(def: &CardDef) -> CardDef {
 }
 
 /// Cleave: the card's ability index and the card with its cleave cost and effects, if it can be cast that way from
-/// hand.
+/// hand, or from exile while an effect lets its owner play it (Inspired Idea exiled by Expressive Iteration: Java's
+/// cleave is a spell ability of the card's own, offered wherever the card may be cast)
 fn cleave(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
-    if game.obj(id).zone != Zone::Hand {
+    let zone = game.obj(id).zone;
+    if zone != Zone::Hand && !(zone == Zone::Exile && game.may_play_now(id, seat)) {
         return None;
     }
     let (k, def) = game.obj(id).def.cleave()?;
@@ -3060,6 +3294,7 @@ fn activations_forbidden(game: &Game, id: ObjId) -> bool {
         && ([CardType::Artifact, CardType::Creature, CardType::Planeswalker].iter().any(|t| game.has_type(id, *t))
             && game.any_static(|_, _, e| matches!(e, EffectDef::ClarionConquerorEffect))
             || game.has_ability(id, &AbilityDef::CantActivateAbilitiesAbility)
+            || cards::cant_use_activated_abilities(game, id)
             || game.any_static(|g, src, e| {
                 matches!(e, EffectDef::CantBlockAttackActivateAttachedEffect) && g.attached(src) == Some(id)
             })
@@ -3076,6 +3311,54 @@ fn activations_forbidden(game: &Game, id: ObjId) -> bool {
 thread_local! {
     /// set while checking whether a mana ability's mana cost can be paid (its own check leaves such abilities out)
     static CHECKING_MANA_COST: std::cell::RefCell<Vec<ObjId>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// set while `can_pay_extra` tries one of a source's tapping abilities at a time (`mana_options` counts only
+    /// that one): a source whose abilities make different amounts
+    static MANA_PICK: std::cell::RefCell<Vec<(ObjId, usize)>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The sources whose abilities that tap them make different amounts of mana, of different kinds (an Island with Find
+/// the Path's "{T}: Add {G}{G}"), with those abilities: `ManaOptions` takes one ability or the other, {U} or {G}{G},
+/// where counting each mana of the larger one as either kind would let it make {U}{G}. At most four.
+fn alternative_mana_sources(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<usize>)> {
+    let mut out = Vec::new();
+    for (id, a) in mana_sources(game, seat) {
+        let taps: Vec<(usize, Mana)> = a
+            .into_iter()
+            .filter(|(i, _)| {
+                let a = &game.obj(id).def.abilities[*i];
+                a.taps_source()
+                    && a.mana_ability_mana_cost().is_none()
+                    && !matches!(
+                        a,
+                        AbilityDef::NykthosShrineToNyxManaAbility { .. }
+                            | AbilityDef::CommanderColorIdentityManaAbility { .. }
+                    )
+            })
+            .collect();
+        let amount = |m: &Mana| m.colored.iter().copied().max().unwrap_or(0).max(m.colorless).max(1);
+        // the one kind an ability makes (a color, or 5: colorless)
+        let kind = |m: &Mana| {
+            let kinds: Vec<usize> =
+                (0..5).filter(|c| m.colored[*c] > 0).chain((m.colorless > 0).then_some(5)).collect();
+            (kinds.len() == 1).then(|| kinds[0])
+        };
+        let same_amount = taps.windows(2).all(|w| amount(&w[0].1) == amount(&w[1].1));
+        let fixed_multi = taps.iter().any(|(i, m)| {
+            matches!(
+                game.obj(id).def.abilities[*i],
+                AbilityDef::ManaAbility { make: ManaMake::Fixed { .. }, .. }
+                    | AbilityDef::AddEachControlledColorManaAbility { .. }
+                    | AbilityDef::ConditionalManaAbility { mana: Some(_), .. }
+            ) && m.total() > 1
+        });
+        let kinds: Vec<Option<usize>> = taps.iter().map(|(_, m)| kind(m)).collect();
+        let plain = kinds.iter().all(|k| k.is_some());
+        let one_kind = kinds.windows(2).all(|w| w[0] == w[1]);
+        if taps.len() > 1 && (fixed_multi || (!same_amount && plain && !one_kind)) && out.len() < 4 {
+            out.push((id, taps.iter().map(|(i, _)| *i).collect()));
+        }
+    }
+    out
 }
 
 /// A permanent's mana abilities: index, mana and kind
@@ -3148,6 +3431,7 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                     CostDef::PayLifeCost { amount } => game.player(seat).life >= *amount,
                     CostDef::PayEnergyCost { amount } => energy(game, seat) >= *amount,
                     CostDef::SacrificeTargetCost { .. }
+                    | CostDef::DiscardCardCost { .. }
                     | CostDef::RemoveCountersSourceCost { .. }
                     | CostDef::ExileFromGraveCost { .. }
                     | CostDef::CollectEvidenceCost { .. }
@@ -3173,6 +3457,25 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                             })
                             .unwrap_or(1);
                         (i, Mana::of(*color, *amount * times as u32), a.mana_kind())
+                    }
+                    // Ashnod's Altar / Krark-Clan Ironworks: `getNetMana` counts every matching permanent it can sacrifice
+                    AbilityDef::ColorlessManaAbility { amount, cost, no_tap: true, .. }
+                        if cost.iter().any(|c| matches!(c, CostDef::SacrificeTargetCost { .. })) =>
+                    {
+                        let times = cost
+                            .iter()
+                            .find_map(|c| match c {
+                                CostDef::SacrificeTargetCost { filter, amount: n } if *n > 0 => Some(
+                                    matching(game, filter, seat, *id)
+                                        .into_iter()
+                                        .filter(|p| game.obj(*p).controller == seat)
+                                        .count()
+                                        / *n,
+                                ),
+                                _ => None,
+                            })
+                            .unwrap_or(1);
+                        (i, Mana { colorless: *amount * times as u32, ..Mana::default() }, a.mana_kind())
                     }
                     AbilityDef::ManaAbility {
                         make: ManaMake::AnyOneColor { amount } | ManaMake::Combination { amount, .. },
@@ -3309,28 +3612,66 @@ fn can_pay(game: &Game, seat: Seat, cost: &ManaCost) -> bool {
     can_pay_extra(game, seat, cost, Vec::new())
 }
 
-/// "whenever you tap a creature for mana, add an additional {G}" (Badgermole Cub): the colors tapping `id` for mana
-/// adds besides its own
-/// (each a pool kind: WUBRG 0-4, {C} 5; `made` is what the tapping makes, any of them for the playable check)
-fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId, made: &[Mana]) -> Vec<usize> {
+/// "whenever you tap a creature for mana, add an additional {G}" (Badgermole Cub): the mana tapping `id` for mana
+/// adds besides its own, each one source's worth: the kinds it may be (one: a fixed {G}; several: "one mana of any type
+/// that land produced", any kind `made` has)
+/// (`made` is what the tapping makes, any of them for the playable check; `taps`: the ability taps `id`, as the
+/// `TAPPED_FOR_MANA` event needs)
+fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId, made: &[Mana], taps: bool) -> Vec<Vec<Mana>> {
     let mut extra = Vec::new();
+    let one = |k: usize| if k == 5 { Mana { colorless: 1, ..Mana::default() } } else { Mana::of(Color::ALL[k], 1) };
     for b in game.battlefield.iter() {
         let s = game.obj(*b);
-        if s.controller != seat {
-            continue;
-        }
         for a in &s.def.abilities {
-            if let AbilityDef::TapForManaAllTriggeredManaAbility { filter, color, colorless_made, .. } = a {
+            if let AbilityDef::TapForManaAllTriggeredManaAbility { filter, color, colorless_made, any_player, .. } = a {
+                if if *any_player { !taps } else { s.controller != seat } {
+                    continue;
+                }
                 if *colorless_made && !made.iter().any(|m| m.colorless > 0) {
                     continue;
                 }
-                if game.filter_matches(filter, seat, Some(*b), id) {
-                    extra.push(if color == "C" { 5 } else { "WUBRG".find(color.as_str()).unwrap_or(4) });
+                if !game.filter_matches(filter, s.controller, Some(*b), id) {
+                    continue;
+                }
+                if color == "produced" {
+                    // `AddManaOfAnyTypeProducedEffect`: one of the types made, in `ChoiceColor`'s order (WUBRG, then C)
+                    let kinds: Vec<Mana> = (0..6)
+                        .filter(|k| made.iter().any(|m| if *k == 5 { m.colorless > 0 } else { m.colored[*k] > 0 }))
+                        .map(one)
+                        .collect();
+                    if !kinds.is_empty() {
+                        extra.push(kinds);
+                    }
+                } else {
+                    extra.push(vec![one(if color == "C" { 5 } else { "WUBRG".find(color.as_str()).unwrap_or(4) })]);
                 }
             }
         }
     }
     extra
+}
+
+/// "whenever enchanted land is tapped for mana, its controller adds …" (`EnchantedTappedTriggeredManaAbility`): the
+/// Auras on `id` with one, in battlefield order, and the mana each adds, one source's worth per mana (any color: all
+/// five)
+fn enchanted_tapped_extra(game: &Game, id: ObjId) -> Vec<(ObjId, Vec<Mana>)> {
+    let mut out = Vec::new();
+    for b in game.battlefield.iter() {
+        if game.attached(*b) != Some(id) {
+            continue;
+        }
+        for a in &game.obj(*b).def.abilities {
+            if let AbilityDef::EnchantedTappedTriggeredManaAbility { color, amount, .. } = a {
+                let kinds: Vec<Mana> = if color == "any" {
+                    Color::ALL.iter().map(|c| Mana::of(*c, 1)).collect()
+                } else {
+                    vec![Mana::of(Color::ALL["WUBRG".find(color.as_str()).unwrap_or(4)], 1)]
+                };
+                out.extend((0..*amount).map(|_| (*b, kinds.clone())));
+            }
+        }
+    }
+    out
 }
 
 /// a player's devotion to a color
@@ -3352,9 +3693,37 @@ fn can_pay_extra(game: &Game, seat: Seat, cost: &ManaCost, extra: Vec<Vec<Mana>>
         c.phyrexian = [0; 5];
         return can_pay_extra(game, seat, &c, extra);
     }
-    let (options, _) = mana_options(game, seat, extra.clone(), false);
-    if options_pay(&options, cost) {
-        return true;
+    let alternatives = alternative_mana_sources(game, seat);
+    if alternatives.is_empty() {
+        let (options, _) = mana_options(game, seat, extra.clone(), false);
+        if options_pay(&options, cost) {
+            return true;
+        }
+    } else {
+        // each such source with one of its abilities at a time, every combination
+        let mut pick = vec![0usize; alternatives.len()];
+        loop {
+            let chosen: Vec<(ObjId, usize)> =
+                alternatives.iter().zip(&pick).map(|((id, ks), p)| (*id, ks[*p])).collect();
+            let outer = MANA_PICK.with(|f| std::mem::replace(&mut *f.borrow_mut(), chosen));
+            let (options, _) = mana_options(game, seat, extra.clone(), false);
+            MANA_PICK.with(|f| *f.borrow_mut() = outer);
+            if options_pay(&options, cost) {
+                return true;
+            }
+            let mut k = 0;
+            while k < pick.len() {
+                pick[k] += 1;
+                if pick[k] < alternatives[k].1.len() {
+                    break;
+                }
+                pick[k] = 0;
+                k += 1;
+            }
+            if k == pick.len() {
+                break;
+            }
+        }
     }
     // mana abilities with a mana cost (Castle Garenbrig's {2}{G}{G} for six {G}, two Giant's Boulders' {1} for
     // {R}{R}): the others pay their costs and what their mana doesn't (`addManaWithCost`, each source in turn)
@@ -3466,6 +3835,14 @@ fn pay_with_costly(
                     let one =
                         if *k < 5 { Mana::of(Color::ALL[*k], 1) } else { Mana { colorless: 1, ..Mana::default() } };
                     options.extend((0..*made).map(|_| vec![one]));
+                    // two mana of different colors (Guild Globe): the second, of any other color, pays too
+                    let m = costly.iter().find(|(s, ..)| s == c).map(|(_, m, _)| *m).unwrap_or_default();
+                    let two_different = game.obj(*c).def.abilities.iter().any(|a| {
+                        a.mana() == Some(m) && matches!(a, AbilityDef::ManaAbility { make: ManaMake::TwoDifferent, .. })
+                    });
+                    if two_different && *k < 5 {
+                        options.push(Color::ALL.iter().filter(|o| o.index() != *k).map(|o| Mana::of(*o, 1)).collect());
+                    }
                     for c in 0..5 {
                         r.colored[c] += sym.colored[c];
                     }
@@ -3504,13 +3881,9 @@ fn mana_options(
     for (id, a) in sources {
         // the mana its tapping triggers: one more source each
         let made: Vec<Mana> = a.iter().map(|(_, m)| *m).collect();
-        for k in tap_for_mana_extra(game, seat, id, &made) {
-            options.push(vec![if k == 5 {
-                Mana { colorless: 1, ..Mana::default() }
-            } else {
-                Mana::of(Color::ALL[k], 1)
-            }]);
-        }
+        options.extend(tap_for_mana_extra(game, seat, id, &made, true));
+        // "whenever enchanted land is tapped for mana": its Auras' mana, each one more source
+        options.extend(enchanted_tapped_extra(game, id).into_iter().map(|(_, m)| m));
         // Nykthos: its {2} and itself spent, the rest of its devotion more sources of that color
         if let Some((_, m)) = a
             .iter()
@@ -3540,6 +3913,14 @@ fn mana_options(
                 ) && a.mana_ability_mana_cost().is_none()
             })
             .collect();
+        // (one of its tapping abilities at a time: `alternative_mana_sources`)
+        let picked = MANA_PICK.with(|f| f.borrow().iter().find(|(s, _)| *s == id).map(|(_, i)| *i));
+        let a: Vec<(usize, Mana)> = match picked {
+            Some(k) => {
+                a.into_iter().filter(|(i, _)| *i == k || !game.obj(id).def.abilities[*i].taps_source()).collect()
+            }
+            None => a,
+        };
         // `getManaAvailable`: an ability that doesn't tap the source is a source of its own (Relic of Legends'
         // "tap an untapped legendary creature"), the ones that tap it one source between them
         let (taps, own): (Vec<_>, Vec<_>) =
@@ -3798,15 +4179,17 @@ fn pick_color(
     if choices.len() == 1 {
         return Some(choices[0]);
     }
-    let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
-        .into_iter()
-        .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(c))
-        .collect();
-    if owed.len() == 1 {
-        return Some(owed[0]);
-    }
-    if owed.is_empty() && Color::ALL.iter().all(|c| unpaid.symbols_of(*c) == 0) {
-        return choices.first().copied();
+    if !game.pool_mode(seat).0 {
+        let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
+            .into_iter()
+            .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(c))
+            .collect();
+        if owed.len() == 1 {
+            return Some(owed[0]);
+        }
+        if owed.is_empty() && Color::ALL.iter().all(|c| unpaid.symbols_of(*c) == 0) {
+            return choices.first().copied();
+        }
     }
     let name = |c: &Color| ["White", "Blue", "Black", "Red", "Green"][c.index()].to_string();
     let q = Query::Choice { message: message.into(), choices: choices.iter().map(name).collect() };
@@ -3841,15 +4224,17 @@ fn color_among(
     if choices.len() == 1 {
         return Some(choices[0]);
     }
-    let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
-        .into_iter()
-        .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(c))
-        .collect();
-    if owed.len() == 1 {
-        return Some(owed[0]);
-    }
-    if owed.is_empty() && Color::ALL.iter().all(|c| unpaid.symbols_of(*c) == 0) {
-        return choices.first().copied();
+    if !game.pool_mode(seat).0 {
+        let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
+            .into_iter()
+            .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(c))
+            .collect();
+        if owed.len() == 1 {
+            return Some(owed[0]);
+        }
+        if owed.is_empty() && Color::ALL.iter().all(|c| unpaid.symbols_of(*c) == 0) {
+            return choices.first().copied();
+        }
     }
     let name = |c: &Color| ["White", "Blue", "Black", "Red", "Green"][c.index()].to_string();
     let q = Query::Choice { message: "Pick a mana color".into(), choices: choices.iter().map(name).collect() };
@@ -3870,9 +4255,20 @@ fn color_among(
 }
 
 /// `AnyColorLandsProduceManaEffect.getManaTypes`: the colors (and whether colorless) the mana abilities of the lands
-/// `seat` (`opponent`: an opponent) controls could make, other than `source`'s; another such ability adds nothing
-/// (Java stops the loop there, `inManaTypeCalculation`)
+/// `seat` (`opponent`: an opponent) controls could make, other than `source`'s; guards recursion per source
+/// (`inManaTypeCalculation`) so two opposing Exotic Orchards can still see each other's controller's other lands
 fn lands_could_produce(game: &Game, seat: Seat, source: ObjId, opponent: bool) -> (Vec<Color>, bool) {
+    let mut visited = vec![source];
+    lands_could_produce_inner(game, seat, source, opponent, &mut visited)
+}
+
+fn lands_could_produce_inner(
+    game: &Game,
+    seat: Seat,
+    source: ObjId,
+    opponent: bool,
+    visited: &mut Vec<ObjId>,
+) -> (Vec<Color>, bool) {
     let mut colors = Vec::new();
     let mut colorless = false;
     for &o in game.battlefield.iter() {
@@ -3881,7 +4277,20 @@ fn lands_could_produce(game: &Game, seat: Seat, source: ObjId, opponent: bool) -
             continue;
         }
         for a in &game.obj(o).def.abilities {
-            if matches!(a, AbilityDef::AnyColorLandsProduceManaAbility { .. }) {
+            if let AbilityDef::AnyColorLandsProduceManaAbility { opponent: opp2, any_type: any2, .. } = a {
+                if !visited.contains(&o) {
+                    visited.push(o);
+                    let (c2, cl2) = lands_could_produce_inner(game, c, o, *opp2, visited);
+                    visited.pop();
+                    for col in c2 {
+                        if !colors.contains(&col) {
+                            colors.push(col);
+                        }
+                    }
+                    if *any2 {
+                        colorless |= cl2;
+                    }
+                }
                 continue;
             }
             let Some(m) = a.mana() else { continue };
@@ -3990,18 +4399,10 @@ fn any_color_asking(
 
 /// `any_color_asking`; with no unpaid cost known (`HumanPlayer.currentlyUnpaidMana` is null: a mana ability whose
 /// own mana cost was paid by tapping a source, Hydro-Channeler's "{1}, {T}"), always asked
-fn any_color_owed(
-    game: &mut Game,
-    d: &mut dyn Decider,
-    seat: Seat,
-    unpaid: Option<&ManaCost>,
-    message: &str,
-) -> Option<Color> {
-    let owed: Vec<Color> =
-        Color::ALL.iter().copied().filter(|c| unpaid.is_some_and(|u| u.symbols_of(*c) > 0)).collect();
-    // `HumanPlayer.choose`: not for a spell of theirs that cares about the colors spent (`caresAboutManaColor`:
-    // Unexplained Vision's adamant)
-    let cares = spell_paid_for(game).is_some_and(|s| {
+/// Whether the spell currently being paid for cares about the colors of mana spent (`CardImpl.caresAboutManaColor`:
+/// Sunburst, Adamant).
+fn spell_cares_about_mana_color(game: &Game, seat: Seat) -> bool {
+    spell_paid_for(game).is_some_and(|s| {
         let o = game.obj(s);
         // (its effects' conditions: an intervening "if" isn't one, Clockwork Servant's adamant)
         let effects = o.def.spell.effects.iter().chain(o.def.spell.modes.iter().flat_map(|m| m.effects.iter())).chain(
@@ -4015,8 +4416,21 @@ fn any_color_owed(
         o.controller == seat
             && (o.def.abilities.contains(&AbilityDef::SunburstAbility)
                 || effects.into_iter().any(|e| format!("{e:?}").contains("ManaColorSpent")))
-    });
-    match if cares || unpaid.is_none() { usize::MAX } else { owed.len() } {
+    })
+}
+
+fn any_color_owed(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    unpaid: Option<&ManaCost>,
+    message: &str,
+) -> Option<Color> {
+    let owed: Vec<Color> =
+        Color::ALL.iter().copied().filter(|c| unpaid.is_some_and(|u| u.symbols_of(*c) > 0)).collect();
+    // `HumanPlayer.choose`: not when manual mana payment is on (Full Control) or for a spell that cares about colors
+    let skip_auto = game.pool_mode(seat).0 || spell_cares_about_mana_color(game, seat);
+    match if skip_auto || unpaid.is_none() { usize::MAX } else { owed.len() } {
         0 => {
             game.any_color_made = Some(Color::W);
             return Some(Color::W);
@@ -4253,6 +4667,8 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             return;
         }
     }
+    // the picker already asked, with the spell among its choices (a prepare card's isn't asked again below)
+    let mut picked = false;
     if (zone == Zone::Hand || zone == Zone::Exile) && game.obj(id).def.adventure.is_none() {
         let mut options = if zone == Zone::Hand { activatable(game, seat, id) } else { Vec::new() };
         // foretell, a special action: during your turn, with {2} to pay
@@ -4321,7 +4737,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &prototype {
             options.push(*k);
         }
-        let bestow = if zone == Zone::Hand { bestow(game, seat, id) } else { None };
+        let bestow = bestow(game, seat, id);
         if let Some((k, _)) = &bestow {
             options.push(*k);
         }
@@ -4363,21 +4779,25 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             if alternate.is_some() {
                 def = Arc::new(CardDef { cost: ManaCost::default(), ..(*def).clone() });
             }
+            // (a prepare card's creature is a1)
+            let spell = prepare_spell_index(&def);
             if if def.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, id, &def) } {
-                options.insert(0, 0);
+                options.insert(0, spell);
             }
             // (a modal double-faced card's faces always show the picker, one choice or two)
             if options.is_empty() {
                 return;
             }
-            let index = if options.len() == 1 && !mdfc {
+            let index = if options.len() == 1 && !mdfc && def.prepare.is_none() {
                 options[0]
             } else {
+                picked = def.prepare.is_some();
                 match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
                     Answer::Ability(o, i) if o == id && options.contains(&i) => i,
                     _ => return,
                 }
             };
+            let index = if index == spell { 0 } else { index };
             // cast for its spectacle or warp cost (the whole card comes back as it leaves the stack)
             // (spectacle too: `SpectacleCondition`, "if its spectacle cost was paid", reads the same tag)
             // (web-slinging too: `WebSlingingCondition`, "if it was cast using web-slinging")
@@ -4467,6 +4887,12 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 o.def = Arc::new(def);
                 if !cast(game, d, seat, id) || game.step != Some(Step::DeclareBlockers) {
                     *game = before;
+                    return;
+                }
+                // what the returned attacker was attacking, for the permanent this spell becomes
+                let o = game.obj_mut(id);
+                if let Some(defender) = o.ninjutsu_defender.take() {
+                    o.sneak_defender = Some((defender, o.ninjutsu_pw.take()));
                 }
                 return;
             }
@@ -4529,7 +4955,8 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             if foretell == Some(index) {
                 // `ForetellExileEffect`: pay {2}, then exile it face down; it can't be cast this turn
                 let before = game.clone();
-                if !pay_special_action(game, d, seat, id, index, &ManaCost { generic: 2, ..ManaCost::default() }) {
+                let cost = foretell_cost(game, seat, id, index);
+                if !pay_special_action(game, d, seat, id, index, &cost) {
                     *game = before;
                     return;
                 }
@@ -4621,6 +5048,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
         }
         let play_tapped = game.obj(id).play_tapped;
+        // `LAND_PLAYED` from exile (Visions of Phyrexia's watcher)
+        if game.obj(id).zone == Zone::Exile {
+            game.watch.played_from_exile.push(seat);
+        }
         enter_battlefield(game, d, id, seat, false);
         if play_tapped && game.obj(id).zone == Zone::Battlefield {
             game.obj_mut(id).tapped = true;
@@ -4735,10 +5166,11 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 || ((!once.is_empty() || !plays.is_empty()) && castable(game, seat, id, &game.obj(id).def.clone()))
                 || !ways.is_empty())
         {
-            // `suppressAbilityPicker`: a {0} spell is picked (a0)
-            if game.obj(id).def.cost.mana_value() == 0 {
-                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![0] }) {
-                    Answer::Ability(o, 0) if o == id => {}
+            // `suppressAbilityPicker`: a {0} spell is picked (a0); a prepare card's creature always is (a1)
+            let k = prepare_spell_index(&game.obj(id).def);
+            if game.obj(id).def.cost.mana_value() == 0 || game.obj(id).def.prepare.is_some() {
+                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![k] }) {
+                    Answer::Ability(o, i) if o == id && i == k => {}
                     _ => return,
                 }
             }
@@ -4836,8 +5268,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     // a Room: the half to cast, always asked (h0, h1), even with one that can be
     if !game.obj(id).def.room.is_empty() {
         let full = game.obj(id).def.clone();
+        // (from exile without paying its mana cost: Release to the Wind)
+        let free = game.obj(id).zone == Zone::Exile && game.obj(id).play_free;
         let mut options: Vec<usize> =
-            (0..full.room.len()).filter(|k| castable(game, seat, id, &full.room[*k])).collect();
+            (0..full.room.len()).filter(|k| castable(game, seat, id, &free_half(&full.room[*k], free))).collect();
         // a fused split card from hand: both halves (`h2`, Java's card spell ability)
         let fused = full.fused_spell().filter(|f| game.obj(id).zone == Zone::Hand && castable(game, seat, id, f));
         if fused.is_some() {
@@ -4862,7 +5296,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 o.room_cast = Some(k);
             }
         }
-        if !cast(game, d, seat, id) {
+        if !(if free { cast_free(game, d, seat, id) } else { cast(game, d, seat, id) }) {
             *game = before;
         }
         return;
@@ -4904,16 +5338,38 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     // {X} spell is picked (a0), as is one cast without paying its mana cost (`allowCardToPlayWithoutMana` puts it in
     // `castSourceIdWithAlternateMana`, so the picker isn't hidden)
     // played from exile without paying its mana cost (Oracle's Vault)
+    // a prepare card (`CardWithSpellOption`) off the battlefield never hides it either: its creature (a1), the
+    // prepare spell not being castable (`PrepareCardSpellAbility.spellCanBeActivatedNow`, upstream 31c3adcc8cf)
     let free = game.obj(id).zone == Zone::Exile && game.obj(id).play_free;
-    if game.obj(id).def.cost.mana_value() == 0 || free {
-        match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![0] }) {
-            Answer::Ability(o, 0) if o == id => {}
+    let k = prepare_spell_index(&game.obj(id).def);
+    if (game.obj(id).def.cost.mana_value() == 0 || free || game.obj(id).def.prepare.is_some()) && !picked {
+        match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![k] }) {
+            Answer::Ability(o, i) if o == id && i == k => {}
             _ => return,
         }
     }
     if !(if free { cast_free(game, d, seat, id) } else { cast(game, d, seat, id) }) {
         // `PlayerImpl.cast` restores the game as it was before the cast
         *game = before;
+    }
+}
+
+/// A Room's half as the playable check sees it: with no mana cost when it's cast without paying one
+fn free_half(half: &Arc<CardDef>, free: bool) -> Arc<CardDef> {
+    if free {
+        Arc::new(CardDef { cost: ManaCost::default(), ..(**half).clone() })
+    } else {
+        half.clone()
+    }
+}
+
+/// The index of the spell ability the picker offers for casting a card: a prepare card's creature is `a1`, after its
+/// prepare spell (`PrepareCardSpellAbility`, never castable from the card); any other card's is `a0`
+fn prepare_spell_index(def: &CardDef) -> usize {
+    if def.prepare.is_some() {
+        def.abilities.iter().position(|a| *a == AbilityDef::SpellAbility).unwrap_or(0)
+    } else {
+        0
     }
 }
 
@@ -4990,17 +5446,52 @@ fn cast_allowed_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
             o.def = adventure;
         }
     }
+    // a card with escape, not cast free: the spell (a0) or escape (its own index), whatever the zone and whether its
+    // exile cost can be paid (`getCastableSpellAbilities` stops at the first `BASE_ALTERNATE` ability; Bilbo, Thief
+    // in the Night casting Glimpse of Freedom with too few other cards cancels while paying)
+    let mut escaped = false;
+    if !free && game.obj(id).def.adventure.is_none() {
+        let escape_at = game.obj(id).def.abilities.iter().position(|a| matches!(a, AbilityDef::EscapeAbility { .. }));
+        if let Some(k) = escape_at.filter(|_| game.obj(id).def.escape().is_some()) {
+            let options = vec![0, k];
+            let pick = match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+                Answer::Ability(o, i) if o == id && options.contains(&i) => i,
+                Answer::Stop => return false,
+                _ => 0,
+            };
+            if pick == k {
+                let full = game.obj(id).def.clone();
+                let f = full.escape().expect("an escape cost");
+                let o = game.obj_mut(id);
+                o.adventurer = Some(full);
+                o.def = Arc::new(f);
+                escaped = true;
+            }
+        }
+    }
     if cast_with(game, d, seat, id, free) {
+        if escaped {
+            game.obj_mut(id).escaped = true;
+        }
         return true;
     }
     *game = before;
     false
 }
 
+/// A player's `CAST_SPELL` restriction by card type: no instants or sorceries this turn (Sphinx's Decree), no
+/// creatures or planeswalkers through a turn (Single Combat)
+fn type_cast_forbidden(game: &Game, seat: Seat, def: &CardDef) -> bool {
+    let p = game.player(seat);
+    (p.no_instants_sorceries_turn == Some(game.turn) && (def.is(CardType::Instant) || def.is(CardType::Sorcery)))
+        || (p.no_creatures_planeswalkers_until.is_some_and(|t| game.turn <= t)
+            && (def.is(CardType::Creature) || def.is(CardType::Planeswalker)))
+}
+
 fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: bool) -> bool {
     // `cast`'s `CAST_SPELL` rule check, for a spell an effect casts too (Avatar's Wrath stops a hideaway card)
     let def = game.obj(id).def.clone();
-    if cards::cant_cast(game, seat, id, &def) {
+    if cards::cant_cast(game, seat, id, &def) || type_cast_forbidden(game, seat, &def) {
         return false;
     }
     let outer = game.unpaid.replace(game.stack.len());
@@ -5055,19 +5546,33 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
     }
     game.remove_from_zone(id);
     // cast from a graveyard, it left it (`ZONE_CHANGE` GRAVEYARD to STACK: Ark of Hunger's "whenever one or more
-    // cards leave your graveyard", `CardsLeftGraveyardWatcher`)
+    // cards leave your graveyard", `CardsLeftGraveyardWatcher`, Murktide Regent, Syr Konrad)
     if from == Zone::Graveyard {
         let owner = game.obj(id).owner;
         game.left_graveyard.push(id);
         game.watch.left_graveyard.push(owner);
+        let sources: Vec<ObjId> = game.battlefield.iter().copied().collect();
+        let fired = game.triggers(sources, |g, src, you, t| match t {
+            Trigger::SyrKonrad => owner == you && g.has_type(id, CardType::Creature),
+            Trigger::CardLeavesYourGraveyard { filter, your_turn } => {
+                owner == you
+                    && (!*your_turn || g.active == Some(you))
+                    && g.filter_matches(filter, you, Some(src), id)
+            }
+            _ => false,
+        });
+        game.pending.extend(fired);
     }
     {
         let o = game.obj_mut(id);
         o.zone = Zone::Stack;
         o.zcc += 1;
+        // counters on a card in exile (a hatchling counter) don't follow it to the stack (122.2)
+        o.counters.clear();
         o.on_adventure = false;
         o.mana_spent = 0;
         o.treasure_spent = 0;
+        o.delved_cards.clear();
     }
     Arc::make_mut(&mut game.stack).push(StackItem::spell(id, seat));
     let def = game.obj(id).def.clone();
@@ -5323,6 +5828,30 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             }
         }
     }
+    // behold: `BeholdAbility.addOptionalAdditionalCosts`, asked only when it can be paid
+    for a in &def.abilities {
+        if let AbilityDef::BeholdAbility { subtype, .. } = a {
+            let c = CostDef::BeholdCost { subtype: subtype.clone() };
+            if !can_pay_cost(game, seat, id, &c) {
+                continue;
+            }
+            let article = if subtype.starts_with(['A', 'E', 'I', 'O', 'U']) { "an" } else { "a" };
+            let q = Query::YesNo { message: format!("Behold {article} {subtype}?") };
+            let pay = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            };
+            if pay {
+                teamwork = Some(c);
+                if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                    top.kicked = true;
+                }
+            }
+        }
+    }
     // blight: `BlightAbility.addOptionalAdditionalCosts`, asked only with a creature to put the counters on
     let mut blight = None;
     for a in &def.abilities {
@@ -5446,10 +5975,6 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             }
         }
     }
-    // `handlePhyrexianManaCosts`: 2 life instead of each phyrexian symbol, asked before X and targets (the life is
-    // paid with the mana)
-    let Some(phyrexian_life) = ask_phyrexian(game, d, seat, &mut cost) else { return false };
-    game.obj_mut(id).phyrexian_paid = phyrexian_life / 2;
     // X: `announceX` (AMOUNT) asks until an answer is in range; X's mana is then generic
     if cost.x > 0 {
         let q = Query::Amount { min: 0, max: i32::MAX };
@@ -5466,6 +5991,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             top.x = x;
         }
     }
+    // `handlePhyrexianManaCosts`: 2 life instead of each phyrexian symbol, asked after X and before targets (the life
+    // is paid with the mana)
+    let Some(phyrexian_life) = ask_phyrexian(game, d, seat, &mut cost) else { return false };
+    game.obj_mut(id).phyrexian_paid = phyrexian_life / 2;
     // `Modes.choose` / `HumanPlayer.chooseMode`: a mode per question until the most are chosen; any other answer ends
     // the choice (Cancel clears it), and fewer than the least cancels the cast
     let mut modes: Vec<usize> = Vec::new();
@@ -5483,17 +6012,27 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         let possible = |game: &Game, k: usize| {
             def.spell.modes[k].targets.iter().all(|t| x_count_target(t) || target_possible(game, seat, t, Some(id)))
         };
-        if n == min {
+        let max_paws = def.spell.max_paw_prints;
+        let repeat = def.spell.repeat_modes;
+        if n == min && !repeat && max_paws == 0 {
             modes = (0..n).filter(|k| possible(game, *k)).collect();
         } else {
-            while modes.len() < max {
-                let available: Vec<usize> = (0..n).filter(|k| !modes.contains(k) && possible(game, *k)).collect();
+            let mut paws_used: u32 = 0;
+            while (max_paws == 0 && modes.len() < max) || (max_paws > 0 && paws_used < max_paws) {
+                let available: Vec<usize> = (0..n)
+                    .filter(|k| {
+                        (repeat || !modes.contains(k))
+                            && (max_paws == 0 || paws_used + def.spell.modes[*k].paw_print <= max_paws)
+                            && possible(game, *k)
+                    })
+                    .collect();
                 if available.is_empty() {
                     break;
                 }
                 match ask(game, d, seat, &Query::ChooseMode { modes: available.clone() }) {
                     Answer::Mode(k) if available.contains(&k) => {
                         modes.push(k);
+                        paws_used += def.spell.modes[k].paw_print;
                         // (the spell shows the modes chosen so far while the next is asked)
                         if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
                             top.modes = modes.clone();
@@ -5779,9 +6318,13 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             None => return false,
         }
     }
-    // `PromiseGiftCost.pay`: the opponent it's promised to (a player is never auto-chosen)
+    // `PromiseGiftCost.pay`: the opponent it's promised to (a player is never auto-chosen), chosen, not targeted
+    // (`withNotTarget(true)`: an opponent with hexproof can be promised the gift)
     if game.stack.last().is_some_and(|t| t.gift_promised) {
-        let Some(chosen) = choose_target(game, d, seat, &TargetDef::TargetOpponent, Some(id), "", false) else {
+        game.choosing_player = true;
+        let chosen = choose_target(game, d, seat, &TargetDef::TargetOpponent, Some(id), "", false);
+        game.choosing_player = false;
+        let Some(chosen) = chosen else {
             return false;
         };
         let to = match chosen.first() {
@@ -5834,7 +6377,17 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
                 c.mana_value() as i32 + game.stack.last().map_or(0, |t| t.x) * c.x as i32
             },
         };
+        if seen.from == Some(Zone::Exile) {
+            game.watch.played_from_exile.push(seat);
+        }
         game.watch.spells.push(seen);
+        if game.stack.last().is_some_and(|t| t.card == spell && t.ability.is_none() && t.kicked) {
+            game.watch.kicked_cast.push(seat);
+        }
+        if game.battlefield.iter().any(|o| game.obj(*o).controller == seat && game.has_subtype(*o, "Mount")) {
+            let zcc = game.obj(spell).zcc;
+            game.watch.cast_with_mount.push((spell, zcc));
+        }
         let p = game.player_mut(seat);
         p.flier_cast |= flier;
         p.spells_cast += 1;
@@ -5965,6 +6518,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         Trigger::CastSecondSpell { who } => Game::whose(who, you, seat) && g.player(seat).spells_cast == 2,
         Trigger::FirstSpellOpponentsTurn => {
             you == seat && g.active.is_some_and(|a| a != you) && g.player(seat).spells_cast == 1
+        }
+        // a Career cast twist: the spell's name, any case (`spell.getName().equalsIgnoreCase`)
+        Trigger::CareerCast { seat: who, card } => {
+            *who == seat && g.obj(src).zone == Zone::Command && g.obj(spell).name().eq_ignore_ascii_case(card)
         }
         _ => false,
     });
@@ -6260,14 +6817,17 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
         for a in &s.def.abilities {
             if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
                 for e in effects {
-                    if let EffectDef::SpellsCostIncreasingAllEffect { amount, filter, who } = e {
+                    if let EffectDef::SpellsCostIncreasingAllEffect { amount, filter, who, condition } = e {
                         if Game::whose(who, s.controller, seat)
                             && face_matches(game, filter, s.controller, *src, id, face)
+                            && game.condition_holds(condition.as_ref(), s.controller, *src)
                         {
                             cost.generic += *amount as u32;
                         }
                     }
-                    if let EffectDef::SpellsCostReductionControllerEffect { amount, filter, condition, dynamic } = e {
+                    if let EffectDef::SpellsCostReductionControllerEffect { amount, filter, condition, dynamic, mana } =
+                        e
+                    {
                         if s.controller == seat
                             && face_matches(game, filter, seat, *src, id, face)
                             && game.condition_holds(condition.as_ref(), seat, *src)
@@ -6276,7 +6836,21 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
                                 Some(v) => game.value(&Amount::Of(v.clone()), seat, *src, 0).max(0),
                                 None => *amount,
                             };
-                            reduce += n as u32;
+                            // a double-faced card whose other face has this ability too (Serah Farron's back adds
+                            // `ability.copy()`): Java registers both abilities under one effect id, and
+                            // `ContinuousEffectsList.addEffect` adds the effect once per ability, so
+                            // `ContinuousEffects.costModification` runs each list entry over every ability: n abilities
+                            // reduce n * n times, whichever face is up (Serah: {2} four times, Ramos {6} costs 0)
+                            let other = match &s.front {
+                                Some(front) => Some(front.clone()),
+                                None => s.def.transform_back.clone(),
+                            };
+                            let faces = 1 + other.map_or(0, |f| f.abilities.iter().filter(|b| *b == a).count());
+                            let times = faces * faces;
+                            reduce += n as u32 * times as u32;
+                            if let Some(less) = mana.as_deref().and_then(|m| ManaCost::parse(m).ok()) {
+                                reduce_by_mana(&mut cost, &less);
+                            }
                         }
                     }
                 }
@@ -6326,13 +6900,7 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
                     if (*stack_only && o.zone != Zone::Stack) || game.condition_holds(condition.as_ref(), seat, id) {
                         cost.generic = cost.generic.saturating_sub(*amount as u32);
                         if let Some(less) = mana.as_deref().and_then(|m| ManaCost::parse(m).ok()) {
-                            for k in 0..5 {
-                                let n = less.colored[k].min(cost.colored[k]);
-                                cost.colored[k] -= n;
-                                cost.phyrexian[k] = cost.phyrexian[k].min(cost.colored[k]);
-                            }
-                            cost.colorless = cost.colorless.saturating_sub(less.colorless);
-                            cost.generic = cost.generic.saturating_sub(less.generic);
+                            reduce_by_mana(&mut cost, &less);
                         }
                     }
                 }
@@ -6357,6 +6925,18 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
         cost.hybrid.clear();
     }
     cost
+}
+
+/// `CardUtil.adjustCost(ability, manaCosts, false)`: each colored symbol of `less` takes one of that color off the
+/// cost, a reduction left over is lost, and its generic part takes generic off
+fn reduce_by_mana(cost: &mut ManaCost, less: &ManaCost) {
+    for k in 0..5 {
+        let n = less.colored[k].min(cost.colored[k]);
+        cost.colored[k] -= n;
+        cost.phyrexian[k] = cost.phyrexian[k].min(cost.colored[k]);
+    }
+    cost.colorless = cost.colorless.saturating_sub(less.colorless);
+    cost.generic = cost.generic.saturating_sub(less.generic);
 }
 
 /// A `SpendManaAsAnyColorEffect` of `seat`'s applies to what they pay for: spell `spell`, or an ability (None) of
@@ -6475,6 +7055,7 @@ fn spell_rule_with_costs(rule: &str, costs: &[CostDef]) -> String {
             CostDef::DiscardCardCost { .. } | CostDef::DiscardSourceCost | CostDef::DiscardHandCost => Some("discard"),
             CostDef::SacrificeSourceCost
             | CostDef::SacrificeTargetCost { .. }
+            | CostDef::SacrificeAnyNumberCopyCost { .. }
             | CostDef::SacrificeXTargetCost { .. } => Some("sacrifice"),
             CostDef::ExileSourceCost
             | CostDef::ExileSourceFromGraveCost
@@ -6809,8 +7390,15 @@ fn ward(game: &mut Game) {
         })
         .map(|(_, t)| t)
         .collect();
+    // once for each permanent however many of its targets it is (`findTargetingStackObject`: a trigger records each
+    // target and stack object it fired for, Nissa's Judgment's support and second target on one warded creature)
+    let mut seen = Vec::new();
     for t in permanent_targets.iter() {
         let Target::Obj(o) = *t else { continue };
+        if seen.contains(&o) {
+            continue;
+        }
+        seen.push(o);
         let obj = game.obj(o);
         // Surrak: a creature or creature spell of yours becomes the target of an opponent's spell or ability
         let creature = (obj.zone == Zone::Battlefield && game.has_type(o, CardType::Creature))
@@ -6894,7 +7482,7 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
         game.activated_this_turn.push((id, index));
     }
     if let AbilityDef::PowerUpAbility { .. } = def.abilities[index] {
-        game.obj_mut(id).powered_up = true;
+        game.obj_mut(id).powered_up = game.obj(id).powered_up.saturating_add(1);
     }
     if let AbilityDef::ExhaustAbility { .. } = def.abilities[index] {
         game.obj_mut(id).marks.push(format!("exhaust{index}"));
@@ -7046,6 +7634,14 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
             }
         }
     }
+    // a `SET_COST` that asks, after the other cost changes (Bruenor's "you may pay {0} rather than pay the equip
+    // cost")
+    {
+        let of = cards::CostCx { seat, card: id, face: &def, ability: Some(&def.abilities[index]) };
+        if !cards::may_free(game, d, &of, &mut mana) {
+            return false;
+        }
+    }
     for s in 0..game.seats() {
         game.player_mut(s).passed = false;
     }
@@ -7074,8 +7670,12 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     if !game.discarded.is_empty() {
         game.discarded_cards();
     }
+    if matches!(def.abilities[index], AbilityDef::EquipAbility { .. }) && !game.watch.equip_activated.contains(&seat) {
+        game.watch.equip_activated.push(seat);
+    }
     // `ACTIVATED_ABILITY`: "when you cycle this card" (`CycleTriggeredAbility`), with the cycling's X
     if matches!(def.abilities[index], AbilityDef::CyclingAbility { .. }) {
+        game.watch.cycled.push((seat, id));
         let x = game.stack.last().map_or(0, |t| t.x);
         let mut sources = vec![id];
         sources.extend(game.trigger_sources());
@@ -7098,6 +7698,14 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
                 && match kind.as_str() {
                     "exhaust" => matches!(ability, AbilityDef::ExhaustAbility { once: false, .. }),
                     "power_up" => matches!(ability, AbilityDef::PowerUpAbility { .. }),
+                    // a boast ability (`BoastAbility`: once each turn, only if the source attacked this turn)
+                    "boast" => matches!(
+                        ability,
+                        AbilityDef::LimitedTimesPerTurnActivatedAbility {
+                            condition: Some(Condition::SourceAttackedThisTurn),
+                            ..
+                        }
+                    ),
                     // `getSourcePermanentOrLKI`: a permanent's, or one its cost sacrificed
                     "creature_or_land" => {
                         (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
@@ -7479,6 +8087,15 @@ fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, co
         }
         cards::change_cost(game, kind, &of, &mut cost);
     }
+    // a free-equip `SET_COST` that asks (Bruenor Battlehammer): while checking what's playable it applies; as this
+    // ability is activated (its item on top of the stack) it's asked in `activate_paying` instead
+    let activating = game.stack.last().is_some_and(|t| {
+        t.card == id
+            && t.ability.is_some_and(|(k, _)| game.obj(id).def.abilities.get(k).is_some_and(|b| std::ptr::eq(a, b)))
+    });
+    if !activating {
+        cards::change_cost(game, cards::CostKind::MayFree, &of, &mut cost);
+    }
     cost
 }
 
@@ -7760,8 +8377,15 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             if chosen.len() < *amount {
                 return false;
             }
+            let mut paid = *amount == 0;
             for o in &chosen {
-                tap(game, *o);
+                if !game.obj(*o).tapped {
+                    tap(game, *o);
+                    paid = true;
+                }
+            }
+            if !paid {
+                return false;
             }
             // kept for the effect (`TapTargetCost.getTarget()`: Swallow Whole's counter on the creature tapped)
             if let Some(top) = Arc::make_mut(&mut game.stack).last_mut().filter(|t| t.card == id) {
@@ -7780,8 +8404,15 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             if chosen.len() < *amount {
                 return false;
             }
+            let mut paid = *amount == 0;
             for o in chosen {
-                untap_permanent(game, o);
+                if game.obj(o).tapped {
+                    untap_permanent(game, o);
+                    paid = true;
+                }
+            }
+            if !paid {
+                return false;
             }
         }
         CostDef::CrewCost { value } | CostDef::SaddleCost { value } => {
@@ -7817,9 +8448,11 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             if saddle {
                 // `SADDLED_MOUNT` (`SaddledMountWatcher.saddleMap`): which creatures saddled this Mount this turn
                 let mark = format!("saddled mount {} {} {}", id.0, game.obj(id).zcc, game.turn);
-                for o in crew {
-                    game.obj_mut(o).marks.push(mark.clone());
+                for o in &crew {
+                    game.obj_mut(*o).marks.push(mark.clone());
                 }
+                // "whenever this saddles a Mount": that Mount is its target
+                crews_triggers(game, &crew, id, true);
                 return true;
             }
             // "whenever this crews a Vehicle": that Vehicle is its target
@@ -7828,14 +8461,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 let seen = (id, zcc, *o, game.obj(*o).zcc);
                 game.watch.crewed.push(seen);
             }
-            for o in crew {
-                let mut fired = game.triggers([o], |_, _, _, t| matches!(t, Trigger::CrewsVehicle));
-                for t in fired.iter_mut() {
-                    t.targets = vec![vec![Target::Obj(id)]];
-                    t.target_zcc = vec![vec![zcc]];
-                }
-                game.pending.extend(fired);
-            }
+            crews_triggers(game, &crew, id, false);
         }
         // `ReturnToHandChosenControlledPermanentCost`: chosen (`Targets.choose`), then returned together
         CostDef::ReturnToHandChosenControlledPermanentCost { filter, amount } => {
@@ -7884,22 +8510,48 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 None => return false,
             }
         }
-        CostDef::SacrificeTargetCost { filter, amount } => {
+        CostDef::SacrificeTargetCost { .. } | CostDef::SacrificeAnyNumberCopyCost { .. } => {
+            let (filter, amount, copies) = match c {
+                CostDef::SacrificeTargetCost { filter, amount } => (filter, *amount, false),
+                CostDef::SacrificeAnyNumberCopyCost { filter } => (filter, 0, true),
+                _ => return false,
+            };
             let possible: Vec<ObjId> =
                 matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
             // not enough left (the mana paid first used them): `canPay` fails, nothing asked
-            if possible.len() < *amount {
+            if possible.len() < amount {
                 return false;
             }
-            // `SacrificeTargetCost`: its target can be cancelled
+            // `SacrificeTargetCost`: its target can be cancelled; any number (`TargetSacrifice(0, MAX)`) is up to all
             let rule = if game.foraging.get() { forage_rule(game, id) } else { "sacrifice".to_string() };
-            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, &rule, true)
+            let max = if copies { possible.len() } else { amount };
+            // Plumb the Forbidden with no creatures: Java still asks for "any number" ("selected 0"), and it's done
+            if copies
+                && possible.is_empty()
+                && matches!(ask(game, d, seat, &Query::Cards { objs: vec![], required: false }), Answer::Stop)
+            {
+                return false;
+            }
+            let Some(mut chosen) = choose_cards_with(game, d, seat, &possible, &possible, amount, max, &rule, true)
             else {
                 return false;
             };
-            if chosen.len() < *amount {
+            // any number (Plumb the Forbidden): `TargetImpl.choose`, a round that ended with Done after choosing
+            // something asks again, as crewing does
+            while copies && !chosen.is_empty() && chosen.len() < possible.len() {
+                let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
+                let Some(more) = choose_cards_with(game, d, seat, &left, &left, 0, left.len(), &rule, true) else {
+                    return false;
+                };
+                if more.is_empty() {
+                    break;
+                }
+                chosen.extend(more);
+            }
+            if chosen.len() < amount {
                 return false;
             }
+            let copied = if copies { chosen.len() } else { 0 };
             // sacrificed together: their dies triggers see each other die
             let outer = std::mem::replace(&mut game.lookback, game.battlefield.to_vec());
             let toughness = chosen.iter().map(|o| game.power_toughness(*o).1).max();
@@ -7927,6 +8579,22 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             let after = game.sac_insert;
             game.sac_insert = insert.map(|i| if i == start { after.unwrap_or(i) } else { i });
             game.lookback = outer;
+            // Plumb the Forbidden's cost: "when you do, copy this spell for each creature sacrificed this way", a
+            // reflexive trigger fired after paying (`CopySourceSpellEffect(sacrificed)`)
+            if copied > 0 {
+                let delayed = Delayed {
+                    rule: "When you do, copy this spell for each creature sacrificed this way.".into(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: vec![EffectDef::CopySourceSpellEffect; copied],
+                    source_zcc: game.obj(id).zcc,
+                    fixed: Vec::new(),
+                    return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
+                };
+                game.pending.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, seat) });
+            }
         }
         // `ExileTargetCost.pay`: the permanent chosen (`Targets.choose`), then exiled
         CostDef::ExileTargetCost { filter } => {
@@ -7944,7 +8612,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
         }
         // announced and paid as a `SacrificeTargetCost` in `cast_with`
         CostDef::SacrificeXTargetCost { .. } => {}
-        CostDef::DiscardCardCost { filter, amount } => {
+        CostDef::DiscardCardCost { filter, amount, different_names, random } => {
             let hand = game.player(seat).hand.clone();
             let possible: Vec<ObjId> =
                 hand.iter().copied().filter(|c| game.filter_matches(filter, seat, Some(id), *c)).collect();
@@ -7952,9 +8620,28 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             if possible.len() < *amount {
                 return false;
             }
-            let Some(chosen) = choose_cards(game, d, seat, &hand, &possible, *amount, *amount, "discard") else {
+            let chosen = if *random {
+                let mut pool = possible;
+                let mut picked = Vec::with_capacity(*amount);
+                for _ in 0..*amount {
+                    if pool.is_empty() {
+                        break;
+                    }
+                    let i = if pool.len() < 2 { 0 } else { game.rng.next_int_bound(pool.len() as i32) as usize };
+                    picked.push(pool.remove(i));
+                }
+                Some(picked)
+            } else if *different_names {
+                choose_cards_different_names(game, d, seat, &possible, *amount)
+            } else {
+                choose_cards(game, d, seat, &hand, &possible, *amount, *amount, "discard")
+            };
+            let Some(chosen) = chosen else {
                 return false;
             };
+            if chosen.len() < *amount {
+                return false;
+            }
             if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
                 top.cost_discarded.extend(chosen.iter().copied());
             }
@@ -8078,6 +8765,11 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 _ => None,
             });
             let rule = if game.foraging.get() { Some(forage_rule(game, id)) } else { rule };
+            // too few to choose: nothing asked (`TargetCardInYourGraveyard.canChoose`), the cost isn't paid
+            // (escape picked by an effect's cast with too few other cards: Bilbo casting Glimpse of Freedom)
+            if possible.len() < *amount {
+                return false;
+            }
             let Some(chosen) =
                 choose_cards(game, d, seat, &possible, &possible, *amount, *amount, &rule.unwrap_or("exile".into()))
             else {
@@ -8142,6 +8834,10 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             for c in chosen {
                 game.move_to(c, Zone::Exile);
             }
+            // `EVIDENCE_COLLECTED`, for the payer's "whenever you collect evidence" (Surveillance Monitor)
+            let sources = game.trigger_sources();
+            let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::CollectEvidence) && you == seat);
+            game.pending.extend(fired);
         }
         CostDef::DiscardSourceCost => game.move_to(id, Zone::Graveyard),
         // `PlayerImpl.discard(hand, true, …)`: each card in hand order, then the batch
@@ -8205,6 +8901,28 @@ fn discard(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32) -> Vec
     chosen
 }
 
+/// `PlayerImpl.discard(amount, true, …)`: `getRandomToDiscard` takes `amount` cards one at a time with
+/// `Cards.getRandom` (the hand in order, `RandomUtil.randomFromCollection`: no random number for a single card), and
+/// they're discarded in the order taken
+fn discard_at_random(game: &mut Game, seat: Seat, amount: i32) -> Vec<ObjId> {
+    let mut hand = game.player(seat).hand.clone();
+    let mut chosen = Vec::new();
+    for _ in 0..amount.max(0) {
+        if hand.is_empty() {
+            break;
+        }
+        let i = if hand.len() < 2 { 0 } else { game.rng.next_int_bound(hand.len() as i32) as usize };
+        chosen.push(hand.remove(i));
+    }
+    for c in &chosen {
+        discard_card(game, seat, *c);
+    }
+    if !chosen.is_empty() {
+        game.discarded_cards();
+    }
+    chosen
+}
+
 /// `PlayerImpl.doDiscard`: the log first, then the card goes
 fn discard_card(game: &mut Game, seat: Seat, c: ObjId) {
     if log::kept(game) {
@@ -8249,6 +8967,10 @@ fn search_library(
         return Some(Vec::new());
     }
     let mut shown = game.player(seat).library.clone();
+    // `SEARCH_LIBRARY`'s amount (Aven Mindcensor): only the top cards are searched
+    if let Some(n) = cards::search_limit(game, seat, seat) {
+        shown.truncate(n);
+    }
     shown.sort_by(|a, b| game.obj(*a).name().cmp(game.obj(*b).name()));
     game.searching = Some((shown, Vec::new()));
     let chosen = search_library_cards(game, d, seat, filter, min, max, source);
@@ -8265,7 +8987,10 @@ fn search_library_cards(
     max: usize,
     source: ObjId,
 ) -> Option<Vec<ObjId>> {
-    let library = game.player(seat).library.clone();
+    let mut library = game.player(seat).library.clone();
+    if let Some(n) = cards::search_limit(game, seat, seat) {
+        library.truncate(n);
+    }
     let possible: Vec<ObjId> =
         library.iter().copied().filter(|c| game.filter_matches(filter, seat, Some(source), *c)).collect();
     let min = min.min(possible.len());
@@ -8345,8 +9070,11 @@ fn cant_be_countered(game: &Game, spell: ObjId) -> bool {
         }
         _ => false,
     });
+    // Lier, Disciple of the Drowned's "spells can't be countered"
+    let all = game.any_static(|_, _, e| matches!(e, EffectDef::CantBeCounteredAllEffect));
     by_static
         || this_turn
+        || all
         || game.obj(spell).uncounterable
         || game.obj(spell).def.abilities.iter().any(|a| match a {
             AbilityDef::CantBeCounteredSourceAbility => true,
@@ -8504,6 +9232,13 @@ fn choose_target_in(
         if !of_ability && !matches!(def, TargetDef::TargetStackObject { .. }) {
             objs.retain(|o| Some(*o) != source);
         }
+        // an ability's targets are also checked against the ability object on the stack (mana value 0), not just
+        // its source; the playable check before it's on the stack sees only the source (an activated ability's
+        // targets come with no source, the ability on top)
+        let ability = of_ability || source.is_none() && game.stack.last().is_some_and(|t| t.ability.is_some());
+        if let (true, Some(s)) = (ability, src) {
+            objs.retain(|o| game.obj(*o).zone != Zone::Battlefield || !game.protected_from_ability_object(*o, s));
+        }
         if let (TargetDef::TargetCardInGraveyard { single: true, .. }, Some(Target::Obj(first))) = (def, chosen.first())
         {
             let owner = game.obj(*first).owner;
@@ -8622,17 +9357,32 @@ fn owns_target(game: &Game, seat: Seat, id: ObjId) -> bool {
     }
 }
 
-/// `src`: the spell or ability's source, for its filters ("another")
+/// `src`: the spell or ability's source, for its filters ("another"). Cards in graveyards are left out while a static
+/// says they can't be the targets of spells or abilities (`CantBeTargetedCardsGraveyardsEffect`: Silent Gravestone,
+/// Underworld Cerberus)
 pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> (Vec<Seat>, Vec<ObjId>) {
+    let (players, mut objs) = possible_targets_all(game, seat, def, src);
+    if objs.iter().any(|o| game.obj(*o).zone == Zone::Graveyard)
+        && game.any_static(|_, _, e| matches!(e, EffectDef::CantBeTargetedCardsGraveyardsEffect))
+    {
+        objs.retain(|o| game.obj(*o).zone != Zone::Graveyard);
+    }
+    (players, objs)
+}
+
+fn possible_targets_all(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> (Vec<Seat>, Vec<ObjId>) {
     // a player with hexproof can't be the target of their opponents' spells and abilities, nor one with protection
-    // from the source (`PlayerImpl.canBeTargetedBy`'s `hasProtectionFrom`)
+    // from the source (`PlayerImpl.canBeTargetedBy`'s `hasProtectionFrom`); a player chosen, not targeted, can
+    // (`TargetPlayer.canTarget` with `isNotTarget()`)
     let players: Vec<Seat> = (0..game.seats())
         .filter(|s| {
             !game.player(*s).lost
-                && (*s == seat
+                && (game.choosing_player
+                    || *s == seat
                     || !game.player_has(*s, &AbilityDef::HexproofAbility)
                     || cards::ignore_hexproof(game, seat, Target::Player(*s)))
-                && !src.is_some_and(|o| game.player_protected_from(*s, o))
+                && (game.choosing_player || !game.player_has(*s, &AbilityDef::ShroudAbility))
+                && (game.choosing_player || !src.is_some_and(|o| game.player_protected_from(*s, o)))
         })
         .collect();
     let permanents = |f: &dyn Fn(ObjId) -> bool| -> Vec<ObjId> {
@@ -8745,10 +9495,11 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
 /// Whether `seat` may target a permanent with a spell or ability of `src`: not an opponent's with hexproof, nor one
 /// with protection from a color of `src`.
 fn targetable(game: &Game, seat: Seat, id: ObjId, src: Option<ObjId>) -> bool {
-    (game.obj(id).controller == seat
-        || !game.has_ability(id, &AbilityDef::HexproofAbility)
-        || (game.has_type(id, CardType::Creature) && nowhere_to_run(game, game.obj(id).controller))
-        || cards::ignore_hexproof(game, seat, Target::Obj(id)))
+    !game.has_ability(id, &AbilityDef::ShroudAbility)
+        && (game.obj(id).controller == seat
+            || !game.has_ability(id, &AbilityDef::HexproofAbility)
+            || (game.has_type(id, CardType::Creature) && nowhere_to_run(game, game.obj(id).controller))
+            || cards::ignore_hexproof(game, seat, Target::Obj(id)))
         && !src.is_some_and(|s| game.protected_from(id, s))
         && !src.is_some_and(|s| {
             game.obj(id).controller != seat
@@ -8780,6 +9531,8 @@ fn hexproof_from(game: &Game, id: ObjId, s: ObjId) -> bool {
             "each_color" => !colors.is_empty(),
             // `HexproofFromPlaneswalkersAbility`: the spell or ability's source is a planeswalker
             "planeswalkers" => game.has_type(s, CardType::Planeswalker),
+            // `HexproofFromInstantsAbility` (Elenda, Saint of Dusk)
+            "instants" => game.has_type(s, CardType::Instant),
             c => kinds.iter().position(|k| *k == c).is_some_and(|i| colors.iter().any(|x| *x as usize == i)),
         },
         _ => false,
@@ -8856,7 +9609,8 @@ fn energy(game: &Game, seat: Seat) -> i32 {
     game.player(seat).counters.iter().filter(|(n, _)| n == "energy").map(|(_, k)| *k).sum()
 }
 
-/// Gives a player energy counters, or takes them (a negative amount)
+/// Gives a player energy counters, or takes them (a negative amount); getting one or more fires "whenever you get
+/// one or more {E}" (`COUNTERS_ADDED`)
 fn add_energy(game: &mut Game, seat: Seat, n: i32) {
     let counters = &mut game.player_mut(seat).counters;
     match counters.iter_mut().find(|(c, _)| c == "energy") {
@@ -8864,6 +9618,11 @@ fn add_energy(game: &mut Game, seat: Seat, n: i32) {
         None => counters.push(("energy".to_string(), n)),
     }
     counters.retain(|(_, k)| *k != 0);
+    if n > 0 {
+        let fired =
+            game.triggers(game.trigger_sources(), |_, _, you, t| matches!(t, Trigger::YouGetEnergy) && you == seat);
+        game.pending.extend(fired);
+    }
 }
 
 /// A player's poison counters (`CounterType.POISON`)
@@ -8913,9 +9672,17 @@ fn scried(game: &mut Game, seat: Seat, amount: i32, surveiled: bool) {
         you == seat
             && match t {
                 Trigger::YouScryOrSurveil => true,
-                Trigger::YouSurveilOrScry { surveil } => *surveil == surveiled,
+                Trigger::YouSurveilOrScry { surveil, graveyard: false } => *surveil == surveiled,
                 _ => false,
             }
+    });
+    game.pending.extend(fired.into_iter().map(|t| StackItem { x: amount, ..t }));
+    // "whenever you surveil" of a card in its owner's graveyard (Blood Operative)
+    let grave: Vec<ObjId> = game.player(seat).graveyard.clone();
+    let fired = game.triggers(grave, |g, src, you, t| {
+        you == seat
+            && g.obj(src).zone == Zone::Graveyard
+            && matches!(t, Trigger::YouSurveilOrScry { surveil, graveyard: true } if *surveil == surveiled)
     });
     game.pending.extend(fired.into_iter().map(|t| StackItem { x: amount, ..t }));
 }
@@ -9109,7 +9876,8 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                     abilities.sort_by_key(|(i, _, _)| *i);
                 }
                 if let Some((_, abilities)) = offered {
-                    let choices = auto_pay_abilities(&abilities, &unpaid);
+                    let choices =
+                        if game.pool_mode(seat).0 { abilities } else { auto_pay_abilities(&abilities, &unpaid) };
                     let chosen = if choices.len() == 1 {
                         Some(choices[0])
                     } else {
@@ -9375,7 +10143,7 @@ fn pick_objects(
     min: usize,
     max: usize,
 ) -> Option<Vec<ObjId>> {
-    if min > 0 && objs.len() == min {
+    if min == 1 && objs.len() == 1 {
         return Some(objs.to_vec());
     }
     let mut chosen: Vec<ObjId> = Vec::new();
@@ -9386,7 +10154,7 @@ fn pick_objects(
             Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
             Answer::Obj(o) if objs.contains(&o) => {
                 chosen.push(o);
-                if chosen.len() >= max {
+                if chosen.len() >= max || chosen.len() >= objs.len() {
                     return Some(chosen);
                 }
             }
@@ -9435,6 +10203,7 @@ fn special_mana_payment(
             for c in &chosen {
                 game.move_to(*c, Zone::Exile);
             }
+            game.obj_mut(spell).delved_cards.extend(chosen.iter().copied());
             add(game, Mana { colorless: chosen.len() as u32, ..Mana::default() });
             Some(!chosen.is_empty())
         }
@@ -9541,9 +10310,11 @@ fn activate_mana_paying(
     let taps = def.abilities[i].taps_source();
     // a mana cost cancelled undoes the whole activation (`PlayerImpl.playManaAbility` restores its bookmark)
     let before_costs = def.abilities[i].mana_ability_mana_cost().map(|_| game.clone());
-    // Heritage Druid: what it makes once (its playable amount counts every three it could tap)
+    // Heritage Druid / Ashnod's Altar / Krark-Clan Ironworks: what it makes once (its playable amount counts every group)
     if let AbilityDef::ColoredManaAbility { color, amount, no_tap: true, .. } = &def.abilities[i] {
         m = Mana::of(*color, *amount);
+    } else if let AbilityDef::ColorlessManaAbility { amount, no_tap: true, .. } = &def.abilities[i] {
+        m = Mana { colorless: *amount, ..Mana::default() };
     }
     // a cost it can't pay (Cryptex's collect evidence 3 with too little in the graveyard): not activated
     if def.abilities[i]
@@ -9589,6 +10360,7 @@ fn activate_mana_paying(
         if matches!(
             c,
             CostDef::SacrificeTargetCost { .. }
+                | CostDef::DiscardCardCost { .. }
                 | CostDef::ExileFromGraveCost { .. }
                 | CostDef::ForageCost
                 | CostDef::CollectEvidenceCost { .. }
@@ -9610,6 +10382,8 @@ fn activate_mana_paying(
     for c in def.abilities[i].mana_costs().to_vec() {
         match c {
             CostDef::SacrificeSourceCost => sacrifice(game, id),
+            // "{T}, Exile Ether: Add {U}."
+            CostDef::ExileSourceCost => game.move_to(id, Zone::Exile),
             CostDef::PayLifeCost { amount } => lose_life(game, seat, amount),
             CostDef::PayEnergyCost { amount } => add_energy(game, seat, -amount),
             CostDef::RemoveCountersSourceCost { counter } => {
@@ -9802,13 +10576,50 @@ fn activate_mana_paying(
     // (a Treasure sacrificed for its mana: what it was as it was sacrificed)
     let treasure = game.has_subtype(id, "Treasure");
     game.player_mut(seat).add_pool_mana(m, snow, treasure);
-    let extra = tap_for_mana_extra(game, seat, id, &[m]);
-    let made = m.total() as i32 + extra.len() as i32;
-    for k in extra {
-        if k == 5 {
-            game.player_mut(seat).mana_pool.colorless += 1;
-        } else {
-            game.player_mut(seat).mana_pool.colored[k] += 1;
+    let extra = tap_for_mana_extra(game, seat, id, &[m], taps);
+    let mut made = m.total() as i32 + extra.len() as i32;
+    for kinds in extra {
+        let pool = &mut game.player_mut(seat).mana_pool;
+        pool.colorless += kinds[0].colorless;
+        for c in 0..5 {
+            pool.colored[c] += kinds[0].colored[c];
+        }
+    }
+    // "whenever enchanted land is tapped for mana, its controller adds …": each Aura's mana at once, a color asked
+    // for each "any color" one (`ChoiceColor`, "Choose color", or "Choose color N" for several)
+    if taps {
+        let auras: Vec<ObjId> = enchanted_tapped_extra(game, id).into_iter().map(|(a, _)| a).collect();
+        let mut seen: Vec<ObjId> = Vec::new();
+        for aura in auras {
+            if seen.contains(&aura) {
+                continue;
+            }
+            seen.push(aura);
+            let def = game.obj(aura).def.clone();
+            for a in &def.abilities {
+                let AbilityDef::EnchantedTappedTriggeredManaAbility { color, amount, aura_controller, .. } = a else {
+                    continue;
+                };
+                let who = if *aura_controller { game.obj(aura).controller } else { game.obj(id).controller };
+                for j in 0..*amount {
+                    let c = if color == "any" {
+                        let message =
+                            if *amount > 1 { format!("Choose color {}", j + 1) } else { "Choose color".to_string() };
+                        // (`HumanPlayer.choose` picks an owed color itself only for `Outcome.PutManaInPool`, the
+                        // player paying: Market Festival's `ManaChoice.chooseAnyColor` asks with `Outcome.Benefit`,
+                        // so always)
+                        let owed = (who == seat && !*aura_controller).then_some(unpaid);
+                        match any_color_owed(game, d, who, owed, &message) {
+                            Some(c) => c,
+                            None => return false,
+                        }
+                    } else {
+                        Color::ALL["WUBRG".find(color.as_str()).unwrap_or(4)]
+                    };
+                    game.player_mut(who).mana_pool.colored[c.index()] += 1;
+                    made += 1;
+                }
+            }
         }
     }
     note(game, EventKind::Mana, Some(seat), Some(id), None, made);
@@ -9897,7 +10708,7 @@ fn pay_mana_ability_cost(
 fn fight_lethal(game: &Game, id: ObjId, from: ObjId) -> i32 {
     let mut lethal = i32::MAX;
     if game.has_type(id, CardType::Creature) {
-        lethal = (game.power_toughness(id).1 - game.obj(id).damage).max(0);
+        lethal = (cards::lethal_measure(game, id) - game.obj(id).damage).max(0);
         if game.has_ability(from, &AbilityDef::DeathtouchAbility) {
             lethal = lethal.min(1);
         }
@@ -10125,7 +10936,11 @@ fn spend_allowed(game: &Game, seat: Seat, src: ObjId, h: cards::SpendHandler, on
 }
 
 /// A `conditional_pool` entry's ability index at or past this names `Game::effect_mana` (an effect's mana)
+#[cfg(target_pointer_width = "64")]
 pub(crate) const EFFECT_MANA: usize = 1 << 40;
+/// 32-bit targets (the wasm32 browser worker): ability indexes stay far below this too
+#[cfg(not(target_pointer_width = "64"))]
+pub(crate) const EFFECT_MANA: usize = 1 << 30;
 
 /// The conditional mana ability (or an effect's stand-in for one) a `conditional_pool` entry was made by
 fn conditional_def(game: &Game, src: ObjId, j: usize) -> Option<&AbilityDef> {
@@ -10232,6 +11047,17 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
             let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
             if let [w] = alive[..] {
                 game.player_mut(w).won = true;
+                // the losers' cards have left their hands, libraries and graveyards by then, and the effects Java
+                // applies as the game ends no longer count them (Song of Stupefaction's -X/-0 after Marina
+                // Vendrell's Grimoire made its controller lose)
+                for s in 0..game.seats() {
+                    if game.player(s).lost {
+                        let p = game.player_mut(s);
+                        p.hand.clear();
+                        p.library.clear();
+                        p.graveyard.clear();
+                    }
+                }
             }
         }
     }
@@ -10304,11 +11130,31 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
                 .map(|(o, _)| Target::Obj(*o))
                 .collect();
             if delayed.fixed.is_empty() || !fixed.is_empty() {
-                // a player it points at ("that creature's controller")
+                // a player or permanent it points at ("that creature's controller", Anointer of Valor's "that creature")
                 let legal = if !fixed.is_empty() {
                     vec![fixed]
-                } else if item.targets.iter().flatten().all(|t| matches!(t, Target::Player(_))) {
-                    item.targets.clone()
+                } else if !item.targets.is_empty() {
+                    item.targets
+                        .iter()
+                        .enumerate()
+                        .map(|(k, group)| {
+                            group
+                                .iter()
+                                .enumerate()
+                                .filter(|(j, t)| match t {
+                                    Target::Player(_) => true,
+                                    Target::Obj(o) => {
+                                        let z = item.target_zcc.get(k).and_then(|v| v.get(*j)).copied();
+                                        matches!(
+                                            game.obj(*o).zone,
+                                            Zone::Battlefield | Zone::Stack | Zone::Graveyard | Zone::Exile
+                                        ) && z.is_none_or(|z| game.obj(*o).zcc == z)
+                                    }
+                                })
+                                .map(|(_, t)| *t)
+                                .collect()
+                        })
+                        .collect()
                 } else {
                     Vec::new()
                 };
@@ -10447,7 +11293,11 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
         }
         // the X it was cast with, for its enters triggers (`GetXValue`)
         game.obj_mut(id).cast_x = item.x;
+        let sneaked = game.obj_mut(id).sneak_defender.take();
         enter_battlefield(game, d, id, item.controller, item.kicked);
+        if let Some((defender, pw)) = sneaked {
+            sneak_enters(game, id, item.controller, defender, pw);
+        }
         return;
     }
     let zcc = game.obj(id).zcc;
@@ -11122,6 +11972,14 @@ fn singleton_keyword(a: &AbilityDef) -> bool {
             | AbilityDef::TrampleAbility
             | AbilityDef::FlyingAbility
             | AbilityDef::WitherAbility
+            | AbilityDef::InfectAbility
+            | AbilityDef::ShroudAbility
+            | AbilityDef::FearAbility
+            | AbilityDef::ShadowAbility
+            | AbilityDef::HorsemanshipAbility
+            | AbilityDef::SpaceflightAbility
+            | AbilityDef::PartnerAbility
+            | AbilityDef::FlankingAbility
             | AbilityDef::IntimidateAbility
             | AbilityDef::VigilanceAbility
             | AbilityDef::DefenderAbility
@@ -11134,6 +11992,7 @@ fn singleton_keyword(a: &AbilityDef) -> bool {
 /// triggered ability (Old-Growth Troll, Curious Obsession) adds that ability to what it enchants.
 fn refresh_land_types(game: &mut Game) {
     let mut types: Vec<String> = Vec::new();
+    let mut blood_moon = false;
     let mut granted: Vec<(ObjId, AbilityDef)> = Vec::new();
     // (and an emblem's: Mu Yanling, Sky Dancer's "Islands you control have '{T}: Draw a card.'")
     for id in game.battlefield.iter().chain(game.command.iter()) {
@@ -11194,6 +12053,9 @@ fn refresh_land_types(game: &mut Game) {
                             if !types.contains(subtype) {
                                 types.push(subtype.clone());
                             }
+                        }
+                        EffectDef::NonbasicLandsAreMountainsEffect => {
+                            blood_moon = true;
                         }
                         // (Skygames: enchanted land has "{T}: … Activate only as a sorcery.")
                         EffectDef::GainAbilityAttachedEffect { ability }
@@ -11287,7 +12149,7 @@ fn refresh_land_types(game: &mut Game) {
                         // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"; Food Fight: artifacts you
                         // control have "{2}, Sacrifice this artifact: …"; Pontiff of Blight: other creatures you
                         // control have extort
-                        EffectDef::GainAbilityAllEffect { ability, filter, .. }
+                        EffectDef::GainAbilityAllEffect { ability, filter, exclude_source, .. }
                             if ability.mana().is_some()
                                 || matches!(
                                     **ability,
@@ -11296,7 +12158,9 @@ fn refresh_land_types(game: &mut Game) {
                         {
                             let you = game.obj(*id).controller;
                             for to in game.battlefield.iter() {
-                                if game.filter_matches(filter, you, Some(*id), *to) {
+                                if !(*exclude_source && *to == *id)
+                                    && game.filter_matches(filter, you, Some(*id), *to)
+                                {
                                     granted.push((*to, (**ability).clone()));
                                 }
                             }
@@ -11438,6 +12302,11 @@ fn refresh_land_types(game: &mut Game) {
         let o = game.obj(id);
         let base = o.land_type_base.as_ref().map(|(b, _, _)| b.clone()).unwrap_or_else(|| o.def.clone());
         let mut given: Vec<String> = if base.types.contains(&CardType::Land) { types.clone() } else { Vec::new() };
+        // Blood Moon: nonbasic lands lose their subtypes/abilities and become Mountains (layer 4)
+        if blood_moon && base.types.contains(&CardType::Land) && !base.supertypes.iter().any(|s| s == "BASIC") {
+            given.insert(0, "=Mountain".into());
+            given.insert(1, "Mountain".into());
+        }
         // the latest "becomes", marked `=Type`: it replaces the land's types and abilities first
         if let Some((_, _, _, _, t)) = game.land_becomes.iter().rev().find(|(l, _, _, _, _)| *l == id) {
             if base.types.contains(&CardType::Land) {
@@ -11828,6 +12697,15 @@ fn copy_spell_with(
         }
         _ => false,
     });
+    let mut fired = fired;
+    for t in fired.iter_mut() {
+        // a `FixedTarget` at the copy's controller (Mage Hunter's "they lose 1 life")
+        let a = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
+        if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
+            t.targets = vec![vec![Target::Player(controller)]];
+            t.target_zcc = vec![vec![0]];
+        }
+    }
     game.pending.extend(fired);
     Some(copy)
 }
@@ -12161,7 +13039,7 @@ fn bind_slot(
             } else {
                 let rule = item_rule(game, item);
                 if b.rounds {
-                    choose_cards_rounds(game, d, who, &possible, min, max)?
+                    choose_cards_rounds_rule(game, d, who, &possible, min, max, &rule)?
                 } else {
                     choose_cards(game, d, who, &shown, &possible, min, max, &rule)?
                 }
@@ -12373,6 +13251,24 @@ fn apply_sequence(
                     refresh_piles(game, &mut slots);
                     apply_sequence(game, d, &it, e, &pointed, source, &slots);
                 }
+                EffectDef::ConditionalOneShotEffect { condition, effect, otherwise, also, .. } => {
+                    let chosen = if game.condition_holds(Some(condition), it.controller, source.0) {
+                        effect.as_deref()
+                    } else {
+                        otherwise.as_deref()
+                    };
+                    for sub in chosen.into_iter().chain(also.iter()) {
+                        if matches!(sub, EffectDef::Effects { .. }) {
+                            refresh_piles(game, &mut slots);
+                            apply_sequence(game, d, &it, sub, &pointed, source, &slots);
+                        } else {
+                            apply_effects(game, d, &it, std::slice::from_ref(sub), &pointed, source);
+                        }
+                        if d.stopped() {
+                            return;
+                        }
+                    }
+                }
                 EffectDef::PileRetainZoneEffect { pile, zone } => {
                     let keep = match zone.as_str() {
                         "LIBRARY" => Zone::Library,
@@ -12538,8 +13434,9 @@ fn apply_each_effect(
             EffectDef::CounterTargetExileEffect => {
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Stack && !cant_be_countered(game, o) {
-                        note_countered(game, o, item.card);
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+                        note_countered(game, o, item.card, item.controller);
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != o || i.ability.is_some() || i.delayed.is_some());
                         game.move_to(o, Zone::Exile);
                     }
                 }
@@ -12569,8 +13466,9 @@ fn apply_each_effect(
                 }
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Stack && !cant_be_countered(game, o) {
-                        note_countered(game, o, item.card);
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+                        note_countered(game, o, item.card, item.controller);
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != o || i.ability.is_some() || i.delayed.is_some());
                         game.move_to(o, Zone::Graveyard);
                     }
                 }
@@ -12580,6 +13478,15 @@ fn apply_each_effect(
                 let toughness = &v!(toughness);
                 for o in &objs {
                     boost(game, *o, *power, *toughness, *duration);
+                    until_next_turn(game, *duration, controller);
+                }
+            }
+            EffectDef::SwitchPowerToughnessTargetEffect { duration } => {
+                for o in &objs {
+                    boost(game, *o, 0, 0, *duration);
+                    if let Some(b) = Arc::make_mut(&mut game.boosts).last_mut() {
+                        b.switch = true;
+                    }
                     until_next_turn(game, *duration, controller);
                 }
             }
@@ -12849,8 +13756,7 @@ fn apply_each_effect(
                     p.until_end_of_turn_def = Some(earthbent(&eot));
                 }
                 if n > 0 {
-                    p.add_counters("+1/+1", n);
-                    counters_put_triggers(game, o, "+1/+1", n, Some(item.controller));
+                    add_counters_by(game, o, "+1/+1", n, Some(item.controller));
                 }
                 game.earthbent.push((o, zcc));
             }
@@ -13296,14 +14202,21 @@ fn apply_each_effect(
             }
             EffectDef::CopySourceSpellEffect => {
                 let (spell, zcc) = source;
-                let Some(original) =
-                    game.stack.iter().find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none()).cloned()
-                else {
-                    continue;
+                let on_stack =
+                    game.stack.iter().find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none()).cloned();
+                let original = match on_stack {
+                    Some(o) if game.obj(spell).zcc == zcc => o,
+                    Some(_) => continue,
+                    // `getSpellOrLKIStack`: a reflexive trigger's spell that has left the stack (Plumb the Forbidden
+                    // countered) is copied as it last was; only a spell with no targets, whose last state is its card
+                    None if item.delayed.is_some()
+                        && game.obj(spell).zone != Zone::Stack
+                        && game.obj(spell).def.spell.targets.is_empty() =>
+                    {
+                        StackItem::spell(spell, controller)
+                    }
+                    None => continue,
                 };
-                if game.obj(spell).zcc != zcc {
-                    continue;
-                }
                 copy_spell(game, d, &original, controller);
             }
             EffectDef::ChandraTorchOfDefianceEffect => {
@@ -13440,6 +14353,7 @@ fn apply_each_effect(
                 };
                 // the permanent entering, or the spell resolving (Unmoored Ego's next effect reads it), or an
                 // ability's source exiled to pay for it (The Stone Brain's next effect reads the source's value)
+                game.names_chosen.push((source.0, chosen.clone()));
                 if matches!(game.obj(source.0).zone, Zone::Battlefield | Zone::Stack | Zone::Exile) {
                     game.obj_mut(source.0).chosen_name = Some(chosen);
                 }
@@ -14045,6 +14959,21 @@ fn apply_each_effect(
                 }
             }
             EffectDef::DoIfCostPaid { effect, cost, also, otherwise, optional, mana_first } => {
+                // a waterbend cost here is paid as the generic mana it is (`WaterbendCost` is a `GenericManaCost`:
+                // `DoIfCostPaid` asks for the mana only, with no permanents to tap: Waterbending Lesson)
+                let as_mana: Vec<CostDef>;
+                let cost = if cost.iter().any(|c| matches!(c, CostDef::WaterbendCost { .. })) {
+                    as_mana = cost
+                        .iter()
+                        .map(|c| match c {
+                            CostDef::WaterbendCost { amount } => CostDef::ManaCost { cost: format!("{{{amount}}}") },
+                            c => c.clone(),
+                        })
+                        .collect();
+                    &as_mana
+                } else {
+                    cost
+                };
                 // a cost that can't be paid isn't asked about (mana always counts as payable)
                 let others: Vec<&CostDef> = cost.iter().filter(|c| !matches!(c, CostDef::ManaCost { .. })).collect();
                 let mut paid = false;
@@ -14062,6 +14991,18 @@ fn apply_each_effect(
                         let before = game.clone();
                         if pay_costs_then_mana(game, d, controller, source.0, cost, *mana_first) {
                             paid = true;
+                            // `TriggeredAbility.setDidThisTurn`: a "do this only once each turn" trigger whose cost
+                            // was paid doesn't trigger again this turn (Irreverent Gremlin)
+                            if let Some((i, _)) = item.ability {
+                                let def = game.item_def(item);
+                                if matches!(
+                                    def.abilities.get(i),
+                                    Some(AbilityDef::TriggeredAbility { once_each_turn: true, .. })
+                                ) {
+                                    let did = (item.card, game.obj(item.card).zcc, i);
+                                    game.watch.did_this_turn.push(did);
+                                }
+                            }
                             if let Some(effect) = effect {
                                 apply_effects(game, d, item, std::slice::from_ref(&**effect), legal, source);
                             }
@@ -14396,6 +15337,7 @@ fn apply_each_effect(
             | EffectDef::CombatDamageByToughnessControlledEffect { .. }
             | EffectDef::CombatDamageByToughnessAttachedEffect
             | EffectDef::CantBeBlockedByOneEffect { .. }
+            | EffectDef::CantBeBlockedByOneAllEffect { .. }
             | EffectDef::LegendRuleDoesntApplyEffect { .. } => {}
             EffectDef::SacrificeTargetEffect => {
                 for o in &objs {
@@ -14413,11 +15355,82 @@ fn apply_each_effect(
                     game.player_mut(p).library = library;
                 }
             }
+            EffectDef::ShuffleLibrarySourceOptionalEffect => {
+                if choose_use(game, d, controller, "Shuffle your library?").unwrap_or(false) {
+                    let mut library = game.player(controller).library.clone();
+                    game.rng.shuffle(&mut library);
+                    game.player_mut(controller).library = library;
+                }
+            }
+            EffectDef::PartnerWithSearchEffect { name } => {
+                let Some(&p) = players.first() else { return };
+                let msg = format!("Search your library for a card named {} and put it into your hand?", name);
+                if !choose_use(game, d, p, &msg).unwrap_or(false) {
+                    return;
+                }
+                let filter = crate::card::Filter(vec![crate::card::Pred::Name { n: name.clone() }]);
+                if let Some(chosen) = search_library(game, d, p, &filter, 0, 1, source.0) {
+                    for c in chosen {
+                        if game.obj(c).zone == Zone::Library {
+                            game.move_to(c, Zone::Hand);
+                        }
+                    }
+                    let mut library = game.player(p).library.clone();
+                    game.rng.shuffle(&mut library);
+                    game.player_mut(p).library = library;
+                }
+            }
+            EffectDef::MyriadEffect => {
+                // In 1v1 there are no opponents other than the defending player, so Myriad creates no tokens.
+            }
+            EffectDef::EchoEffect { cost } => {
+                if game.obj(source.0).zone != Zone::Battlefield || game.obj(source.0).zcc != source.1 {
+                    return;
+                }
+                let paid = pay_unless(game, d, controller, source.0, std::slice::from_ref(cost)).unwrap_or(false);
+                if d.stopped() {
+                    return;
+                }
+                if !paid && game.obj(source.0).zone == Zone::Battlefield && game.obj(source.0).zcc == source.1 {
+                    sacrifice(game, source.0);
+                }
+            }
+            EffectDef::BecomesColorTargetEffect { color, retain, duration } => {
+                let chosen = match color {
+                    Some(c) => *c,
+                    None => {
+                        let names = ["White", "Blue", "Black", "Red", "Green"];
+                        let choices: Vec<String> = names.iter().map(|s| s.to_string()).collect();
+                        let q = Query::Choice { message: "Choose a color".into(), choices: choices.clone() };
+                        let pick = loop {
+                            match ask(game, d, controller, &q) {
+                                Answer::Text(t) if choices.contains(&t) => break t,
+                                Answer::Stop => return,
+                                _ => {}
+                            }
+                        };
+                        let idx = names.iter().position(|n| *n == pick).unwrap_or(0);
+                        Color::ALL[idx]
+                    }
+                };
+                let eot = matches!(duration, Duration::EndOfTurn);
+                for &o in &objs {
+                    let zcc = game.obj(o).zcc;
+                    game.color_overrides.push((o, zcc, vec![chosen], *retain, eot));
+                }
+            }
+            EffectDef::GoadTargetEffect => {
+                for &o in &objs {
+                    let zcc = game.obj(o).zcc;
+                    game.goaded.push((o, zcc, controller));
+                }
+            }
             EffectDef::MoveTargetCardsEffect { zone } => {
                 for o in &objs {
                     let o = *o;
                     if game.obj(o).zone == Zone::Stack {
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != o || i.ability.is_some() || i.delayed.is_some());
                     }
                     match zone.as_str() {
                         "HAND" => game.move_to(o, Zone::Hand),
@@ -14728,10 +15741,31 @@ fn apply_each_effect(
                 // the exploiter's, on the battlefield or just sacrificed (a leaves-the-battlefield trigger)
                 let (src, zcc) = source;
                 let here = game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc;
+                let mut all = Vec::new();
                 if here || src == o {
-                    let fired = game.triggers([src], |_, s, _, t| matches!(t, Trigger::Exploits) && s == src);
-                    game.pending.splice(at..at, fired);
+                    let mut fired = game.triggers([src], |_, s, _, t| matches!(t, Trigger::Exploits) && s == src);
+                    // `SetTargetPointer.PERMANENT`: the exploited creature, as it was (Profaner of the Dead)
+                    for t in fired.iter_mut() {
+                        let a = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
+                        if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. })) {
+                            t.targets = vec![vec![Target::Obj(o)]];
+                            t.target_zcc = vec![vec![game.obj(o).zcc]];
+                        }
+                    }
+                    all.extend(fired);
                 }
+                // the same `EXPLOITED_CREATURE` event: a card's own trigger on any exploiter (on the battlefield)
+                let sources = game.trigger_sources();
+                let mut any = game.triggers(sources, |_, _, _, t| matches!(t, Trigger::ExploitsAny));
+                for t in any.iter_mut() {
+                    t.entering = Some(src);
+                    t.sacrificed_permanent = Some(o);
+                }
+                any.retain(|t| game.trigger_check_holds(t));
+                // one event: every trigger on it in Java's trigger order (Gurmag Drowner's own after Skull Skaab's)
+                all.extend(any);
+                all.sort_by_key(|t| game.trigger_key(t));
+                game.pending.splice(at..at, all);
             }
             EffectDef::BoomerangBasicsEffect => {
                 if let Some(o) = objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) {
@@ -15159,9 +16193,24 @@ fn apply_each_effect(
                     }
                 }
             }
-            // `ScavengeEffect`: the card's power (`game.getCard`, wherever it went) in +1/+1 counters
+            // `ScavengeEffect`: the card's power (`game.getCard`, wherever it went) in +1/+1 counters,
+            // including characteristic-defining abilities like Boneyard Mycodrax (`*/*`).
             EffectDef::ScavengeEffect => {
-                let n = game.obj(source.0).def.power;
+                let o = game.obj(source.0);
+                let n = o
+                    .def
+                    .abilities
+                    .iter()
+                    .find_map(|a| match a {
+                        AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().find_map(|e| match e {
+                            EffectDef::SetBasePowerToughnessAmountSourceEffect { amount } => {
+                                Some(game.value(amount, o.owner, source.0, 0))
+                            }
+                            _ => None,
+                        }),
+                        _ => None,
+                    })
+                    .unwrap_or(o.def.power);
                 if n > 0 {
                     for o in &objs {
                         put_counters(game, *o, "+1/+1", n, controller);
@@ -15225,15 +16274,19 @@ fn apply_each_effect(
             | EffectDef::DontUntapInControllersUntapStepSourceEffect
             | EffectDef::UntapSourceDuringEachOtherPlayersUntapStepEffect
             | EffectDef::UntapAllDuringEachOtherPlayersUntapStepEffect { .. }
+            | EffectDef::DrawsOnOpponentsTurnEffect
             | EffectDef::ClarionConquerorEffect
             | EffectDef::CastAsThoughItHadFlashAllEffect { .. }
             | EffectDef::NarsetParterOfVeilsEffect
             | EffectDef::TeferiTimeRavelerEffect
             | EffectDef::NoMaximumHandSizeEffect
             | EffectDef::NoMaximumHandSizeAllEffect
+            | EffectDef::GraveyardFlashbackEffect { .. }
+            | EffectDef::CantBeCounteredAllEffect
+            | EffectDef::DontLoseByZeroOrLessLifeEffect
+            | EffectDef::CantAttackBlockUnlessPaysSourceEffect { .. }
             | EffectDef::MaximumHandSizeSetEffect { .. }
             | EffectDef::LoyaltyAbilitiesTwiceEffect
-            | EffectDef::CreateTwiceThatManyTokensEffect { .. }
             | EffectDef::ReplaceCreatureTokensEffect { .. }
             | EffectDef::AdditionalTriggersEffect { .. }
             | EffectDef::ModifyCountersAddedEffect { .. }
@@ -15291,7 +16344,8 @@ fn apply_each_effect(
             EffectDef::ExileTargetEffect => {
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Stack {
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                     }
                     game.move_to(*o, Zone::Exile);
                 }
@@ -15301,7 +16355,8 @@ fn apply_each_effect(
                 for o in &objs {
                     match game.obj(*o).zone {
                         Zone::Stack => {
-                            Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                            Arc::make_mut(&mut game.stack)
+                                .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                         }
                         Zone::Battlefield => {}
                         _ => continue,
@@ -15320,11 +16375,15 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::MayCastTargetFromGraveyardThisTurnEffect => {
+            EffectDef::MayCastTargetFromGraveyardThisTurnEffect { then_exile } => {
                 let turn = game.turn;
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).is(CardType::Land) {
                         game.obj_mut(*o).may_play = Some((controller, turn));
+                        // `ThatSpellGraveyardExileReplacementEffect`, for the rest of the turn
+                        if *then_exile {
+                            game.exile_if_graveyard.push(*o);
+                        }
                     }
                 }
             }
@@ -15384,8 +16443,14 @@ fn apply_each_effect(
                 }
             }
             EffectDef::ExileThenReturnTargetEffect => {
-                let gone: Vec<ObjId> =
-                    objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield).collect();
+                let gone: Vec<ObjId> = legal
+                    .iter()
+                    .flatten()
+                    .filter_map(|t| match t {
+                        Target::Obj(o) if game.obj(*o).zone == Zone::Battlefield => Some(*o),
+                        _ => None,
+                    })
+                    .collect();
                 for o in &gone {
                     game.move_to(*o, Zone::Exile);
                 }
@@ -15636,7 +16701,8 @@ fn apply_each_effect(
                     let theirs: Vec<ObjId> = cards.iter().copied().filter(|c| game.obj(*c).owner == owner).collect();
                     for c in theirs {
                         if game.obj(c).zone == Zone::Stack {
-                            Arc::make_mut(&mut game.stack).retain(|i| i.card != c || i.ability.is_some());
+                            Arc::make_mut(&mut game.stack)
+                                .retain(|i| i.card != c || i.ability.is_some() || i.delayed.is_some());
                         }
                         to_library(game, c, true);
                     }
@@ -15865,7 +16931,8 @@ fn apply_each_effect(
             EffectDef::ReturnToHandTargetEffect => {
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Stack {
-                        Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                        Arc::make_mut(&mut game.stack)
+                            .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                     }
                     game.move_to(*o, Zone::Hand);
                 }
@@ -16344,6 +17411,9 @@ fn apply_each_effect(
             }
             EffectDef::UntapAllEffect { filter } => {
                 for o in matching(game, filter, controller, source.0) {
+                    if cards::cant_untap(game, o) {
+                        continue;
+                    }
                     let was = game.obj(o).tapped;
                     game.obj_mut(o).tapped = false;
                     if was {
@@ -16413,7 +17483,8 @@ fn apply_each_effect(
                 for t in legal.iter().flatten() {
                     if let Target::Obj(o) = t {
                         if game.obj(*o).zone == Zone::Stack {
-                            Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                            Arc::make_mut(&mut game.stack)
+                                .retain(|i| i.card != *o || i.ability.is_some() || i.delayed.is_some());
                         }
                         game.move_to(*o, Zone::Hand);
                     }
@@ -16771,6 +17842,7 @@ fn apply_each_effect(
             EffectDef::LookLibraryAndPickControllerEffect {
                 look,
                 look_count,
+                look_amount,
                 pick,
                 filter,
                 picked,
@@ -16778,6 +17850,7 @@ fn apply_each_effect(
                 up_to,
                 optional,
                 pick_x,
+                otherwise,
             } => {
                 let pick = if *pick_x { &item.x.max(0) } else { pick };
                 let n = match look_count {
@@ -16785,7 +17858,10 @@ fn apply_each_effect(
                     // the damage a trigger saw (`SavedDamageValue`)
                     Some(c) if c == "x" => item.x,
                     Some(c) => count(game, c, controller),
-                    None => *look,
+                    None => match look_amount {
+                        Some(a) => v!(a),
+                        None => *look,
+                    },
                 };
                 let cards: Vec<ObjId> =
                     game.player(controller).library.iter().take(n.max(0) as usize).copied().collect();
@@ -16847,6 +17923,13 @@ fn apply_each_effect(
                 {
                     return;
                 }
+                // "if you didn't put a card into your hand this way, …" (`otherwiseEffect`)
+                if chosen.is_empty() && !otherwise.is_empty() {
+                    apply_each_effect(game, d, item, otherwise, &[], source);
+                    if d.stopped() {
+                        return;
+                    }
+                }
             }
             EffectDef::DrawDiscardControllerEffect { draw: n, discard: k, optional } => {
                 if *optional {
@@ -16859,9 +17942,13 @@ fn apply_each_effect(
                 draw(game, controller, (*n).max(0) as usize);
                 discard(game, d, controller, *k);
             }
-            EffectDef::DiscardControllerEffect { amount } => {
+            EffectDef::DiscardControllerEffect { amount, random } => {
                 let amount = &v!(amount);
-                discard(game, d, controller, *amount);
+                if *random {
+                    discard_at_random(game, controller, *amount);
+                } else {
+                    discard(game, d, controller, *amount);
+                }
             }
             EffectDef::SacrificeEffect { filter, amount }
             | EffectDef::SacrificeOpponentsEffect { filter, amount }
@@ -16903,9 +17990,22 @@ fn apply_each_effect(
                     p.speed += 1;
                 }
             }
-            EffectDef::GetEmblemEffect { emblem } => {
+            EffectDef::CareerTwistEffect { twist } => crate::career::resolve(game, d, controller, twist),
+            EffectDef::GetEmblemEffect { emblem } | EffectDef::GetEmblemTargetPlayerEffect { emblem } => {
+                // `GetEmblemTargetPlayerEffect`: the target player gets it (none still legal: no emblem)
+                let to = if matches!(e, EffectDef::GetEmblemTargetPlayerEffect { .. }) {
+                    let Some(p) = legal.iter().flatten().find_map(|t| match t {
+                        Target::Player(p) => Some(*p),
+                        _ => None,
+                    }) else {
+                        continue;
+                    };
+                    p
+                } else {
+                    controller
+                };
                 token_image(game, emblem, source.0);
-                let id = game.create_obj(Arc::new(emblem.card()), controller, Zone::Library);
+                let id = game.create_obj(Arc::new(emblem.card()), to, Zone::Library);
                 game.obj_mut(id).trigger_order = (1 << 32) + id.0 as u64;
                 // the emblem's set, for its view
                 if let Some((_, _, set, pick)) = game.token_made.take() {
@@ -16919,14 +18019,13 @@ fn apply_each_effect(
                     // a token that died isn't a card to return (`game.getCard` finds none)
                     if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).token {
                         let under = if *owner { game.obj(*o).owner } else { controller };
-                        // a double-faced card enters as its face, which the counters (`setEnterWithCounters`, by the
-                        // card's id) don't find: Baneblade Scoundrel returned by Unbreakable Bond; nor does an Aura,
-                        // which `AuraReplacementEffect` puts there itself (Spiral into Solitude returned by Yuna)
-                        let faced = game.obj(*o).def.transform_back.is_some()
-                            || game.obj(*o).def.back.is_some()
-                            || game.obj(*o).def.subtypes.iter().any(|s| s == "Aura");
+                        // the counters (`setEnterWithCounters`, by the card's id) don't find an Aura, which
+                        // `AuraReplacementEffect` puts there itself (Spiral into Solitude returned by Yuna); a
+                        // double-faced card gets them on the face that enters (`ZonesHandler` carries them there
+                        // since 2bae2525ff8: Concealing Curtains returned by Coalstoke Gearhulk)
+                        let aura = game.obj(*o).def.subtypes.iter().any(|s| s == "Aura");
                         enter_battlefield(game, d, *o, under, false);
-                        if let Some(c) = counters.as_ref().filter(|_| !faced) {
+                        if let Some(c) = counters.as_ref().filter(|_| !aura) {
                             add_counters_by(game, *o, &c.name, c.amount, Some(controller));
                         }
                         if *tapped {
@@ -16953,11 +18052,15 @@ fn apply_each_effect(
                     join_combat(game, o);
                 }
             }
-            EffectDef::DiscardTargetEffect { amount } => {
+            EffectDef::DiscardTargetEffect { amount, random } => {
                 // each target player, in the order chosen ("any number of target players")
                 let amount = v!(amount);
                 for p in &players {
-                    discard(game, d, *p, amount);
+                    if *random {
+                        discard_at_random(game, *p, amount);
+                    } else {
+                        discard(game, d, *p, amount);
+                    }
                 }
             }
             EffectDef::BecomesCreatureTargetEffect { token, duration, lose_abilities, still_land, named }
@@ -17556,7 +18659,13 @@ fn apply_each_effect(
                     }
                 };
                 if yes {
+                    if game.obj(card).def.is(CardType::Creature) {
+                        game.obj_mut(card).suspended_haste = true;
+                    }
                     cast_free(game, d, owner, card);
+                    if game.obj(card).zone != Zone::Stack {
+                        game.obj_mut(card).suspended_haste = false;
+                    }
                     if d.stopped() {
                         return;
                     }
@@ -17973,18 +19082,42 @@ fn apply_each_effect(
                     game.when_dies.push((o, zcc, turn, *to_player, t));
                 }
             }
-            EffectDef::CreateDelayedTriggerEffect { ability, end_of_turn, once, no_copy_targets } => {
+            EffectDef::CreateDelayedTriggerEffect {
+                ability,
+                end_of_turn,
+                until_end_of_next_turn,
+                once,
+                no_copy_targets,
+            } => {
                 let legal = if *no_copy_targets { &[][..] } else { legal };
-                create_delayed_trigger(game, item, ability, legal, source, *end_of_turn, *once);
+                create_delayed_trigger(
+                    game,
+                    item,
+                    ability,
+                    legal,
+                    source,
+                    *end_of_turn,
+                    *until_end_of_next_turn,
+                    *once,
+                );
             }
-            EffectDef::CreateNextEndStepDelayedEffect { effects, rule } => {
+            EffectDef::CreateNextEndStepDelayedEffect { effects, rule, fixed_targets } => {
+                let fixed: Vec<(ObjId, u32)> = if *fixed_targets {
+                    legal
+                        .iter()
+                        .flatten()
+                        .filter_map(|t| if let Target::Obj(o) = t { Some((*o, game.obj(*o).zcc)) } else { None })
+                        .collect()
+                } else {
+                    Vec::new()
+                };
                 let delayed = Delayed {
                     rule: rule.clone(),
                     sacrifice: Vec::new(),
                     warp_exile: Vec::new(),
                     effects: effects.clone(),
                     source_zcc: source.1,
-                    fixed: Vec::new(),
+                    fixed,
                     return_tapped: Vec::new(),
                     targets: Vec::new(),
                     condition: None,
@@ -18159,6 +19292,9 @@ fn apply_each_effect(
                     }
                 }
                 for o in chosen {
+                    if cards::cant_untap(game, o) {
+                        continue;
+                    }
                     let was = game.obj(o).tapped;
                     game.obj_mut(o).tapped = false;
                     if was {
@@ -18285,9 +19421,24 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::DiscardCardYouChooseTargetEffect { filter } => {
+            EffectDef::DiscardCardYouChooseTargetEffect { filter, reveal, optional } => {
                 if let Some(Target::Player(p)) = target {
-                    let hand = game.player(p).hand.clone();
+                    let mut hand = game.player(p).hand.clone();
+                    if let Some(n) = reveal {
+                        // that many (or the whole hand, if it's no bigger), chosen by the player who reveals them
+                        let n = game.value(n, controller, source.0, item.x);
+                        if n <= 0 {
+                            continue;
+                        }
+                        let n = (n as usize).min(hand.len());
+                        if hand.len() > n {
+                            let rule = format!("card in {}'s hand", log::player(p));
+                            match choose_cards(game, d, p, &hand, &hand, n, n, &rule) {
+                                Some(chosen) => hand = chosen,
+                                None => return,
+                            }
+                        }
+                    }
                     let possible: Vec<ObjId> = hand
                         .iter()
                         .copied()
@@ -18301,7 +19452,8 @@ fn apply_each_effect(
                     if !possible.is_empty() {
                         // the spell's text: your own card to discard isn't chosen by itself
                         let rule = item_rule(game, item);
-                        match choose_cards(game, d, controller, &hand, &possible, 1, 1, &rule) {
+                        let least = if *optional { 0 } else { 1 };
+                        match choose_cards(game, d, controller, &hand, &possible, least, 1, &rule) {
                             Some(chosen) => {
                                 for c in chosen {
                                     game.move_to(c, Zone::Graveyard);
@@ -19006,7 +20158,6 @@ fn apply_each_effect(
                 game.attacks_if_able_next.push((controller, filter.clone(), source.0));
             }
             EffectDef::WinGameSourceControllerEffect => win_game(game, controller),
-            // `StationAbilityEffect`: the tapped creatures' power as it resolves, if the source is still there
             EffectDef::CraftEffect => {
                 // (the card exiled as the cost, still that card: `getStackMomentSourceZCC() + 1`)
                 let (o, zcc) = source;
@@ -19018,10 +20169,17 @@ fn apply_each_effect(
                     }
                 }
             }
+            // `StationAbilityEffect`: the tapped creatures' power as it resolves, if the source is still there
             EffectDef::StationEffect => {
                 let o = game.obj(source.0);
                 if o.zone == Zone::Battlefield && o.zcc == source.1 {
-                    let n: i32 = item.tapped_for_cost.iter().map(|c| game.power_toughness(*c).0).sum();
+                    // (Java keeps the tapped `Permanent` objects: one gone since has its power as it last was there,
+                    // Selfless Savior sacrificed in response with Lumen-Class Frigate's +1/+1)
+                    let power = |c: ObjId| match game.obj(c).zone {
+                        Zone::Battlefield => game.power_toughness(c).0,
+                        _ => game.obj(c).power_lki.unwrap_or_else(|| game.power_toughness(c).0),
+                    };
+                    let n: i32 = item.tapped_for_cost.iter().map(|c| power(*c)).sum();
                     if n > 0 {
                         game.obj_mut(source.0).add_counters("charge", n);
                         counters_put_triggers(game, source.0, "charge", n, Some(controller));
@@ -19106,11 +20264,7 @@ fn apply_each_effect(
                     },
                 };
                 let made = manifest(game, d, controller, &[card], false).first().copied();
-                for c in top {
-                    if game.obj(c).zone == Zone::Library {
-                        game.move_to(c, Zone::Graveyard);
-                    }
-                }
+                manifest_dread_rest(game, controller, &top);
                 if let Some(p) = made {
                     for c in counters {
                         put_counters(game, p, &c.name, c.amount, controller);
@@ -19214,8 +20368,9 @@ fn apply_each_effect(
                 let Some(payer) = payer else { continue };
                 let Some(paid) = pay_unless(game, d, payer, spell, cost) else { return };
                 if !paid && !cant_be_countered(game, spell) {
-                    note_countered(game, spell, item.card);
-                    Arc::make_mut(&mut game.stack).retain(|i| i.card != spell || i.ability.is_some());
+                    note_countered(game, spell, item.card, item.controller);
+                    Arc::make_mut(&mut game.stack)
+                        .retain(|i| i.card != spell || i.ability.is_some() || i.delayed.is_some());
                     game.move_to(spell, if *exile { Zone::Exile } else { Zone::Graveyard });
                 } else if paid && !if_they_do.is_empty() {
                     apply_each_effect(game, d, item, if_they_do, &[], source);
@@ -19300,15 +20455,15 @@ fn apply_each_effect(
             | EffectDef::NowhereToRunWardEffect
             | EffectDef::TenaciousUnderdogEffect
             | EffectDef::BoostAllEffect { .. }
-            | EffectDef::TapSourceUnlessPaysEffect { .. }
             | EffectDef::ChooseBasicLandTypeEffect
-            | EffectDef::ChooseCreatureTypeEffect
+            | EffectDef::ChooseCreatureTypeEffect { .. }
             | EffectDef::ChooseModeEffect { .. }
             | EffectDef::CavernOfSoulsCantCounterEffect
             | EffectDef::MultiversalPassagePassageEffect
             | EffectDef::QuantumRiddlerReplacementEffect
             | EffectDef::ArtistsTalentEffect { .. }
-            | EffectDef::GainAbilityControllerEffect { until_end_of_turn: false, .. }
+            | EffectDef::GainAbilityControllerEffect { until_end_of_turn: false, until_your_next_turn: false, .. }
+            | EffectDef::NonbasicLandsAreMountainsEffect
             | EffectDef::LeylineOfTheVoidEffect
             | EffectDef::CantAttackAloneSourceEffect
             | EffectDef::CantAttackAloneAttachedEffect
@@ -19321,7 +20476,7 @@ fn apply_each_effect(
             | EffectDef::ValgavothTerrorEaterReplacementEffect
             | EffectDef::ValgavothTerrorEaterPlayEffect
             | EffectDef::CantAttackBlockUnlessConditionSourceEffect { .. }
-            | EffectDef::EntersTappedChooseColorEffect
+            | EffectDef::EntersTappedChooseColorEffect { .. }
             | EffectDef::ChooseColorEffect
             | EffectDef::LeylineOfTheGuildpactEffect
             | EffectDef::BecomesCreatureAttachedEffect { .. }
@@ -19339,6 +20494,8 @@ fn apply_each_effect(
             | EffectDef::EtchingOfKumanoReplacementEffect
             | EffectDef::BoostEnchantedEffect { .. }
             | EffectDef::CantAttackBlockAttachedEffect
+            | EffectDef::CantAttackAttachedEffect
+            | EffectDef::CantBeTargetedCardsGraveyardsEffect
             | EffectDef::CantBeBlockedByMoreThanOneAttachedEffect
             | EffectDef::MockingbirdEffect
             | EffectDef::CopyPermanentEffect { .. }
@@ -19381,6 +20538,8 @@ fn apply_each_effect(
                 game.eot_effects.push((EffectDef::NextSpellCantBeCounteredEffect { nth }, controller, source.0));
             }
             EffectDef::AttacksIfAbleAllEffect { this_turn: true, .. }
+            // resolved, it lasts for the turn (`Duration.EndOfTurn`: Kaya, Geist Hunter's -2)
+            | EffectDef::CreateTwiceThatManyTokensEffect { .. }
             | EffectDef::PlayFromGraveyardControllerEffect { duration: Some(_), .. }
             | EffectDef::GraveyardFromAnywhereExileReplacementEffect { duration: Some(_), .. }
             | EffectDef::PlayAdditionalLandsThisTurnEffect { .. } => {
@@ -19433,21 +20592,56 @@ fn apply_each_effect(
                     apply_effects(game, d, item, effects, legal, source);
                 }
             }
+            EffectDef::TapSourceUnlessPaysEffect { life } => {
+                let (src, zcc) = source;
+                let name = game.obj(src).def.name.clone();
+                let paid = game.player(controller).life >= *life && {
+                    let q = Query::YesNo {
+                        message: format!("pay {} life? (otherwise {} becomes tapped)", life, name),
+                    };
+                    loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    }
+                };
+                if paid {
+                    lose_life(game, controller, *life);
+                } else if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    tap(game, src);
+                }
+            }
             EffectDef::BoostEquippedUntilEndOfTurnEffect { power, toughness } => {
                 let (p, t) = (v!(power), v!(toughness));
                 let (src, zcc) = source;
-                if game.obj(src).zcc == zcc {
-                    if let Some(c) = game.attached(src) {
-                        boost(game, c, p, t, Duration::EndOfTurn);
-                    }
+                let attached = if game.obj(src).zcc == zcc {
+                    game.attached(src)
+                } else if game.obj(src).zcc == zcc + 1 {
+                    game.obj(src).lki_attached_to.and_then(|(to, tz)| {
+                        (game.obj(to).zone == Zone::Battlefield && game.obj(to).zcc == tz).then_some(to)
+                    })
+                } else {
+                    None
+                };
+                if let Some(c) = attached {
+                    boost(game, c, p, t, Duration::EndOfTurn);
                 }
             }
             EffectDef::GainAbilityAttachedUntilEndOfTurnEffect { ability } => {
                 let (src, zcc) = source;
-                if game.obj(src).zcc == zcc {
-                    if let Some(c) = game.attached(src) {
-                        grant(game, c, ability);
-                    }
+                let attached = if game.obj(src).zcc == zcc {
+                    game.attached(src)
+                } else if game.obj(src).zcc == zcc + 1 {
+                    game.obj(src).lki_attached_to.and_then(|(to, tz)| {
+                        (game.obj(to).zone == Zone::Battlefield && game.obj(to).zcc == tz).then_some(to)
+                    })
+                } else {
+                    None
+                };
+                if let Some(c) = attached {
+                    grant(game, c, ability);
                 }
             }
             EffectDef::LoseAbilityTargetEffect { ability, until_your_next_turn: true } => {
@@ -19638,6 +20832,10 @@ fn apply_each_effect(
             | EffectDef::PreventAllDamageByAllPermanentsEffect { .. } => {
                 game.eot_effects.push((e.clone(), controller, source.0));
             }
+            // "you gain protection from everything until your next turn" (The One Ring)
+            EffectDef::GainAbilityControllerEffect { ability, until_your_next_turn: true, .. } => {
+                game.player_abilities_until_next_turn.push((controller, (**ability).clone(), source.0));
+            }
             EffectDef::PreventDamageToTargetEffect { amount, combat_only } => {
                 for t in legal.first().cloned().unwrap_or_default() {
                     let zcc = match t {
@@ -19808,6 +21006,22 @@ fn choose_cards_rounds(
     min: usize,
     max: usize,
 ) -> Option<Vec<ObjId>> {
+    choose_cards_rounds_rule(game, d, seat, possible, min, max, "")
+}
+
+/// `choose_cards_rounds`, auto-choice reading `rule` as `TargetImpl.tryToAutoChoose` does (Blood Curdle's one creature of
+/// yours isn't picked by itself: its text says "destroy"); "" for no rule text.
+fn choose_cards_rounds_rule(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    possible: &[ObjId],
+    min: usize,
+    max: usize,
+    rule: &str,
+) -> Option<Vec<ObjId>> {
+    let rule = rule.to_lowercase();
+    let feel_bad = ["discard", "sacrifice", "destroy", "exile"].iter().any(|w| rule.contains(w));
     let mut chosen: Vec<ObjId> = Vec::new();
     let complete = |chosen: &Vec<ObjId>| {
         chosen.len() >= max || (chosen.len() >= min && possible.iter().all(|c| chosen.contains(c)))
@@ -19822,10 +21036,13 @@ fn choose_cards_rounds(
             }
             let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
             // `TargetImpl.tryToAutoChoose`: exactly the cards needed
-            if min == max && left.len() == min - chosen.len() && !left.is_empty() {
-                chosen.push(left[0]);
-                asked = true;
-                continue;
+            if min == max && left.len() == min - chosen.len() && !left.is_empty() && !rule.contains("search") {
+                let all = game.player(seat).auto_target_all;
+                if let Some(c) = left.iter().copied().find(|c| all || !(feel_bad && owns_target(game, seat, *c))) {
+                    chosen.push(c);
+                    asked = true;
+                    continue;
+                }
             }
             asked = true;
             let required = chosen.len() < min && !left.is_empty();
@@ -19843,6 +21060,41 @@ fn choose_cards_rounds(
         }
         if chosen.len() == before {
             return Some(chosen);
+        }
+    }
+}
+
+/// `choose_cards` for a target that leaves out cards named as one already chosen (Ormos, Archive Keeper's "three
+/// cards with different names": `possibleTargets` without the chosen names), `n` of them; None: the decider stopped
+fn choose_cards_different_names(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    possible: &[ObjId],
+    n: usize,
+) -> Option<Vec<ObjId>> {
+    let mut chosen: Vec<ObjId> = Vec::new();
+    loop {
+        if chosen.len() >= n {
+            return Some(chosen);
+        }
+        let names: Vec<String> = chosen.iter().map(|c| game.obj(*c).name().to_string()).collect();
+        let left: Vec<ObjId> =
+            possible.iter().copied().filter(|c| !names.iter().any(|x| x == game.obj(*c).name())).collect();
+        if left.is_empty() {
+            return Some(chosen);
+        }
+        if left.len() == n - chosen.len() {
+            chosen.push(left[0]);
+            continue;
+        }
+        match ask(game, d, seat, &Query::Cards { objs: left.clone(), required: true }) {
+            Answer::Obj(o) if left.contains(&o) => chosen.push(o),
+            Answer::Stop => return None,
+            _ => {}
+        }
+        if d.stopped() {
+            return None;
         }
     }
 }
@@ -20248,8 +21500,23 @@ fn sacrifice(game: &mut Game, id: ObjId) {
     }
     game.short_lki.push(id);
     let fired = game.triggers(sources.clone(), |g, src, you, t| {
-        matches!(t, Trigger::Sacrificed { filter, who: w } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
+        matches!(t, Trigger::Sacrificed { filter, who: w, graveyard: false } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
     });
+    // "when you sacrifice …" of a card in its owner's graveyard (Curious Cadaver)
+    let grave: Vec<ObjId> = (0..game.seats())
+        .flat_map(|p| game.player(p).graveyard.clone())
+        .filter(|o| *o != id && !game.short_lki.contains(o))
+        .collect();
+    let fired_grave = game.triggers(grave, |g, src, you, t| {
+        g.obj(src).zone == Zone::Graveyard
+            && matches!(t, Trigger::Sacrificed { filter, who: w, graveyard: true } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
+    });
+    let mut fired = fired;
+    for t in fired_grave {
+        let k = game.trigger_key(&t);
+        let at = fired.iter().position(|f| game.trigger_key(f) > k).unwrap_or(fired.len());
+        fired.insert(at, t);
+    }
     let batch = game.triggers(sources, |g, src, you, t| {
         matches!(t, Trigger::SacrificedBatch { filter, who: w } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
             && !g.batch_pending.iter().any(|p| p.card == src && same_ability(g, p, t))
@@ -20703,11 +21970,11 @@ fn grant(game: &mut Game, target: ObjId, ability: &AbilityDef) {
 }
 
 /// The `ReplaceCreatureTokensEffect`s of `seat`'s permanents: (source, token) for each, in battlefield order
-fn visitations(game: &Game, seat: Seat) -> Vec<(ObjId, crate::card::TokenDef)> {
+fn visitations(game: &Game, seat: Seat, artifacts: bool) -> Vec<(ObjId, crate::card::TokenDef)> {
     let mut out = Vec::new();
     game.any_static(|g, src, e| {
-        if let EffectDef::ReplaceCreatureTokensEffect { token } = e {
-            if g.obj(src).controller == seat {
+        if let EffectDef::ReplaceCreatureTokensEffect { token, artifacts: a } = e {
+            if g.obj(src).controller == seat && *a == artifacts {
                 out.push((src, token.clone()));
             }
         }
@@ -20719,10 +21986,23 @@ fn visitations(game: &Game, seat: Seat) -> Vec<(ObjId, crate::card::TokenDef)> {
 /// The token `seat` gets when an effect creates `def` for them: a creature token is the last Divine Visitation's
 /// token instead (each replaces the one before)
 fn made_token(game: &mut Game, seat: Seat, def: Arc<CardDef>) -> Arc<CardDef> {
+    // an artifact token is Draconic Visitor's Dragon instead (`DraconicVisitorEffect`), before a creature token is
+    // Divine Visitation's Angel
+    let def = if def.is(CardType::Artifact) {
+        match visitations(game, seat, true).pop() {
+            Some((src, token)) => {
+                token_image(game, &token, src);
+                Arc::new(token.card())
+            }
+            None => def,
+        }
+    } else {
+        def
+    };
     if !def.is(CardType::Creature) {
         return def;
     }
-    match visitations(game, seat).pop() {
+    match visitations(game, seat, false).pop() {
         Some((src, token)) => {
             token_image(game, &token, src);
             Arc::new(token.card())
@@ -20744,9 +22024,20 @@ fn token_copies(game: &Game, seat: Seat, token: &CardDef) -> usize {
         }
         false
     });
-    // Divine Visitation: one more replacement effect to order
+    for (e, you, _) in &game.eot_effects {
+        if let EffectDef::CreateTwiceThatManyTokensEffect { times, creatures_only } = e {
+            if *you == seat && (!creatures_only || token.is(CardType::Creature)) {
+                n = n.saturating_mul((*times).max(0) as usize);
+                doublers += 1;
+            }
+        }
+    }
+    // Divine Visitation (and Draconic Visitor for an artifact token): one more replacement effect to order
     if token.is(CardType::Creature) {
-        doublers += visitations(game, seat).len();
+        doublers += visitations(game, seat, false).len();
+    }
+    if token.is(CardType::Artifact) {
+        doublers += visitations(game, seat, true).len();
     }
     // two or more doublers: Java asks which applies first (the answers change nothing)
     for _ in 1..doublers {
@@ -20987,6 +22278,9 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     if game.obj(id).zone == Zone::Battlefield && game.obj(id).face_down {
         let (seat, turn) = (game.obj(id).controller, game.turn);
         game.player_mut(seat).face_down_turn = Some(turn);
+        if game.has_type(id, CardType::Creature) {
+            game.watch.face_down_creature_entered.push(seat);
+        }
     }
     if log::kept(game) && game.obj(id).token && game.obj(id).zone == Zone::Battlefield {
         // `TokenImpl.putOntoBattlefield`
@@ -21279,10 +22573,14 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     {
         let o = game.obj(id);
         let dfc = o.printed_def.as_ref().unwrap_or(&o.def);
-        // (a modal double-faced card with a nonland back keeps its place: Birgi's "Whenever you cast a spell" waits
-        // before Treacherous Blessing's)
+        // (a double-faced card whose trigger order was recorded by `ShadowStart` keeps its true loadCards place;
+        // legacy recordings that wrote -1 fall back to `DFC_ORDER`)
         let land_back = dfc.back.as_ref().is_some_and(|b| b.is(CardType::Land));
-        if !o.token && (dfc.transform_back.is_some() || land_back) && o.trigger_order < DFC_ORDER {
+        if !o.token
+            && !o.trigger_order_recorded
+            && (dfc.transform_back.is_some() || land_back)
+            && o.trigger_order < DFC_ORDER
+        {
             let k = DFC_ORDER + game.obj(id).trigger_order;
             game.obj_mut(id).trigger_order = k;
         }
@@ -21292,6 +22590,18 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     let from_hand = game.player(owner).hand.iter().position(|x| *x == id);
     game.entering_from_hand = from_hand.map(|i| (id, owner, i));
     game.move_to(id, Zone::Battlefield);
+    game.obj_mut(id).echo_paid = None;
+    if game.obj(id).suspended_haste {
+        game.obj_mut(id).suspended_haste = false;
+        let hzcc = game.obj(id).zcc;
+        Arc::make_mut(&mut game.grants).push(Grant {
+            target: id,
+            zcc: hzcc,
+            ability: AbilityDef::HasteAbility,
+            until_end_of_turn: false,
+            until_turn_of: None,
+        });
+    }
     if game.obj(id).is(CardType::Land) {
         game.player_mut(controller).lands_entered += 1;
     }
@@ -21335,12 +22645,15 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     if let Some(def) = real_def {
         game.obj_mut(id).def = def;
     }
+    let blood_mooned = def.is(CardType::Land)
+        && !def.supertypes.iter().any(|s| s == "BASIC")
+        && game.any_static(|_, _, e| matches!(e, EffectDef::NonbasicLandsAreMountainsEffect));
     // the counters it enters with, put once it's set up (replacement effects see them: Doubling Season)
     let mut entering: Vec<(&str, i32)> = Vec::new();
     let zcc = {
         let o = game.obj_mut(id);
         o.controller = controller;
-        if tapped_by_static || def.abilities.iter().any(|a| a.is_enters_tapped()) {
+        if tapped_by_static || (!blood_mooned && def.abilities.iter().any(|a| a.is_enters_tapped())) {
             o.tapped = true;
         }
         // compleated: two fewer for each phyrexian symbol paid with life (none at all when that leaves none)
@@ -21582,8 +22895,8 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                         _ => None,
                     };
                 }
-                if let EffectDef::ChooseCreatureTypeEffect = e {
-                    let q = Query::Choice { message: "Choose a creature type".into(), choices: Vec::new() };
+                if let EffectDef::ChooseCreatureTypeEffect { only } = e {
+                    let q = Query::Choice { message: "Choose a creature type".into(), choices: only.clone() };
                     let chosen = loop {
                         match ask(game, d, controller, &q) {
                             Answer::Text(t) => break t,
@@ -21610,17 +22923,21 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                     o.marks.push(format!("mode:{chosen}"));
                     o.add_info("_modeChoice", &format!("Chosen mode: {}", chosen));
                 }
-                if matches!(e, EffectDef::EntersTappedChooseColorEffect | EffectDef::ChooseColorEffect) {
-                    if matches!(e, EffectDef::EntersTappedChooseColorEffect) {
+                if matches!(e, EffectDef::EntersTappedChooseColorEffect { .. } | EffectDef::ChooseColorEffect) {
+                    let mut except = None;
+                    if let EffectDef::EntersTappedChooseColorEffect { except: x } = e {
                         game.obj_mut(id).tapped = true;
+                        except = x.as_deref();
                     }
                     let names = ["White", "Blue", "Black", "Red", "Green"];
-                    let choices: Vec<String> = names.iter().map(|n| n.to_string()).collect();
+                    // (`ChoiceColor.removeColorFromChoices`: the Thriving lands' own color isn't offered)
+                    let choices: Vec<String> =
+                        names.iter().filter(|n| Some(**n) != except).map(|n| n.to_string()).collect();
                     let q = Query::Choice { message: "Choose color".into(), choices };
                     let c = loop {
                         match ask(game, d, controller, &q) {
                             Answer::Text(t) => {
-                                if let Some(k) = names.iter().position(|n| *n == t) {
+                                if let Some(k) = names.iter().position(|n| *n == t && Some(*n) != except) {
                                     break Color::ALL[k];
                                 }
                             }
@@ -21660,6 +22977,7 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                                     no_tap: false,
                                     creature_spell_haste: false,
                                     net: None,
+                                    simple: true,
                                     rule: rule.clone(),
                                 }
                             };
@@ -21822,8 +23140,9 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         }
     }
     // Java's continuous effects apply before the event is checked: Kaito, entering on its controller's turn with
-    // loyalty, enters as a creature
+    // loyalty, enters as a creature; Ascend grants the city's blessing immediately on reaching ten permanents
     refresh_becomes(game);
+    game.update_ascend();
     // everything that triggers on this event, in Java's registration order
     let mut sources: Vec<ObjId> = game.battlefield.iter().copied().filter(|s| *s != id).collect();
     sources.insert(0, id);
@@ -22018,6 +23337,10 @@ fn token_effect(token: &crate::card::TokenDef, amount: i32) -> EffectDef {
 
 /// `untap`, with the `UNTAPPED` event's triggers (inspired) when it was tapped
 fn untap_permanent(game: &mut Game, id: ObjId) {
+    // `UNTAP` replaced: it stays tapped (Blossombind)
+    if cards::cant_untap(game, id) {
+        return;
+    }
     let was = game.obj(id).tapped;
     untap(game.obj_mut(id));
     if was && !game.obj(id).tapped {
@@ -22281,6 +23604,8 @@ fn state_triggers(game: &mut Game) {
             game.pending.push(t);
         }
     }
+    // a Career life twist's, from the command zone
+    crate::career::life_triggers(game);
 }
 
 /// The batch triggers waiting, the `ZONE_CHANGE_BATCH` ones (`ZoneChangeBatchTriggeredAbility`) in Java's trigger
@@ -22302,7 +23627,13 @@ fn take_batch(game: &mut Game) -> Vec<StackItem> {
 /// True: state-based actions were performed or triggers were put on the stack (`GameImpl.checkStateAndTriggered`).
 fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
     let mut happened = false;
+    let mut sba_iters: u32 = 0;
     loop {
+        sba_iters += 1;
+        if sba_iters > 500 {
+            game.over = true;
+            return happened;
+        }
         game.counter_removed_batch.clear();
         if !game.batch_pending.is_empty() {
             let batch = take_batch(game);
@@ -22561,7 +23892,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     }
                 }
                 // its targets, which can't be cancelled; with no legal ones it's removed (rule 603.3d)
-                if let Some((rule, _, targets, _)) = ability.as_ref().and_then(|a| a.triggered()) {
+                if let Some((rule, _, targets, optional)) = ability.as_ref().and_then(|a| a.triggered()) {
                     let targets = mode_targets.as_deref().unwrap_or(targets);
                     // (`PlayerImpl.triggerAbility`'s `canChooseTarget`: every target first, so a later "up to one"
                     // isn't asked when an earlier one has none: Invasion of Muraganda with no creature of yours)
@@ -22571,7 +23902,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     if !possible {
                         Arc::make_mut(&mut game.stack).pop();
                     } else if !targets.is_empty() {
-                        if !choose_targets(game, d, seat, targets, None, rule, false) {
+                        game.targeting_optional_trigger = optional;
+                        let chosen = choose_targets(game, d, seat, targets, None, rule, false);
+                        game.targeting_optional_trigger = false;
+                        if !chosen {
                             if d.stopped() {
                                 return happened;
                             }
@@ -22609,6 +23943,7 @@ fn create_delayed_trigger(
     legal: &[Vec<Target>],
     source: (ObjId, u32),
     end_of_turn: bool,
+    until_end_of_next_turn: bool,
     once: bool,
 ) {
     let mut def = (*game.obj(source.0).def).clone();
@@ -22626,12 +23961,14 @@ fn create_delayed_trigger(
                 .collect()
         })
         .collect();
+    let until_next = until_end_of_next_turn.then_some((item.controller, game.turn));
     game.delayed_triggers.push(crate::state::DelayedTrigger {
         holder,
         source,
         targets: legal.to_vec(),
         target_zcc,
         end_of_turn,
+        until_end_of_next_turn: until_next,
         once,
     });
 }
@@ -22670,6 +24007,8 @@ fn waiting(game: &mut Game, pending: Vec<StackItem>) -> Vec<StackItem> {
         }
     }
     let mut pending = kept;
+    // a Career timed twist triggers once each game
+    crate::career::once_each_game(game, &mut pending);
     // a card's delayed trigger that triggers only once is gone once it has (`DelayedTriggeredAbilities.checkTriggers`):
     // what it triggered for after its first is dropped
     pending.retain(|t| {
@@ -22783,6 +24122,20 @@ fn complete_dungeon(game: &mut Game, id: ObjId) {
 /// moves to the first room or the next one, asking which of two (`DungeonRoom.chooseNextRoom`), and that room's
 /// ability triggers (`ROOM_ENTERED`). False: the decider stopped.
 fn venture(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
+    // `VENTURE`, replaced by a rule-modifying effect (Keen-Eared Sentry): nothing happens
+    if cards::cant_venture(game, seat) {
+        return true;
+    }
+    let ok = venture_rooms(game, d, seat);
+    // `VENTURED`
+    if ok {
+        game.watch.ventured.push(seat);
+    }
+    ok
+}
+
+/// `ventureIntoDungeon` after its `VENTURE` event: the dungeon and the room
+fn venture_rooms(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
     let current = player_dungeon(game, seat);
     let id = match current.filter(|c| dungeon_has_next_room(game, *c)) {
         Some(c) => c,
@@ -23278,6 +24631,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 || src.zone == Zone::Stack && game.spell_grants(source).contains(a)
         }
     };
+    let src_infect = keyword(&AbilityDef::InfectAbility);
     let (src_deathtouch, src_lifelink) = match game.combat_keywords.iter().find(|k| combat && k.0 == source) {
         Some((_, deathtouch, lifelink)) if src.zone == Zone::Battlefield => (*deathtouch, *lifelink),
         _ => (keyword(&AbilityDef::DeathtouchAbility), keyword(&AbilityDef::LifelinkAbility)),
@@ -23291,7 +24645,11 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 combat,
                 ..GameEvent::new(EventKind::Damage)
             });
-            lose_life_by(game, s, amount, Some(source), combat);
+            if src_infect {
+                add_poison(game, s, amount);
+            } else {
+                lose_life_by(game, s, amount, Some(source), combat);
+            }
             if amount > 0 {
                 let seen = crate::state::DamageSeen {
                     source,
@@ -23341,8 +24699,8 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             }
             let deathtouch = src_deathtouch;
             let creature = game.has_type(o, CardType::Creature);
-            // wither: a creature gets -1/-1 counters, not damage (`checkWither`)
-            let wither = creature && keyword(&AbilityDef::WitherAbility);
+            // wither / infect: a creature gets -1/-1 counters, not damage (`checkWither`)
+            let wither = creature && (keyword(&AbilityDef::WitherAbility) || keyword(&AbilityDef::InfectAbility));
             game.damaged_batch.push((o, amount, combat));
             let planeswalker = game.has_type(o, CardType::Planeswalker);
             let battle = game.has_type(o, CardType::Battle);
@@ -23366,7 +24724,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 // `PermanentImpl.getLethalDamage` before the damage is marked
                 let mut lethal = i32::MAX;
                 if creature {
-                    lethal = (game.power_toughness(o).1 - game.obj(o).damage).max(0);
+                    lethal = (cards::lethal_measure(game, o) - game.obj(o).damage).max(0);
                     if deathtouch {
                         lethal = lethal.min(1);
                     }
@@ -23445,6 +24803,22 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         if amount > 0 {
             game.player_damage_batch.push((source, p, amount, combat));
         }
+        // Chandra's Phoenix: `getStackObject(event.getSourceId())`, the topmost spell or ability whose object or
+        // source is the damage's source, and that object (the spell, or the ability's source) red and an instant,
+        // a sorcery or a planeswalker
+        // (the resolving one is off the stack while it resolves)
+        if amount > 0 && game.stack.iter().chain(game.resolving_item.iter()).any(|t| t.card == source) {
+            let red_spell = game.colors(source).contains(&crate::card::Color::R)
+                && [CardType::Instant, CardType::Sorcery, CardType::Planeswalker]
+                    .iter()
+                    .any(|k| game.has_type(source, *k));
+            if red_spell {
+                let sources: Vec<ObjId> = game.players.iter().flat_map(|pl| pl.graveyard.iter().copied()).collect();
+                // (an opponent of the Phoenix's owner, whoever controls the spell)
+                let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::ChandrasPhoenix) && you != p);
+                game.pending.extend(fired);
+            }
+        }
         // noncombat damage by the creature an Equipment or Aura is attached to; by a source you control to an
         // opponent (`SourceDealsNoncombatDamageToOpponentTriggeredAbility`: a spell's controller, a permanent's)
         if !combat {
@@ -23483,6 +24857,22 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             // the damage dealt (`SavedDamageValue.MUCH`)
             t.x = amount;
             game.pending.push(t);
+        }
+        // `DamagedPlayer`: a card's own `DAMAGED_PLAYER` trigger, its check on the source (`entering`)
+        if amount > 0 {
+            let sources = game.trigger_sources();
+            let fired = game.triggers(sources, |_, _, _, t| matches!(t, Trigger::DamagedPlayer));
+            for mut t in fired {
+                if set_target_pointer(game, &t) {
+                    t.targets = vec![vec![Target::Player(p)]];
+                    t.target_zcc = vec![vec![0]];
+                }
+                t.x = amount;
+                t.entering = Some(source);
+                if game.trigger_check_holds(&t) {
+                    game.pending.push(t);
+                }
+            }
         }
     }
     let mut damage_to_player: Vec<StackItem> = Vec::new();
@@ -23780,6 +25170,13 @@ pub fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
         && !game.cant_attack_alone(id)
         && !game.has_ability(id, &AbilityDef::CantAttackAbility)
         && !cards::cant_attack(game, id)
+        && !game.battlefield.iter().any(|src| {
+            game.attached(*src) == Some(id)
+                && game.obj(*src).def.abilities.iter().any(|a| {
+                    matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
+                        if effects.contains(&EffectDef::CantAttackAttachedEffect))
+                })
+        })
 }
 
 /// `Combat.selectAttackers` and `HumanPlayer.selectAttackers`: asked only when something can attack; "special" is
@@ -23882,6 +25279,12 @@ fn attack_taxes(game: &Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>
                 }
             }
         }
+        // its own "can't attack unless you pay" (Qal Sisma Behemoth)
+        if let EffectDef::CantAttackBlockUnlessPaysSourceEffect { cost, attack: true, attached, .. } = e {
+            if if *attached { g.attached(src) == Some(id) } else { src == id } {
+                out.push(cost.clone());
+            }
+        }
         false
     });
     out
@@ -23908,11 +25311,16 @@ fn pay_attack_taxes(
                 _ => {}
             }
         };
+        // `payOrRollback`: a payment given up part way is undone (the lands tapped for it untap)
+        let before = yes.then(|| game.clone());
         let paid = yes && pay_mana(game, d, seat, &mana);
         if d.stopped() {
             return None;
         }
         if !paid {
+            if let Some(before) = before {
+                *game = before;
+            }
             return Some(false);
         }
     }
@@ -23921,11 +25329,17 @@ fn pay_attack_taxes(
 
 /// The costs to declare a blocker: `CantBlockUnlessPayManaAllEffect`s of every permanent that apply, in battlefield
 /// order
-fn block_taxes(game: &Game) -> Vec<String> {
+fn block_taxes(game: &Game, blocker: ObjId) -> Vec<String> {
     let mut out = Vec::new();
     game.any_static(|g, src, e| {
         if let EffectDef::CantBlockUnlessPayManaAllEffect { cost, condition } = e {
             if g.condition_holds(condition.as_ref(), g.obj(src).controller, src) {
+                out.push(cost.clone());
+            }
+        }
+        // its own "can't block unless you pay" (Qal Sisma Behemoth)
+        if let EffectDef::CantAttackBlockUnlessPaysSourceEffect { cost, block: true, attached, .. } = e {
+            if if *attached { g.attached(src) == Some(blocker) } else { src == blocker } {
                 out.push(cost.clone());
             }
         }
@@ -23936,8 +25350,8 @@ fn block_taxes(game: &Game) -> Vec<String> {
 
 /// `PayCostToAttackBlockEffectImpl.replaceEvent` on `DECLARE_BLOCKER`: each cost to block, "Pay {1} to block?" and
 /// paid then. Some(false): not paid, it doesn't block; None: stopped.
-fn pay_block_taxes(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> Option<bool> {
-    for cost in block_taxes(game) {
+fn pay_block_taxes(game: &mut Game, d: &mut dyn Decider, seat: Seat, blocker: ObjId) -> Option<bool> {
+    for cost in block_taxes(game, blocker) {
         let mana = ability_mana_cost(&[CostDef::ManaCost { cost }]);
         let q = Query::YesNo { message: format!("Pay {} to block?", mana.text) };
         let yes = loop {
@@ -23947,11 +25361,16 @@ fn pay_block_taxes(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> Option<b
                 _ => {}
             }
         };
+        // `payOrRollback`: a payment given up part way is undone (the lands tapped for it untap)
+        let before = yes.then(|| game.clone());
         let paid = yes && pay_mana(game, d, seat, &mana);
         if d.stopped() {
             return None;
         }
         if !paid {
+            if let Some(before) = before {
+                *game = before;
+            }
             return Some(false);
         }
     }
@@ -23967,6 +25386,43 @@ fn has_static(game: &Game, id: ObjId, f: impl Fn(&EffectDef) -> bool) -> bool {
 }
 
 /// `Combat.addAttackerToCombat`: a new group for the attacker
+/// A permanent spell cast with sneak enters tapped (`ZonesHandler`'s `setTapped`, no event) and, a creature of the
+/// attacking player's, attacking what the returned attacker attacked while that's still a defender
+/// (`Combat.addEnteringAttackers`, 506.3a, 508.4a): a planeswalker gone, it isn't attacking
+fn sneak_enters(game: &mut Game, id: ObjId, controller: Seat, defender: Seat, pw: Option<(ObjId, u32)>) {
+    if game.obj(id).zone != Zone::Battlefield {
+        return;
+    }
+    game.obj_mut(id).tapped = true;
+    let in_combat = matches!(
+        game.step,
+        Some(Step::DeclareAttackers | Step::DeclareBlockers | Step::FirstCombatDamage | Step::CombatDamage)
+    );
+    if !in_combat
+        || game.active != Some(controller)
+        || game.obj(id).controller != controller
+        || !game.has_type(id, CardType::Creature)
+        || game.has_type(id, CardType::Battle)
+        || game.player(defender).lost
+    {
+        return;
+    }
+    if let Some((p, zcc)) = pw {
+        let defends = if game.has_type(p, CardType::Battle) {
+            game.obj(p).protector == Some(defender)
+        } else {
+            game.obj(p).controller == defender
+        };
+        if game.obj(p).zone != Zone::Battlefield || game.obj(p).zcc != zcc || !defends {
+            return;
+        }
+    }
+    let o = game.obj_mut(id);
+    o.attacking = Some(defender);
+    o.attacking_pw = pw;
+    join_combat(game, id);
+}
+
 fn join_combat(game: &mut Game, id: ObjId) {
     game.combat_groups.push(crate::state::CombatGroup { attacker: id, left: None });
 }
@@ -24015,10 +25471,28 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) 
     o.attacking = Some(defender);
     o.attacking_pw = pw;
     if !vigilance {
-        tap(game, id);
+        tap_as(game, id, true);
     }
     let waiting = game.pending.len();
     game.attack_taps.push((id, waiting));
+}
+
+/// `CREWED_VEHICLE` (or, `saddled`, `SADDLED_MOUNT`) for each creature of `crew`: its "whenever this crews a Vehicle"
+/// triggers, the Vehicle (or Mount) `id` their target (`CrewsVehicleSourceTriggeredAbility`'s fixed pointer)
+fn crews_triggers(game: &mut Game, crew: &[ObjId], id: ObjId, saddled: bool) {
+    let zcc = game.obj(id).zcc;
+    let main = matches!(game.step, Some(Step::PrecombatMain | Step::PostcombatMain));
+    for o in crew {
+        let mut fired = game.triggers([*o], |g, _, you, t| {
+            matches!(t, Trigger::CrewsVehicle { mounts, main_phase }
+                if (!saddled || *mounts) && (!*main_phase || main && g.active == Some(you)))
+        });
+        for t in fired.iter_mut() {
+            t.targets = vec![vec![Target::Obj(id)]];
+            t.target_zcc = vec![vec![zcc]];
+        }
+        game.pending.extend(fired);
+    }
 }
 
 /// Undoes a cost's tap (the cost wasn't paid): the "whenever this becomes tapped" triggers it fired go too
@@ -24036,6 +25510,11 @@ fn untap_undo(game: &mut Game, id: ObjId) {
 
 /// Taps a permanent: "whenever this becomes tapped" triggers
 fn tap(game: &mut Game, id: ObjId) {
+    tap_as(game, id, false);
+}
+
+/// Taps a permanent; `attacking`: as it's declared as an attacker (the `TAPPED` event's flag)
+fn tap_as(game: &mut Game, id: ObjId, attacking: bool) {
     if game.obj(id).tapped {
         return;
     }
@@ -24044,18 +25523,23 @@ fn tap(game: &mut Game, id: ObjId) {
     game.pending.extend(fired);
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| {
-        matches!(t, Trigger::BecomesTappedAll { filter }
-            if g.obj(src).zone == Zone::Battlefield && g.filter_matches(filter, you, Some(src), id))
+        matches!(t, Trigger::BecomesTappedAll { filter, not_attacking }
+            if g.obj(src).zone == Zone::Battlefield && !(*not_attacking && attacking)
+                && g.filter_matches(filter, you, Some(src), id))
             || matches!(t, Trigger::BecomesTappedAttached) && g.attached(src) == Some(id)
     });
     for mut t in fired {
-        if matches!(
+        let attached = matches!(
             game.item_def(&t).abilities.get(t.ability.map_or(usize::MAX, |(i, _)| i)).and_then(|a| a.trigger()),
             Some(Trigger::BecomesTappedAttached)
-        ) && set_target_pointer(game, &t)
-        {
+        );
+        if attached && set_target_pointer(game, &t) {
             t.targets = vec![vec![Target::Obj(id)]];
             t.target_zcc = vec![vec![game.obj(id).zcc]];
+        } else if attached && set_target_pointer_player(game, &t) {
+            // its controller (Chronic Flooding's own class: `FixedTarget(attached.getControllerId())`)
+            t.targets = vec![vec![Target::Player(game.obj(id).controller)]];
+            t.target_zcc = vec![vec![0]];
         }
         game.pending.push(t);
     }
@@ -24149,6 +25633,29 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
     if game.has_ability(attacker, &AbilityDef::IntimidateAbility)
         && !game.has_type(blocker, CardType::Artifact)
         && !game.colors(blocker).iter().any(|c| game.colors(attacker).contains(c))
+    {
+        return false;
+    }
+    // fear: only by artifact creatures and/or black creatures
+    if game.has_ability(attacker, &AbilityDef::FearAbility)
+        && !game.has_type(blocker, CardType::Artifact)
+        && !game.colors(blocker).contains(&Color::B)
+    {
+        return false;
+    }
+    // shadow: can block or be blocked only by creatures with shadow
+    if game.has_ability(attacker, &AbilityDef::ShadowAbility) != game.has_ability(blocker, &AbilityDef::ShadowAbility) {
+        return false;
+    }
+    // horsemanship: can't be blocked except by creatures with horsemanship
+    if game.has_ability(attacker, &AbilityDef::HorsemanshipAbility)
+        && !game.has_ability(blocker, &AbilityDef::HorsemanshipAbility)
+    {
+        return false;
+    }
+    // spaceflight: can only block or be blocked by creatures with spaceflight
+    if game.has_ability(attacker, &AbilityDef::SpaceflightAbility)
+        != game.has_ability(blocker, &AbilityDef::SpaceflightAbility)
     {
         return false;
     }
@@ -24395,6 +25902,10 @@ fn block_triggers(game: &mut Game) {
             if !game.watch.blocked.contains(&seen) {
                 game.watch.blocked.push(seen);
             }
+            let block = (seen, (a, game.obj(a).zcc));
+            if !game.watch.blocks.contains(&block) {
+                game.watch.blocks.push(block);
+            }
             let sources = game.trigger_sources();
             let fired = game.triggers(sources, |g, src, you, t| match t {
                 Trigger::BlockerDeclared { filter, blocks, blocked } => {
@@ -24407,6 +25918,43 @@ fn block_triggers(game: &mut Game) {
                 let other = if t.card == b { a } else { b };
                 point(game, &mut t, other);
                 game.pending.push(t);
+            }
+            // flanking (702.25): each instance on `a` triggers when blocked by a creature without flanking
+            if !game.has_ability(b, &AbilityDef::FlankingAbility) {
+                let count = game
+                    .obj(a)
+                    .def
+                    .abilities
+                    .iter()
+                    .filter(|ab| matches!(ab, AbilityDef::FlankingAbility))
+                    .count()
+                    + game
+                        .granted_abilities(a)
+                        .iter()
+                        .filter(|ab| matches!(ab, AbilityDef::FlankingAbility))
+                        .count();
+                let a_ctrl = game.obj(a).controller;
+                let a_zcc = game.obj(a).zcc;
+                for _ in 0..count {
+                    let delayed = Delayed {
+                        rule: "flanking <i>(Whenever a creature without flanking blocks this creature, the blocking creature gets -1/-1 until end of turn.)</i>".into(),
+                        sacrifice: Vec::new(),
+                        warp_exile: Vec::new(),
+                        effects: vec![EffectDef::BoostTargetEffect {
+                            power: crate::card::Amount::Fixed(-1),
+                            toughness: crate::card::Amount::Fixed(-1),
+                            duration: Duration::EndOfTurn,
+                        }],
+                        source_zcc: a_zcc,
+                        fixed: vec![(b, game.obj(b).zcc)],
+                        return_tapped: Vec::new(),
+                        targets: Vec::new(),
+                        condition: None,
+                    };
+                    let mut item = StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(a, a_ctrl) };
+                    point(game, &mut item, b);
+                    game.pending.push(item);
+                }
             }
         }
         if blockers.is_empty() {
@@ -24433,6 +25981,7 @@ fn block_triggers(game: &mut Game) {
         let sources = game.trigger_sources();
         let fired = game.triggers(sources, |g, src, you, t| match t {
             Trigger::Blocks | Trigger::AttacksOrBlocks | Trigger::BlocksOrBecomesBlocked => src == b,
+            Trigger::AttacksOrBlocksAttached => g.attached(src) == Some(b),
             Trigger::BlocksAll { filter } => g.filter_matches(filter, you, Some(src), b),
             _ => false,
         });
@@ -24523,6 +26072,11 @@ fn forced_blockers(game: &mut Game, seat: Seat) -> Vec<(ObjId, Vec<ObjId>)> {
         if !can_block_more(game, b) {
             continue;
         }
+        // one with a cost to block isn't forced (`checkIfThereArePayCostToAttackBlockEffects`: Qal Sisma Behemoth
+        // under Impetuous Devils' "blocks it this combat if able")
+        if !block_taxes(game, b).is_empty() {
+            continue;
+        }
         let forcing = forcing_attackers(game, b);
         let Some(&first) = forcing.first() else { continue };
         forced.push((b, forcing));
@@ -24551,6 +26105,14 @@ fn min_blocked_by(game: &Game, a: ObjId) -> usize {
                 }
             }
         }
+    });
+    game.any_static(|g, src, e| {
+        if let EffectDef::CantBeBlockedByOneAllEffect { amount, filter } = e {
+            if g.filter_matches(filter, g.obj(src).controller, Some(src), a) {
+                min = min.max(*amount as usize);
+            }
+        }
+        false
     });
     min
 }
@@ -24691,7 +26253,7 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             refresh_blocked(game);
         } else if let Some(a) = chosen {
             // `CombatGroup.addBlocker`: the costs to block (`DECLARE_BLOCKER`), asked and paid first
-            let Some(paid) = pay_block_taxes(game, d, seat) else { return };
+            let Some(paid) = pay_block_taxes(game, d, seat, blocker) else { return };
             if !paid {
                 continue;
             }
@@ -24744,7 +26306,7 @@ fn live_blockers(game: &Game, a: ObjId) -> Vec<ObjId> {
 /// Damage that's lethal to `blocker` from `attacker` (`Permanent.getLethalDamage`: the attacker's current abilities,
 /// granted deathtouch too).
 fn lethal_damage(game: &Game, blocker: ObjId, attacker: ObjId) -> i32 {
-    let (_, t) = game.power_toughness(blocker);
+    let t = cards::lethal_measure(game, blocker);
     let lethal = (t - game.obj(blocker).damage).max(0);
     if game.has_ability(attacker, &AbilityDef::DeathtouchAbility) {
         lethal.min(1)
@@ -24821,8 +26383,13 @@ fn proliferate(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
         }
     }
     // `PROLIFERATED`: "whenever you proliferate"
-    let fired =
-        game.triggers(game.trigger_sources(), |_, _, you, t| matches!(t, Trigger::YouProliferate) && you == seat);
+    // (a card's in its owner's graveyard too: Voidwing Hybrid's "return this from your graveyard")
+    let mut sources = game.trigger_sources();
+    sources.extend(game.player(seat).graveyard.iter().copied());
+    let fired = game.triggers(sources, |g, src, you, t| {
+        matches!(t, Trigger::YouProliferate { graveyard } if *graveyard == (g.obj(src).zone == Zone::Graveyard))
+            && you == seat
+    });
     game.pending.extend(fired);
     true
 }
@@ -24964,7 +26531,16 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
         // `applies` in turn, some asking) has it deal its damage as though it weren't blocked
         if !blockers.is_empty() {
             let mut unblocked = false;
-            for (seat, asks) in cards::damage_not_blocked(game, a) {
+            // its own `DamageAsThoughNotBlockedAbility` asks its controller first; a yes skips the as-though effects
+            if game.has_ability(a, &AbilityDef::DamageAsThoughNotBlockedAbility) {
+                let message = format!("Have {} assign damage as though it weren't blocked?", log::object(game, a));
+                let seat = game.obj(a).controller;
+                match choose_use(game, d, seat, &message) {
+                    Some(b) => unblocked = b,
+                    None => return,
+                }
+            }
+            for (seat, asks) in if unblocked { Vec::new() } else { cards::damage_not_blocked(game, a) } {
                 let yes = if asks {
                     let message = format!("Have {} assign damage as though it weren't blocked?", log::object(game, a));
                     match choose_use(game, d, seat, &message) {
@@ -25121,6 +26697,7 @@ fn deal_hits(game: &mut Game, hits: Vec<(ObjId, Target, i32)>, gains: &mut Vec<(
 /// (`OathOfTeferiLoyaltyEffect`: `setLoyaltyActivationsAvailable(2)`)
 fn loyalty_activations(game: &Game, seat: Seat) -> u8 {
     if game.any_static(|g, src, e| matches!(e, EffectDef::LoyaltyAbilitiesTwiceEffect) && g.obj(src).controller == seat)
+        || game.player(seat).loyalty_twice_turn == Some(game.turn)
     {
         2
     } else {
@@ -25130,6 +26707,11 @@ fn loyalty_activations(game: &Game, seat: Seat) -> u8 {
 
 /// A player's maximum hand size: seven, or what the last `MaximumHandSizeSetEffect` of theirs in play sets
 fn max_hand_size(game: &Game, seat: Seat) -> usize {
+    unreduced_max_hand(game, seat).saturating_sub(game.player(seat).max_hand_reduction as usize)
+}
+
+/// The maximum hand size before Inspired Idea's reductions: 7, or what a "your maximum hand size is N" sets
+fn unreduced_max_hand(game: &Game, seat: Seat) -> usize {
     let mut size = MAX_HAND;
     for src in game.battlefield.iter() {
         let o = game.obj(*src);
@@ -25145,6 +26727,11 @@ fn max_hand_size(game: &Game, seat: Seat) -> usize {
             }
         }
     }
+    // a card's own `Layer.PlayerEffects` effect (Winter, Misanthropic Guide's opponents)
+    if let Some(n) = cards::handler_max_hand_size(game, seat) {
+        size = n;
+    }
+    // (Inspired Idea's reduction is applied after the sets: it's usually the newer effect)
     size
 }
 
@@ -25159,10 +26746,16 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     let excess = if unlimited { 0 } else { game.player(seat).hand.len().saturating_sub(max_hand) };
     if excess > 0 {
         if log::kept(game) {
-            let line = format!("{} discards down to {} hand cards", log::player(seat), max_hand);
+            // (Java's size goes below 0: three Inspired Ideas take 7 to -2)
+            let signed = unreduced_max_hand(game, seat) as i64 - game.player(seat).max_hand_reduction as i64;
+            let cards = if signed == 1 { "hand card" } else { "hand cards" };
+            let line = format!("{} discards down to {} {}", log::player(seat), signed, cards);
             log::inform(game, line);
         }
-        let mut chosen: Vec<ObjId> = Vec::new();
+        // (`PlayerImpl.getToDiscard`: with no more cards than that, the whole hand, nothing asked: Inspired Idea's
+        // reductions taking the size to 0)
+        let mut chosen: Vec<ObjId> =
+            if excess >= game.player(seat).hand.len() { game.player(seat).hand.clone() } else { Vec::new() };
         while chosen.len() < excess {
             let objs: Vec<ObjId> = game.player(seat).hand.iter().copied().filter(|c| !chosen.contains(c)).collect();
             match ask(game, d, seat, &Query::Cards { objs: objs.clone(), required: true }) {
@@ -25184,8 +26777,9 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         Arc::make_mut(&mut game.grants).retain(|g| !g.until_end_of_turn);
     }
     game.eot_effects.clear();
+    game.color_overrides.retain(|(_, _, _, _, eot)| !*eot);
     // (a static handler's "until your next turn" lasts past it)
-    game.card_statics.retain(|r| r.until_turn_of.is_some());
+    game.card_statics.retain(|r| r.until_turn_of.is_some() || r.lasting);
     let kept: Vec<(ObjId, u64)> = game.card_statics.iter().map(|r| (r.source, r.timestamp)).collect();
     game.static_amounts.retain(|(o, t, _)| kept.contains(&(*o, *t)));
     game.base_pt_until_eot.clear();
@@ -25208,8 +26802,12 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         game.update_guildpact();
     }
     game.subtypes_until_eot.clear();
-    // `Duration.EndOfTurn` delayed triggered abilities end (`DelayedTriggeredAbilities.removeEndOfTurnAbilities`)
-    game.delayed_triggers.retain(|t| !t.end_of_turn);
+    // `Duration.EndOfTurn` and `Duration.UntilEndOfYourNextTurn` delayed triggered abilities end
+    let active = game.active;
+    let turn = game.turn;
+    game.delayed_triggers.retain(|t| {
+        !t.end_of_turn && !t.until_end_of_next_turn.is_some_and(|(s, made)| active == Some(s) && turn > made)
+    });
     // phased-out permanents too: Java's `Battlefield.endOfTurn` goes over every permanent (Kaito Shizuki)
     for id in game.all_permanents() {
         if game.obj(id).loyalty_used > 0 {
@@ -25253,7 +26851,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
 fn legend_rule(game: &mut Game, d: &mut dyn Decider) -> bool {
     // (not those a `LegendRuleDoesntApplyEffect` covers: `legendRuleApplies`)
     let legendary = |g: &Game, id: ObjId| {
-        g.obj(id).def.supertypes.iter().any(|t| t == "LEGENDARY")
+        g.has_supertype(id, "LEGENDARY")
             && !g.any_static(|g, src, e| {
                 matches!(e, EffectDef::LegendRuleDoesntApplyEffect { filter }
                     if g.filter_matches(filter, g.obj(src).controller, Some(src), id))
@@ -25323,6 +26921,10 @@ fn transform(game: &mut Game, id: ObjId) {
     // a permanent that entered as a copy keeps the copied face: the copy effect is applied over whichever face of its
     // own card is up (Mirrorhall Mimic as a copy of Sun-Blessed Guardian stays Sun-Blessed Guardian)
     if game.obj(id).copied_def.is_some() {
+        return;
+    }
+    // "can't transform" (Bound by Moonsilver): a restriction stops it, day and night's too
+    if cards::cant_transform(game, id) {
         return;
     }
     // its abilities waiting or on the stack keep the face they came from
@@ -25485,9 +27087,16 @@ fn merged_def(game: &Game, id: ObjId) -> CardDef {
 /// then `TURNED_FACE_UP` triggers ("when this is turned face up", "whenever a creature you control is turned face
 /// up" of permanents that aren't face down themselves)
 pub fn turn_face_up(game: &mut Game, id: ObjId, megamorph: bool) {
+    let controller = game.obj(id).controller;
+    turn_face_up_by(game, id, megamorph, controller);
+}
+
+/// `turn_face_up` by `by` (the event's player): Hauntwoods Shrieker turns up a permanent it doesn't control
+pub fn turn_face_up_by(game: &mut Game, id: ObjId, megamorph: bool, by: Seat) {
     if game.obj(id).face_up.is_none() {
         return;
     }
+    game.watch.turned_face_up_by.push((id, by));
     let controller = game.obj(id).controller;
     let o = game.obj(id);
     // "as this is turned face up" (a replacement of the event, while still face down)
@@ -25554,8 +27163,23 @@ fn castable_parts(def: &Arc<CardDef>) -> Vec<(usize, Arc<CardDef>)> {
         vec![(0, def.clone()), (1, back.clone())]
     } else if let Some(adventure) = &def.adventure {
         vec![(1, def.clone()), (0, adventure.clone())]
+    } else if let Some(prepare) = &def.prepare {
+        // a prepare card's spell is a part the filter may match (`CardWithSpellOption.getSpellCard`), though only
+        // its creature can be cast (`free_cast_choices`)
+        vec![(1, def.clone()), (0, prepare.clone())]
     } else {
         vec![(0, def.clone())]
+    }
+}
+
+/// The `ChooseAbility` indices `chooseAbilityForCast(card, game, true)` offers among a card's castable parts: a
+/// prepare card's creature alone (a1), whichever of its parts the filter matched, because its prepare spell can't be
+/// cast (`PrepareCardSpellAbility.spellCanBeActivatedNow`, upstream 31c3adcc8cf); otherwise each part's
+fn free_cast_choices(full: &CardDef, parts: &[(usize, Arc<CardDef>)]) -> Vec<usize> {
+    if full.prepare.is_some() {
+        vec![1]
+    } else {
+        parts.iter().map(|(k, _)| *k).collect()
     }
 }
 
@@ -25633,10 +27257,10 @@ fn cast_one_for_free_from(
         return true;
     }
     let full = game.obj(card).def.clone();
-    let pick = if parts.len() == 1 {
-        parts[0].0
+    let options = free_cast_choices(&full, &parts);
+    let pick = if options.len() == 1 {
+        options[0]
     } else {
-        let options: Vec<usize> = parts.iter().map(|(k, _)| *k).collect();
         match ask(game, d, seat, &Query::ChooseAbility { source: card, abilities: options.clone() }) {
             Answer::Ability(o, k) if o == card && options.contains(&k) => k,
             Answer::Stop => return false,
@@ -25680,7 +27304,19 @@ fn discover(game: &mut Game, d: &mut dyn Decider, seat: Seat, n: i32) -> bool {
     if let Some(card) = hit {
         // (`getCastableComponents` doesn't look at targets: asked even with none to choose)
         {
-            let message = format!("Cast spell without paying its mana cost ({})?", log::object(game, card));
+            // (a prepare card's spell too when its mana value is `n` or less: `getCastableComponents` matches the
+            // filter on each part, though the creature is what's cast)
+            let mut parts = log::object(game, card);
+            if let Some(p) = game.obj(card).def.prepare.clone().filter(|p| p.mana_value() as i32 <= n) {
+                let r = crate::view::stack_ref(game, card);
+                parts = format!(
+                    "{} or <font color='{}' object_id='{r}f1'>{}</font> [{r}f1]",
+                    parts,
+                    crate::prompt::log_color(&p.colors),
+                    p.name
+                );
+            }
+            let message = format!("Cast spell without paying its mana cost ({})?", parts);
             let yes = loop {
                 match ask(game, d, seat, &Query::YesNo { message: message.clone() }) {
                     Answer::Bool(b) => break b,
@@ -25723,6 +27359,24 @@ fn discover(game: &mut Game, d: &mut dyn Decider, seat: Seat, n: i32) -> bool {
     }
     let rest: Vec<ObjId> = exiled.into_iter().filter(|c| game.obj(*c).zone == Zone::Exile).collect();
     put_on_library(game, d, seat, &rest, false, false)
+}
+
+/// The end of `doManifestDread`, after the manifest: the rest of the top cards still in the library into the
+/// graveyard, then `ManifestedDreadEvent` ("whenever you manifest dread"), its triggers pointing at the cards it put
+/// there (`FixedTargets`)
+fn manifest_dread_rest(game: &mut Game, you: Seat, top: &[ObjId]) {
+    let rest: Vec<ObjId> = top.iter().copied().filter(|c| game.obj(*c).zone == Zone::Library).collect();
+    for c in &rest {
+        game.move_to(*c, Zone::Graveyard);
+    }
+    let gy: Vec<ObjId> = rest.into_iter().filter(|c| game.obj(*c).zone == Zone::Graveyard).collect();
+    let mut fired =
+        game.triggers(game.trigger_sources(), |_, _, ctrl, t| matches!(t, Trigger::YouManifestDread) && ctrl == you);
+    for t in &mut fired {
+        t.target_zcc = vec![gy.iter().map(|c| game.obj(*c).zcc).collect()];
+        t.targets = vec![gy.iter().map(|c| Target::Obj(*c)).collect()];
+    }
+    game.pending.extend(fired);
 }
 
 /// Manifests (or cloaks) cards (`ManifestEffect.doManifestCards`): each onto the battlefield face down as a 2/2
@@ -25844,10 +27498,23 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                 break;
             }
             let poisoned = poison(game, s) >= 10;
+            // `canLoseByZeroOrLessLife` (Marina Vendrell's Grimoire's `DontLoseByZeroOrLessLifeEffect`)
+            let by_life = game.player(s).life <= 0
+                && !game.any_static(|g, src, e| {
+                    matches!(e, EffectDef::DontLoseByZeroOrLessLifeEffect) && g.obj(src).controller == s
+                });
             let p = game.player(s);
             // 704.5a-c: 0 or less life, drawing from an empty library, ten or more poison counters
             // "you can't lose the game" (`PlayerImpl.canLose`: `LOSES` replaced); the empty library stays drawn from
-            if !p.lost && (p.life <= 0 || p.drew_from_empty || poisoned) && !cards::cant_lose_or_win(game, s, false) {
+            if !p.lost && (by_life || p.drew_from_empty || poisoned) && !cards::cant_lose_or_win(game, s, false) {
+                // `LOSES` replaced: they stay in (and the next check sees them again)
+                if cards::any_replacement(game, cards::EventType::Loses) {
+                    let mut ev = cards::Event::new(cards::EventType::Loses, s);
+                    if cards::replace_event(game, &mut ev, 0) {
+                        continue;
+                    }
+                }
+                let p = game.player(s);
                 if log::kept(game) {
                     // `GameImpl.checkStateBasedActions`, `PlayerImpl.lost`: the last reason that holds is logged
                     let why = if poisoned {
@@ -25932,15 +27599,17 @@ pub fn state_based_actions(game: &mut Game) -> bool {
         }
         // 702.102e: an Aura with bestow attached to nothing, or to what isn't a creature, becomes unattached (and a
         // creature again) rather than going to the graveyard
+        // 704.5n: an Equipment attached to an illegal permanent (non-creature or protected from it) becomes unattached
         let unattach: Vec<ObjId> = game
             .battlefield
             .iter()
             .copied()
             .filter(|id| {
                 let o = game.obj(*id);
+                let bestow_aura = o.def.has_bestow() && o.def.has_subtype("Aura");
+                let equipment = o.def.has_subtype("Equipment") && !game.has_type(*id, CardType::Creature);
                 o.attached_to.is_some()
-                    && o.def.has_bestow()
-                    && o.def.has_subtype("Aura")
+                    && (bestow_aura || equipment)
                     && game
                         .attached(*id)
                         .is_none_or(|to| !game.has_type(to, CardType::Creature) || game.protected_from(to, *id))
@@ -25992,10 +27661,12 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                 if !o.is(CardType::Creature) {
                     return false;
                 }
-                let (_, t) = game.power_toughness(*id);
+                let (p, t) = game.power_toughness(*id);
+                // Zilortha's creatures: their power, and one with 0 power needs 1 damage
+                let lethal = if t > 0 && cards::lethal_by_power(game, *id) { p.max(1) } else { t };
                 t <= 0
                     || (!game.has_ability(*id, &AbilityDef::IndestructibleAbility)
-                        && (o.damage >= t || (o.deathtouched && o.damage > 0)))
+                        && (o.damage >= lethal || (o.deathtouched && o.damage > 0)))
             })
             .collect();
         // `GameImpl.checkStateBasedActions` moves each permanent as it comes to it: an Aura after the creature it
@@ -26140,6 +27811,57 @@ mod tests {
         }
     }
 
+    /// Taps a given land once during `PlayMana`, records whether `ChooseAbility` was asked (and how many choices it
+    /// offered), then cancels the payment.
+    struct AbilityPromptProbe {
+        land: ObjId,
+        tapped: bool,
+        prompted: Option<usize>,
+    }
+
+    impl Decider for AbilityPromptProbe {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            match query {
+                Query::PlayMana { .. } if !self.tapped => {
+                    self.tapped = true;
+                    Answer::Obj(self.land)
+                }
+                Query::PlayMana { .. } => Answer::Bool(false),
+                Query::ChooseAbility { abilities, .. } => {
+                    self.prompted = Some(abilities.len());
+                    Answer::Stop
+                }
+                _ => Passer.answer(game, seat, query),
+            }
+        }
+    }
+
+    /// #477: Full Control (manual pool mode) always prompts for a multi-ability land's mana ability during casting
+    /// (both duals and pain lands, so the player can pick painless {C} or a specific color).
+    #[test]
+    fn manual_mode_prompts_for_mana_ability() {
+        let db = crate::cards();
+        let cost = ManaCost::parse("{1}{W}").unwrap();
+        // Sacred Foundry: auto-picks {W} normally, prompts both abilities in Full Control (manual mode)
+        for (manual, expected) in [(false, None), (true, Some(2))] {
+            let mut game = game_with(&db, &[("Sacred Foundry", 20)]);
+            let land = game.create_obj(db.get("Sacred Foundry").unwrap(), 0, Zone::Hand);
+            game.move_to(land, Zone::Battlefield);
+            game.set_pool_mode(0, manual, false);
+            let mut d = AbilityPromptProbe { land, tapped: false, prompted: None };
+            let _ = pay_mana_from(&mut game, &mut d, 0, &cost);
+            assert_eq!(d.prompted, expected, "Sacred Foundry with manual={manual}");
+        }
+        // Adarkar Wastes: in Full Control (manual mode) prompts all 3 abilities ({C}, {W} + 1 dmg, {U} + 1 dmg)
+        let mut game = game_with(&db, &[("Adarkar Wastes", 20)]);
+        let land = game.create_obj(db.get("Adarkar Wastes").unwrap(), 0, Zone::Hand);
+        game.move_to(land, Zone::Battlefield);
+        game.set_pool_mode(0, true, false);
+        let mut d = AbilityPromptProbe { land, tapped: false, prompted: None };
+        let _ = pay_mana_from(&mut game, &mut d, 0, &cost);
+        assert_eq!(d.prompted, Some(3), "Adarkar Wastes in Full Control should prompt all 3 abilities");
+    }
+
     /// Pays an attack tax: yes to paying, then taps the first source offered; keeps whether the paying player's
     /// playable list (what the client lets them click) had that source
     struct TaxPayer(Vec<bool>);
@@ -26195,6 +27917,44 @@ mod tests {
                 }
                 _ => Passer.answer(game, seat, query),
             }
+        }
+    }
+
+    /// Picks the first object of every target question, noting whether it was an optional trigger's
+    struct TargetFlags(Vec<bool>);
+
+    impl Decider for TargetFlags {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            match query {
+                Query::Target { objs, .. } if !objs.is_empty() => {
+                    self.0.push(game.targeting_optional_trigger);
+                    Answer::Obj(objs[0])
+                }
+                _ => Passer.answer(game, seat, query),
+            }
+        }
+    }
+
+    /// An optional ("you may") trigger's targets are asked with `targeting_optional_trigger` set, so the host can say
+    /// the "may" comes on resolution; a mandatory one's without it
+    #[test]
+    fn optional_trigger_targets_are_flagged() {
+        let db = crate::cards();
+        for (creature, target, optional) in
+            [("Reclamation Sage", "Ornithopter", true), ("Ravenous Chupacabra", "Ornithopter", false)]
+        {
+            let mut game = game_with(&db, &[("Plains", 20)]);
+            // two choices, so the target isn't chosen automatically
+            for _ in 0..2 {
+                let thing = game.create_obj(db.get(target).unwrap(), 1, Zone::Hand);
+                game.move_to(thing, Zone::Battlefield);
+            }
+            let card = game.create_obj(db.get(creature).unwrap(), 0, Zone::Hand);
+            let mut d = TargetFlags(Vec::new());
+            put_onto_battlefield(&mut game, &mut d, card, 0);
+            check_state_and_triggered(&mut game, &mut d);
+            assert_eq!(d.0, vec![optional], "{creature}");
+            assert!(!game.targeting_optional_trigger, "{creature}: cleared after the targets");
         }
     }
 

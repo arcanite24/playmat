@@ -1,0 +1,22 @@
+# name: Train200 tri-gwu-aggro-35
+# archetype: aggro
+# colors: GWU
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Adamant Will
+4 Appetite for the Unnatural
+4 Bristlebane Battler
+3 Cactuar
+4 Consuming Sinkhole
+4 Encumbered Reejerey
+4 Fear of Exposure
+2 Nylea, Keen-Eyed
+3 Old-Growth Dryads
+2 Touch of the Void
+3 Unholy Officiant
+3 Venerable Knight
+5 Forest
+4 Grove of the Guardian
+1 Island
+3 Plains
+4 Rimewood Falls
+4 Sunpetal Grove

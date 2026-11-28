@@ -1,0 +1,23 @@
+# name: Train450 guild-gu-tempo-5
+# archetype: tempo
+# colors: GU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Baloth Gorger
+4 Bamboo Grove Archer
+2 Cobbled Lancer
+3 Code of Constraint
+2 Dive Down
+3 Dreamcaller Siren
+1 Encouraging Aviator
+4 Ertai's Scorn
+3 Expedition Lookout
+1 Force Away
+4 Multiple Choice
+3 Patchwork Beastie
+2 Reality Hemorrhage
+2 Tale's End
+2 Test of Priorities
+4 Earth, Sector 001
+4 Forest
+10 Island
+4 Lumbering Falls

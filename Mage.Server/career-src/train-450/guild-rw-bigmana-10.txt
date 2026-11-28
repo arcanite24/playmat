@@ -1,0 +1,22 @@
+# name: Train450 guild-rw-bigmana-10
+# archetype: bigmana
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Archon of the Wild Rose
+4 Bellowing Bruiser
+1 Curious Farm Animals
+2 DOT-7 Repair Squad
+3 Draconic Visitor
+3 Famished Paladin
+3 Flamekin Gildweaver
+2 Fleeting Effigy
+2 Gideon's Defeat
+2 Horta
+2 Interjection
+1 Owlin Historian
+4 Path to Exile
+2 Velomachus Lorehold
+4 Alpine Meadow
+7 Mountain
+10 Plains
+4 Rabanastre, Royal City

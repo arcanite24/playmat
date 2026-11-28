@@ -1,0 +1,23 @@
+# name: Train450 tri-brg-control-3
+# archetype: control
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Abstruse Interference
+2 Academic Dispute
+3 Chief Warg's Company
+3 Cinderclasm
+1 Daemogoth Titan
+1 Depressurize
+4 Horribly Awry
+2 Infectious Inquiry
+4 Konstrari Charm
+1 Skyreaping
+2 Test of Loyalty
+3 Unsubtle Mockery
+4 Yargle, Glutton of Urborg
+4 Foggy Bottom Swamp
+4 Forest
+5 Mountain
+5 Swamp
+4 Temple of Abandon
+4 Underground Mortuary

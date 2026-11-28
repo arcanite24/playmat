@@ -1,0 +1,22 @@
+# name: Train200 guild-rg-midrange-9
+# archetype: midrange
+# colors: RG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Decadent Dragon
+2 Firedrinker Satyr
+3 Flameblade Adept
+2 Giant Cindermaw
+3 Goblin Blast-Runner
+4 Natural State
+1 Nova Hellkite
+4 Pinecone Strike
+3 Root Out
+2 Sunspine Lynx
+1 Take Out the Trash
+3 Terrian, World Tyrant
+2 Warden of the Chained
+2 Wayward Swordtooth
+6 Forest
+4 Highland Forest
+10 Mountain
+4 Omashu City

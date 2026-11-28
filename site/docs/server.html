@@ -28,6 +28,7 @@
           <li><a href="../#host">Run a server</a></li>
           <li><a href="./" aria-current="true">Docs</a></li>
           <li><a href="../rust/">Rust port</a></li>
+          <li><a href="../benchmarks/">Benchmarks</a></li>
           <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
         </ul>
       </nav>
@@ -46,6 +47,7 @@
           <li><a href="sso.html">Single sign-on</a></li>
           <li><a href="capsules.html">Capsule machines</a></li>
           <li><a href="ladder.html">Ranked and bots</a></li>
+          <li><a href="swarm.html">Self-play swarm</a></li>
         </ul>
       </nav>
       <article class="doc">
@@ -131,6 +133,10 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
           port or name, set <code>XMAGE_ALLOWED_ORIGINS</code> and <code>XMAGE_PUBLIC_URL</code> to the address they open.
           Keep <code>TLS_MODE=external</code> in <code>.env</code>: the <a href="updates.html#button">Update button</a>
           reads it to keep using the override.</p>
+        <p>For a private LAN or Tailscale-only server over plain HTTP (no TLS proxy in front), set
+          <code>TLS_MODE=external</code> without the proxy override, publish port 80 (for example
+          <code>HTTP_PORT=8088</code>), and set <code>XMAGE_ALLOWED_ORIGINS</code> to the <code>http://</code> origin
+          players open. The published web image automatically connects to <code>/ws</code> on the same origin.</p>
 
         <h2 id="faq">Questions</h2>
         <h3 id="image-cache">How big does the card picture cache get?</h3>
@@ -146,9 +152,11 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
           disk. The first time after an update from before November 2026 it compacts <code>solo.db</code> and
           <code>career.db</code> once, which can take a minute on a big file; the log says how much it saved.</p>
         <p>The nightly backup keeps the newest <code>BACKUP_KEEP</code> copies (14), each about the size of the
-          databases. Check the last backup's size on the admin Overview and keep 14 of them well under your free disk;
-          lower <code>BACKUP_KEEP</code> on a small disk. A backup that would leave less than
-          <code>BACKUP_MIN_FREE_MB</code> (1024) free fails before it starts, and the staff channel hears about it.</p>
+          databases. Check the last backup's size and free disk on the admin Overview and keep 14 of them well under your
+          free disk; lower <code>BACKUP_KEEP</code> on a small disk. A backup that would leave less than
+          <code>BACKUP_MIN_FREE_MB</code> (1024) free fails before it starts, and when free space drops under
+          <code>XMAGE_DISK_MIN_FREE_MB</code> (3072 MB) or 5% of the disk, <code>/admin</code>, <code>/healthz</code>
+          and the staff channel warn that the disk is nearly full.</p>
         <h3 id="scryfall-mirror">Can the server take card pictures from my own Scryfall mirror?</h3>
         <p>Yes. Point the image cache at it in <code>.env</code> and run <code>up -d</code>:</p>
         <div class="terminal" role="region" aria-label="Settings for a Scryfall mirror">
@@ -179,15 +187,17 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           <code>java</code> is safe: Java pays anything left waiting the next time it starts.
           <code>XMAGE_SHADOW_USERS</code> limits <code>shadow</code> to a few accounts while you try it. The gateway keeps its <code>shadow</code> and hosted-game counts across updates
           in <code>saved/gateway-totals.json</code> (<code>XMAGE_GATEWAY_TOTALS</code>), by day, so a week of them can be
-          read from <code>/totals</code> on port 17180 even after a deploy. Details are in
+          read from <code>/totals</code> on port 17180 even after a deploy. Each <code>shadow</code> difference is
+          also written to <code>saved/differences.log</code>, next to that file, so you can read what differed after
+          the server log has rotated. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-gateway">the README</a>.</p>
         <h3 id="rust-ai">What is <code>XMAGE_AI_BACKEND</code>?</h3>
         <p>A new AI written in Rust can play against people instead of the Java AI. It decides in milliseconds instead
           of seconds. Java still runs the game, and if the new AI ever loses track of it, the Java AI takes over for the
           rest of that game. <code>XMAGE_AI_BACKEND=rust</code> turns it on for the players listed in
           <code>XMAGE_RUST_AI_USERS</code> (user names separated by commas, or <code>*</code> for everyone), then run
-          <code>up -d</code>. It only plays one-on-one games whose cards are all verified against Java (14,000 cards for now, from the
-          Career, meta and starter decks and a wider share of the Pioneer pool; the server log names the cards that aren't). <code>XMAGE_ENGINE=java</code> turns it off again.
+          <code>up -d</code>. It only plays one-on-one games whose cards are all verified against Java (14,404 cards for now, from the
+          Career, meta and starter decks and a wider share of the Pioneer pool; the server log names the cards that aren't). A verified card that upstream XMage has changed since plays on Java again until it's checked once more. <code>XMAGE_ENGINE=java</code> turns it off again.
           While it plays, it also checks the screens it would draw against Java's (every 10th question by default,
           <code>XMAGE_RUST_VIEWS_EVERY</code>; <code>0</code> turns that off), and its prompts and game log at every
           question (<code>XMAGE_RUST_PROMPTS=0</code> turns that off); the admin console's Overview shows how many

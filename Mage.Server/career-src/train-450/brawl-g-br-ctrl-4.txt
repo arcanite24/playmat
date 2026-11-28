@@ -1,0 +1,48 @@
+# name: Train450 brawl-g-br-ctrl-4
+# archetype: brawl_ctrl
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Abstruse Interference
+1 Black Waltz No. 3
+1 Blooming Blast
+1 Cathartic Reunion
+1 Chandra's Flame Wave
+1 Deface
+1 Destructive Digger
+1 Draconic Intervention
+1 Drakuseth, Maw of Flames
+1 Experimental Confectioner
+1 Fires of Victory
+1 Foul Play
+1 Goblin Cratermaker
+1 Goldspan Dragon
+1 Grasp of Darkness
+1 Horribly Awry
+1 Incendiary Sabotage
+1 Insatiable Hemophage
+1 Invasive Maneuvers
+1 Jaya's Greeting
+1 Make Mischief
+1 Nova Hellkite
+1 Overlord of the Balemurk
+1 Power Word Kill
+1 Rampaging Ferocidon
+1 Sarkhan's Whelp
+1 Seismic Elemental
+1 Silicate Surveyor
+1 Skemfar Avenger
+1 Skymarch Bloodletter
+1 Summit Intimidator
+1 Take Out the Trash
+1 Void Shatter
+1 Warping Wail
+1 Blackcleave Cliffs
+1 Blood Crypt
+1 Canyon Slough
+1 Dragonskull Summit
+1 Foreboding Ruins
+13 Mountain
+1 Restless Vents
+1 Smoldering Marsh
+1 Stingerquill Annex
+5 Swamp

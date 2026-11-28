@@ -1,0 +1,37 @@
+# name: Train450 lim-g-ur-aggro-1
+# archetype: limited_aggro
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 A.I.M. Synthoids
+1 Ambling Stormshell
+1 Bloodmad Vampire
+1 Bomat Courier
+1 Bombard
+1 Celestial Messenger
+1 Divining Duelist
+1 Dominating Vampire
+1 Expedition Champion
+2 Fervent Strike
+1 Goblin Blast-Runner
+1 Gravity Negator
+1 Guardian of Tazeem
+1 Joust
+2 Karfell Harbinger
+2 Kessig Wolfrider
+2 Khenra Spellspear
+1 Kid Loki
+1 Landscape Painter
+1 Long-Finned Skywhale
+2 Mizzium Mortars
+1 Neheb, Dreadhorde Champion
+2 Purphoros's Emissary
+2 Siren Stormtamer
+2 Skewer the Critics
+1 Sultai Skullkeeper
+1 Tenacious Tomeseeker
+1 Thunderbreak Regent
+1 Vibrant Outburst
+6 Island
+9 Mountain
+4 Prismari Campus
+4 Sulfur Falls

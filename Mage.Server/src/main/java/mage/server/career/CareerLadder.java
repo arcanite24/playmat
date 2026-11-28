@@ -91,10 +91,14 @@ public final class CareerLadder {
 
     /** whether a rival chapter is open: its tier must be, and the chapter before beaten (S041) */
     static boolean rivalOpen(CareerContent.Opponent opponent, Map<String, Integer> wins) {
+        return rivalOpen(opponent, CareerContent.get().opponents(), wins);
+    }
+
+    static boolean rivalOpen(CareerContent.Opponent opponent, List<CareerContent.Opponent> roster, Map<String, Integer> wins) {
         if (opponent.rival == null || opponent.rival.chapter <= 1) {
             return true;
         }
-        for (CareerContent.Opponent other : CareerContent.get().opponents()) {
+        for (CareerContent.Opponent other : roster) {
             if (other.rival != null && other.rival.chapter == opponent.rival.chapter - 1) {
                 return wins.getOrDefault(other.id, 0) > 0;
             }

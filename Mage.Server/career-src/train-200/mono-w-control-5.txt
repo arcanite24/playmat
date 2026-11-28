@@ -1,0 +1,18 @@
+# name: Train200 mono-w-control-5
+# archetype: control
+# colors: W
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Basri's Solidarity
+3 Blazing Hope
+4 Erase
+2 Expose Evil
+2 Practiced Offense
+3 Relic Golem
+2 Revitalize
+4 Spell Shrivel
+3 Stand Up for Yourself
+1 Ulamog's Nullifier
+1 Unswerving Sloth
+4 Void Shatter
+3 Walker of the Wastes
+26 Plains

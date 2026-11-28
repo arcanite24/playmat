@@ -105,8 +105,8 @@ public class CareerWardrobeTest {
         }
         assertTrue(catalog.items().size() >= 240, "about 250 cosmetics");
         assertTrue(catalog.items().stream().filter(item -> "title".equals(item.kind)).count() >= 80, "at least 80 titles");
-        assertEquals(21, catalog.items().stream().filter(item -> "frame".equals(item.kind)).count());
-        assertEquals(11, catalog.items().stream().filter(item -> "pet".equals(item.kind)).count());
+        assertTrue(catalog.items().stream().filter(item -> "frame".equals(item.kind)).count() >= 26, "at least 26 frames");
+        assertTrue(catalog.items().stream().filter(item -> "pet".equals(item.kind)).count() >= 25, "at least 25 companions");
         for (String track : CareerProgress.masteryTracks()) {
             assertNotNull(catalog.masteryReward(track, 5), track + " pays a cosmetic at rank 5");
             assertNotNull(catalog.masteryReward(track, 10), track + " pays its master title at rank 10");
@@ -251,16 +251,88 @@ public class CareerWardrobeTest {
         store.close();
         try (Connection raw = DriverManager.getConnection("jdbc:sqlite:" + file); Statement sql = raw.createStatement()) {
             sql.execute("UPDATE schema_version SET version = 4");
-            // back to before M29 and the payout events and the League too, which come after it
+            // back to before M29, payout events, League, and Commander Career too, which come after it
             sql.execute("ALTER TABLE profile DROP COLUMN capsule_tokens");
-            for (String table : new String[]{"token_log", "pulls", "card_styles", "payout_events", "league", "league_tokens", "league_decks", "career_decks"}) {
+            sql.execute("ALTER TABLE profile DROP COLUMN quest_pref");
+            for (String table : new String[]{"token_log", "pulls", "card_styles", "payout_events", "league", "league_tokens", "league_decks", "career_decks", "ranked_games", "pet_progress"}) {
                 sql.execute("DROP TABLE " + table);
             }
         }
         store = new CareerStore("jdbc:sqlite:" + file);
         CareerStore.use(store);
-        assertEquals(9, store.schemaVersion());
+        assertEquals(12, store.schemaVersion());
         assertTrue(store.unlocksOf("Ana").stream().anyMatch(unlock -> unlock[1].equals("questing-knight")));
         assertTrue(store.unlocksOf("Ana").stream().noneMatch(unlock -> unlock[1].contains(" ")));
+    }
+
+    @Test
+    public void boutiqueCosmeticsCanBeBoughtWithCoins() throws Exception {
+        CareerCosmetics catalog = CareerCosmetics.get();
+        CareerCosmetics.CareerCatalogItem mat = catalog.find("playmat", "velvet-command");
+        assertNotNull(mat);
+        assertTrue(mat.price > 0);
+        assertTrue(mat.sources.stream().anyMatch(s -> "shop".equals(s.kind) && s.at == mat.price));
+
+        CareerService.ensureProfile(store, "Ana", 0);
+        int expectedCost = catalog.effectivePrice(mat, System.currentTimeMillis());
+        store.addCoins("Ana", expectedCost + 50);
+
+        CareerProfile after = catalog.buy("Ana", "playmat", "velvet-command");
+        assertEquals(50, after.coins);
+        assertTrue(store.unlocksOf("Ana").stream().anyMatch(u -> "playmat".equals(u[0]) && "velvet-command".equals(u[1])));
+        assertEquals(1, (int) store.stats("Ana").get("cosmetics_bought"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                CareerService.CareerException.class,
+                () -> catalog.buy("Ana", "playmat", "velvet-command"),
+                "cannot buy already owned cosmetic"
+        );
+        org.junit.jupiter.api.Assertions.assertThrows(
+                CareerService.CareerException.class,
+                () -> catalog.buy("Ana", "playmat", "starlit-orrery"),
+                "cannot buy without enough coins"
+        );
+        org.junit.jupiter.api.Assertions.assertThrows(
+                CareerService.CareerException.class,
+                () -> catalog.buy("Ana", "avatar", "owl"),
+                "cannot buy non-shop cosmetic"
+        );
+    }
+
+    @Test
+    public void petBondEvolvesAcrossTiersAndUnlocksStylesAndTitle() throws Exception {
+        CareerService.ensureProfile(store, "Ana", 0);
+        CareerPets pets = CareerPets.get();
+
+        // Tier 1 cannot equip Tier 3 styles yet
+        org.junit.jupiter.api.Assertions.assertThrows(
+                CareerService.CareerException.class,
+                () -> pets.setStyle("Ana", "party-corgi", "crown")
+        );
+
+        // Award enough games to reach Tier 3 (250 XP: 10 games x 25 XP = 250 XP)
+        CareerPets.CareerPetBondResult last = null;
+        for (int i = 0; i < 10; i++) {
+            last = pets.recordGame(store, "Ana", "party-corgi", true, true, false, 1000L + i);
+        }
+        assertNotNull(last);
+        assertEquals(250, last.xp);
+        assertEquals(3, last.tier);
+        assertTrue(last.tieredUp);
+
+        CareerPets.CareerPetProgress styled = pets.setStyle("Ana", "party-corgi", "crown");
+        assertEquals("crown", styled.style);
+        assertTrue(styled.unlockedStyles.contains("crown"));
+        assertTrue(styled.unlockedStyles.contains("shades"));
+        assertFalse(styled.unlockedStyles.contains("astral-aura"));
+
+        // Push to Tier 5 (1200 XP) and confirm Mythic Bond title unlocks
+        for (int i = 0; i < 30; i++) {
+            last = pets.recordGame(store, "Ana", "party-corgi", true, true, true, 2000L + i);
+        }
+        assertEquals(5, last.tier);
+        assertTrue(store.unlocksOf("Ana").stream().anyMatch(u -> "title".equals(u[0]) && "mythic-bond".equals(u[1])));
+        CareerPets.CareerPetProgress aura = pets.setStyle("Ana", "party-corgi", "astral-aura");
+        assertEquals("astral-aura", aura.style);
     }
 }

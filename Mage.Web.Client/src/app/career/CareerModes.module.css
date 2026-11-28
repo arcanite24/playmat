@@ -2046,3 +2046,8 @@
   outline: 2px solid var(--ink-strong);
   outline-offset: 2px;
 }
+
+.thgPartners {
+  display: grid;
+  gap: 8px;
+}

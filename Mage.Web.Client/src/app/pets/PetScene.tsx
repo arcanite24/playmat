@@ -2,17 +2,23 @@ import { useEffect, useRef } from 'react';
 import {
   AmbientLight,
   Box3,
+  BoxGeometry,
+  ConeGeometry,
+  CylinderGeometry,
   DirectionalLight,
   Group,
   HemisphereLight,
   type Material,
-  type Mesh,
+  Mesh,
+  MeshStandardMaterial,
   NearestFilter,
   type Object3D,
+  OctahedronGeometry,
   PerspectiveCamera,
   Scene,
   SRGBColorSpace,
   type Texture,
+  TorusGeometry,
   Vector3,
   WebGLRenderer,
 } from 'three';
@@ -40,11 +46,172 @@ interface Rig {
   hatRest: { x: number; z: number };
   pom: Object3D | null;
   pomY: number;
+  aura: Group | null;
 }
 
 const models = new Map<string, Promise<Object3D>>();
 
+/** Builds an articulated low-poly 3D companion rig for earnable Career 3D pets (Phase 6.1). */
+function buildProceduralPet(id: string): Object3D {
+  const root = new Group();
+  if (id === 'clockwork-owl') {
+    const bronze = new MeshStandardMaterial({ color: 0xb8864b, metalness: 0.65, roughness: 0.35 });
+    const copper = new MeshStandardMaterial({ color: 0x8f4e2b, metalness: 0.6, roughness: 0.4 });
+    const dark = new MeshStandardMaterial({ color: 0x2c241d, roughness: 0.7 });
+    const eyeGlow = new MeshStandardMaterial({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: 0.75, roughness: 0.2 });
+
+    const torso = new Mesh(new CylinderGeometry(0.32, 0.38, 0.62, 8), bronze);
+    torso.position.y = 0.44;
+    root.add(torso);
+
+    const gear = new Mesh(new TorusGeometry(0.13, 0.03, 6, 10), copper);
+    gear.position.set(0, 0.42, 0.34);
+    root.add(gear);
+
+    for (const sx of [-1, 1]) {
+      const foot = new Mesh(new BoxGeometry(0.14, 0.08, 0.2), dark);
+      foot.position.set(sx * 0.16, 0.06, 0.05);
+      root.add(foot);
+      const wing = new Mesh(new BoxGeometry(0.12, 0.44, 0.32), copper);
+      wing.name = sx < 0 ? 'ear' : 'ear~x';
+      wing.position.set(sx * 0.4, 0.46, -0.02);
+      wing.rotation.z = sx * 0.15;
+      root.add(wing);
+    }
+
+    const head = new Group();
+    head.name = 'head';
+    head.position.set(0, 0.88, 0.02);
+    head.add(new Mesh(new CylinderGeometry(0.28, 0.3, 0.34, 8), bronze));
+    for (const sx of [-1, 1]) {
+      const rim = new Mesh(new TorusGeometry(0.085, 0.02, 6, 10), dark);
+      rim.position.set(sx * 0.12, 0.04, 0.26);
+      const eye = new Mesh(new CylinderGeometry(0.06, 0.06, 0.04, 8), eyeGlow);
+      eye.rotation.x = Math.PI / 2;
+      eye.position.set(sx * 0.12, 0.04, 0.26);
+      const tuft = new Mesh(new ConeGeometry(0.06, 0.16, 4), copper);
+      tuft.position.set(sx * 0.19, 0.22, 0.04);
+      tuft.rotation.z = -sx * 0.35;
+      head.add(rim, eye, tuft);
+    }
+    const beak = new Mesh(new ConeGeometry(0.06, 0.16, 4), copper);
+    beak.rotation.x = Math.PI / 2;
+    beak.position.set(0, -0.02, 0.32);
+    head.add(beak);
+    root.add(head);
+
+    const tail = new Mesh(new BoxGeometry(0.24, 0.1, 0.24), copper);
+    tail.name = 'tail';
+    tail.position.set(0, 0.22, -0.38);
+    tail.rotation.x = -0.35;
+    root.add(tail);
+    return root;
+  }
+
+  if (id === 'mini-dragon') {
+    const crimson = new MeshStandardMaterial({ color: 0xb8342a, roughness: 0.45, metalness: 0.15 });
+    const belly = new MeshStandardMaterial({ color: 0xe6b96c, roughness: 0.5 });
+    const hornMat = new MeshStandardMaterial({ color: 0xf0d69c, roughness: 0.35, metalness: 0.25 });
+    const eyeGlow = new MeshStandardMaterial({ color: 0x34d399, emissive: 0x10b981, emissiveIntensity: 0.8 });
+
+    const body = new Mesh(new BoxGeometry(0.46, 0.42, 0.62), crimson);
+    body.position.set(0, 0.38, 0);
+    const chest = new Mesh(new BoxGeometry(0.32, 0.34, 0.12), belly);
+    chest.position.set(0, 0.36, 0.29);
+    root.add(body, chest);
+
+    for (const sx of [-1, 1]) {
+      for (const sz of [-0.2, 0.2]) {
+        const leg = new Mesh(new BoxGeometry(0.14, 0.22, 0.16), crimson);
+        leg.position.set(sx * 0.19, 0.12, sz);
+        root.add(leg);
+      }
+      const wing = new Mesh(new BoxGeometry(0.5, 0.08, 0.34), crimson);
+      wing.name = sx < 0 ? 'ear' : 'ear~x';
+      wing.position.set(sx * 0.44, 0.56, -0.06);
+      wing.rotation.z = sx * 0.45;
+      root.add(wing);
+    }
+
+    const head = new Group();
+    head.name = 'head';
+    head.position.set(0, 0.72, 0.22);
+    head.add(new Mesh(new BoxGeometry(0.36, 0.32, 0.38), crimson));
+    const snout = new Mesh(new BoxGeometry(0.24, 0.18, 0.22), crimson);
+    snout.position.set(0, -0.04, 0.26);
+    head.add(snout);
+    for (const sx of [-1, 1]) {
+      const horn = new Mesh(new ConeGeometry(0.055, 0.24, 5), hornMat);
+      horn.position.set(sx * 0.12, 0.22, -0.08);
+      horn.rotation.x = -0.45;
+      horn.rotation.z = -sx * 0.2;
+      const eye = new Mesh(new BoxGeometry(0.06, 0.06, 0.04), eyeGlow);
+      eye.position.set(sx * 0.11, 0.04, 0.19);
+      head.add(horn, eye);
+    }
+    root.add(head);
+
+    const tail = new Mesh(new ConeGeometry(0.11, 0.56, 5), crimson);
+    tail.name = 'tail';
+    tail.rotation.x = -Math.PI / 2 - 0.25;
+    tail.position.set(0, 0.28, -0.52);
+    root.add(tail);
+    return root;
+  }
+
+  // golem-pup: sturdy stone-and-brass rune puppy with mossy shoulders and glowing amber eyes
+  const stone = new MeshStandardMaterial({ color: 0x7a7872, roughness: 0.85, metalness: 0.1 });
+  const moss = new MeshStandardMaterial({ color: 0x4d7c47, roughness: 0.9 });
+  const brass = new MeshStandardMaterial({ color: 0xd4a44a, metalness: 0.7, roughness: 0.28 });
+  const runeGlow = new MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 0.85 });
+
+  const body = new Mesh(new BoxGeometry(0.5, 0.42, 0.62), stone);
+  body.position.set(0, 0.36, 0);
+  const mossCap = new Mesh(new BoxGeometry(0.52, 0.1, 0.34), moss);
+  mossCap.position.set(0, 0.56, -0.04);
+  const collar = new Mesh(new BoxGeometry(0.46, 0.1, 0.1), brass);
+  collar.position.set(0, 0.44, 0.3);
+  root.add(body, mossCap, collar);
+
+  for (const sx of [-1, 1]) {
+    for (const sz of [-0.2, 0.2]) {
+      const paw = new Mesh(new BoxGeometry(0.16, 0.22, 0.18), stone);
+      paw.position.set(sx * 0.2, 0.11, sz);
+      root.add(paw);
+    }
+  }
+
+  const head = new Group();
+  head.name = 'head';
+  head.position.set(0, 0.68, 0.24);
+  head.add(new Mesh(new BoxGeometry(0.42, 0.36, 0.4), stone));
+  const snout = new Mesh(new BoxGeometry(0.24, 0.16, 0.16), stone);
+  snout.position.set(0, -0.07, 0.24);
+  const nose = new Mesh(new BoxGeometry(0.09, 0.06, 0.06), brass);
+  nose.position.set(0, -0.02, 0.33);
+  head.add(snout, nose);
+  for (const sx of [-1, 1]) {
+    const eye = new Mesh(new BoxGeometry(0.07, 0.07, 0.04), runeGlow);
+    eye.position.set(sx * 0.11, 0.04, 0.2);
+    const ear = new Mesh(new BoxGeometry(0.1, 0.24, 0.16), stone);
+    ear.name = sx < 0 ? 'ear' : 'ear~x';
+    ear.position.set(sx * 0.25, 0.04, 0);
+    ear.rotation.z = sx * 0.22;
+    head.add(eye, ear);
+  }
+  root.add(head);
+
+  const tail = new Mesh(new OctahedronGeometry(0.12), runeGlow);
+  tail.name = 'tail';
+  tail.position.set(0, 0.44, -0.38);
+  root.add(tail);
+  return root;
+}
+
 function loadModel(url: string): Promise<Object3D> {
+  if (url.startsWith('procedural:')) {
+    return Promise.resolve(buildProceduralPet(url.slice('procedural:'.length)));
+  }
   let model = models.get(url);
   if (!model) {
     model = new GLTFLoader().loadAsync(url).then((gltf) => gltf.scene);
@@ -117,7 +284,117 @@ function rig(model: Object3D): Rig {
     hatRest: { x: hat?.rotation.x ?? 0, z: hat?.rotation.z ?? 0 },
     pom,
     pomY: pom?.position.y ?? 0,
+    aura: null,
   };
+}
+
+/** Bounds of an object expressed in its own local coordinate space. */
+function localBounds(part: Object3D): Box3 {
+  part.updateWorldMatrix(true, true);
+  const box = new Box3().setFromObject(part);
+  const inverse = part.matrixWorld.clone().invert();
+  return box.applyMatrix4(inverse);
+}
+
+/**
+ * Procedural low-poly accessories unlocked by Pet Bond Tier (Tiers 3-5): crown, shades, wizard-hat, mana-collar,
+ * and astral-aura orbiting sparks. Scaled from the rig's measured head/body bounds so every 3D pet wears them cleanly.
+ */
+function attachStyle(rigged: Rig, loaded: Object3D, style: string | null | undefined, tier: number): void {
+  const anchor = rigged.head ?? rigged.body;
+  const headBox = localBounds(anchor);
+  const headSize = headBox.getSize(new Vector3());
+  const headCenter = headBox.getCenter(new Vector3());
+  const unit = Math.max(0.15, Math.min(headSize.x, headSize.z));
+
+  if (style === 'crown') {
+    const crown = new Group();
+    const gold = new MeshStandardMaterial({ color: 0xf4c95d, metalness: 0.65, roughness: 0.28, emissive: 0x452b00, emissiveIntensity: 0.25 });
+    const gemMat = new MeshStandardMaterial({ color: 0xd9383a, metalness: 0.2, roughness: 0.2, emissive: 0x550808, emissiveIntensity: 0.35 });
+    const band = new Mesh(new CylinderGeometry(unit * 0.34, unit * 0.3, unit * 0.14, 8), gold);
+    crown.add(band);
+    for (let i = 0; i < 4; i++) {
+      const angle = (i / 4) * Math.PI * 2;
+      const spike = new Mesh(new ConeGeometry(unit * 0.09, unit * 0.19, 4), gold);
+      spike.position.set(Math.cos(angle) * unit * 0.28, unit * 0.14, Math.sin(angle) * unit * 0.28);
+      crown.add(spike);
+    }
+    const gem = new Mesh(new OctahedronGeometry(unit * 0.065), gemMat);
+    gem.position.set(0, unit * 0.02, unit * 0.33);
+    crown.add(gem);
+    crown.position.set(headCenter.x, headBox.max.y + unit * 0.04, headCenter.z);
+    crown.rotation.z = -0.1;
+    anchor.add(crown);
+  } else if (style === 'wizard-hat') {
+    const hat = new Group();
+    const cloth = new MeshStandardMaterial({ color: 0x3b2c6e, roughness: 0.72, metalness: 0.12 });
+    const trim = new MeshStandardMaterial({ color: 0xe6be5c, metalness: 0.6, roughness: 0.3, emissive: 0x3b2600, emissiveIntensity: 0.25 });
+    const brim = new Mesh(new CylinderGeometry(unit * 0.54, unit * 0.58, unit * 0.05, 12), cloth);
+    hat.add(brim);
+    const band = new Mesh(new CylinderGeometry(unit * 0.32, unit * 0.35, unit * 0.08, 12), trim);
+    band.position.y = unit * 0.06;
+    hat.add(band);
+    const cone = new Mesh(new ConeGeometry(unit * 0.33, unit * 0.62, 12), cloth);
+    cone.position.y = unit * 0.36;
+    cone.rotation.z = 0.12;
+    hat.add(cone);
+    const star = new Mesh(new OctahedronGeometry(unit * 0.07), trim);
+    star.position.set(-unit * 0.06, unit * 0.66, 0);
+    hat.add(star);
+    hat.position.set(headCenter.x, headBox.max.y + unit * 0.02, headCenter.z);
+    anchor.add(hat);
+  } else if (style === 'shades') {
+    const shades = new Group();
+    const frame = new MeshStandardMaterial({ color: 0x16181f, roughness: 0.25, metalness: 0.7 });
+    const lensMat = new MeshStandardMaterial({ color: 0x101828, roughness: 0.1, metalness: 0.9, emissive: 0x1d4ed8, emissiveIntensity: 0.25 });
+    const left = new Mesh(new BoxGeometry(unit * 0.28, unit * 0.14, unit * 0.05), lensMat);
+    left.position.set(-unit * 0.18, 0, 0);
+    const right = new Mesh(new BoxGeometry(unit * 0.28, unit * 0.14, unit * 0.05), lensMat);
+    right.position.set(unit * 0.18, 0, 0);
+    const bridge = new Mesh(new BoxGeometry(unit * 0.12, unit * 0.04, unit * 0.05), frame);
+    bridge.position.set(0, unit * 0.03, 0);
+    shades.add(left, right, bridge);
+    shades.position.set(headCenter.x, headCenter.y + headSize.y * 0.06, headBox.max.z + unit * 0.02);
+    anchor.add(shades);
+  } else if (style === 'mana-collar') {
+    const collar = new Group();
+    const band = new Mesh(
+      new TorusGeometry(unit * 0.42, unit * 0.055, 8, 20),
+      new MeshStandardMaterial({ color: 0xc9a35a, metalness: 0.7, roughness: 0.25 }),
+    );
+    band.rotation.x = Math.PI / 2;
+    const gem = new Mesh(
+      new OctahedronGeometry(unit * 0.1),
+      new MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0ea5e9, emissiveIntensity: 0.65, roughness: 0.15 }),
+    );
+    gem.position.set(0, -unit * 0.04, unit * 0.44);
+    collar.add(band, gem);
+    collar.position.set(headCenter.x, headBox.min.y + unit * 0.04, headCenter.z);
+    anchor.add(collar);
+  }
+
+  // Tier 5 (or explicit astral-aura style) spawns orbiting mana star sparks around the pet
+  if (style === 'astral-aura' || tier >= 5) {
+    const bodyBox = new Box3().setFromObject(loaded);
+    const bodyCenter = bodyBox.getCenter(new Vector3());
+    const radius = Math.max(bodyBox.getSize(new Vector3()).x, bodyBox.getSize(new Vector3()).z) * 0.68;
+    const aura = new Group();
+    aura.position.copy(bodyCenter);
+    const count = style === 'astral-aura' ? 7 : 4;
+    const colors = [0xfde047, 0x67e8f9, 0xf08a4b, 0xc084fc];
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      const color = colors[i % colors.length];
+      const spark = new Mesh(
+        new OctahedronGeometry(radius * (style === 'astral-aura' ? 0.095 : 0.07)),
+        new MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.85, roughness: 0.15 }),
+      );
+      spark.position.set(Math.cos(angle) * radius, Math.sin(angle * 2) * radius * 0.22, Math.sin(angle) * radius);
+      aura.add(spark);
+    }
+    rigged.root.add(aura);
+    rigged.aura = aura;
+  }
 }
 
 /** crisp pixel textures, like the art was painted */
@@ -162,6 +439,10 @@ function pose(rig: Rig, now: number, cheeredAt: number, still: boolean): void {
   });
   if (rig.hat) rig.hat.rotation.set(rig.hatRest.x, 0, rig.hatRest.z);
   if (rig.pom) rig.pom.position.y = rig.pomY;
+  if (rig.aura) {
+    rig.aura.rotation.y = still ? 0 : t * (party >= 0 ? 3.8 : 1.15);
+    rig.aura.rotation.z = Math.sin(t * 0.8) * 0.15;
+  }
   rig.root.position.y = 0;
   rig.root.rotation.y = 0;
 
@@ -182,7 +463,14 @@ function pose(rig: Rig, now: number, cheeredAt: number, still: boolean): void {
   if (rig.pom) rig.pom.position.y = rig.pomY + Math.abs(wobble) * 0.08;
 }
 
-export default function PetScene({ model, cheers, facing, onFail }: { model: string; cheers: number; facing: 1 | -1; onFail(): void }) {
+export default function PetScene({ model, cheers, facing, style, tier = 1, onFail }: {
+  model: string;
+  cheers: number;
+  facing: 1 | -1;
+  style?: string | null;
+  tier?: number;
+  onFail(): void;
+}) {
   const host = useRef<HTMLDivElement>(null);
   const cheer = useRef<() => void>(() => {});
   const failed = useRef(onFail);
@@ -259,6 +547,7 @@ export default function PetScene({ model, cheers, facing, onFail }: { model: str
       if (disposed) return;
       sharpen(loaded);
       rigged = rig(loaded);
+      attachStyle(rigged, loaded, style, tier);
       // turned a little toward the middle of the table, and framed from its paws to the tip of its hat
       rigged.root.rotation.order = 'YXZ';
       const turn = new Group();
@@ -293,7 +582,7 @@ export default function PetScene({ model, cheers, facing, onFail }: { model: str
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [model, facing]);
+  }, [model, facing, style, tier]);
 
   useEffect(() => {
     if (cheers > 0) cheer.current();

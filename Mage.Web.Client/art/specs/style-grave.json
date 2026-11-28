@@ -1,0 +1,45 @@
+{
+  "$comment": "Cosmetics of the Graveyard Woodblock set (Legends Showcase capsule machine), written by art/machine-specs.mjs from career/machines/legends-showcase.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/grave",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [],
+  "style": "moody hand-carved woodblock print with mossy sage, bone parchment, and deep ink shadows",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a colossal horned archdemon rising behind iron cathedral bars with outstretched wings",
+  "items": [
+    {
+      "id": "griselbrand",
+      "subject": "a colossal horned archdemon rising behind iron cathedral bars with outstretched wings"
+    },
+    {
+      "id": "archon-of-cruelty",
+      "subject": "a masked winged judge perched atop a dark winged steed over ash-covered ruins"
+    },
+    {
+      "id": "vengevine",
+      "subject": "a ferocious tangled elemental beast of thorny roots and glowing moss surging from forest loam"
+    },
+    {
+      "id": "bloodghast",
+      "subject": "a drifting crimson-shrouded phantom gliding over moonlit tombstones and dead grass"
+    },
+    {
+      "id": "golgari-grave-troll",
+      "subject": "a hulking moss-and-fungus covered troll lumbering through a misty bog graveyard"
+    },
+    {
+      "id": "set-grave",
+      "out": "public/career-art/sleeve/set-grave.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+# name: Train200 guild-bg-control-9
+# archetype: control
+# colors: BG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Abstruse Interference
+1 Clackbridge Troll
+2 Eject the Warp Core
+3 Gigantic Big Bear
+4 Glorious Decay
+2 Inspiring Call
+2 Necrotic Wound
+2 Nylea's Intervention
+4 Pugnacious Hammerskull
+2 Spell Shrivel
+2 Subtle Strike
+2 Warping Wail
+4 Wilt
+13 Forest
+4 Golgari Guildgate
+4 Mirkwood
+5 Swamp

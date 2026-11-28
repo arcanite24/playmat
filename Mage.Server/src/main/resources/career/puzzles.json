@@ -758,5 +758,306 @@
    "graveyard": [],
    "library": []
   }
+ },
+ {
+  "id": "trample-overkill",
+  "name": "Trample Overkill",
+  "text": "Your opponent is at 6 life with two 1/1 blockers. Win this turn.",
+  "hint": "Pump your trampling creature so excess damage rolls right over both blockers for exact lethal.",
+  "you": {
+   "life": 20,
+   "hand": [
+    "Giant Growth"
+   ],
+   "battlefield": [
+    "Craw Wurm",
+    "Garruk's Uprising",
+    "Forest"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 6,
+   "hand": [],
+   "battlefield": [
+    "Llanowar Elves",
+    "Llanowar Elves"
+   ],
+   "graveyard": [],
+   "library": []
+  }
+ },
+ {
+  "id": "double-pump-trample",
+  "name": "Double Pump Math",
+  "text": "Your opponent is at 9 life behind a 3/3 blocker. Win this turn.",
+  "hint": "Attack with your trampler and cast both Giant Growths on it after blockers are declared (6 + 6 - 3 = 9).",
+  "you": {
+   "life": 20,
+   "hand": [
+    "Giant Growth",
+    "Giant Growth"
+   ],
+   "battlefield": [
+    "Craw Wurm",
+    "Garruk's Uprising",
+    "Forest",
+    "Forest"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 9,
+   "hand": [],
+   "battlefield": [
+    "Hill Giant"
+   ],
+   "graveyard": [],
+   "library": []
+  }
+ },
+ {
+  "id": "burn-blocker-trample",
+  "name": "Clear the Big Blocker",
+  "text": "Your opponent is at 7 life with a 3/3 and a 1/1 blocker. Win this turn.",
+  "hint": "Lightning Bolt the 3/3 before combat so your 6/4 trampler + Giant Growth pushes 8 damage through the 1/1.",
+  "you": {
+   "life": 20,
+   "hand": [
+    "Lightning Bolt",
+    "Giant Growth"
+   ],
+   "battlefield": [
+    "Craw Wurm",
+    "Garruk's Uprising",
+    "Mountain",
+    "Forest"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 7,
+   "hand": [],
+   "battlefield": [
+    "Hill Giant",
+    "Llanowar Elves"
+   ],
+   "graveyard": [],
+   "library": []
+  }
+ },
+ {
+  "id": "voltron-equip-lethal",
+  "name": "Voltron Armory",
+  "text": "Equip your angel for exact 9 lethal damage through the air.",
+  "hint": "Equip Hero's Blade onto Serra Angel (4 + 3 = 7) and finish with Shock!",
+  "you": {
+   "life": 20,
+   "hand": [
+    "Shock"
+   ],
+   "battlefield": [
+    "Serra Angel",
+    "Hero's Blade",
+    "Mountain",
+    "Mountain",
+    "Mountain",
+    "Mountain",
+    "Mountain"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 9,
+   "hand": [],
+   "battlefield": [
+    "Craw Wurm"
+   ],
+   "graveyard": [],
+   "library": []
+  }
+ },
+ {
+  "id": "krenko-goblin-math",
+  "name": "Exponential Goblins",
+  "text": "Your opponent is at 8 life with no blockers. Tap Krenko, then trigger Impact Tremors!",
+  "hint": "Activate Krenko, Mob Boss to double your Goblins; each entering Goblin triggers Impact Tremors, then attack with haste!",
+  "you": {
+   "life": 20,
+   "hand": [],
+   "battlefield": [
+    "Krenko, Mob Boss",
+    "Raging Goblin",
+    "Raging Goblin",
+    "Impact Tremors",
+    "Goblin Chieftain"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 8,
+   "hand": [],
+   "battlefield": [],
+   "graveyard": [],
+   "library": []
+  }
+ },
+ {
+  "id": "ghalta-discount-finisher",
+  "name": "Commander Cost Reduction",
+  "text": "Your opponent is at 12 life. Use your board's total power to cast Ghalta for GG with haste.",
+  "hint": "Your 10 power of creatures reduces Ghalta, Primal Hunger to GG; Fervor gives Ghalta haste for 12 trample lethal!",
+  "you": {
+   "life": 20,
+   "hand": [
+    "Ghalta, Primal Hunger"
+   ],
+   "battlefield": [
+    "Craw Wurm",
+    "Hill Giant",
+    "Elvish Warrior",
+    "Fervor",
+    "Forest",
+    "Forest"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 12,
+   "hand": [],
+   "battlefield": [
+    "Llanowar Elves"
+   ],
+   "graveyard": [],
+   "library": []
+  }
+ },
+ {
+  "id": "anthem-swing-exact",
+  "name": "Glorious Math",
+  "text": "Your opponent is at 8 life behind a Wall of Wood. Cast Glorious Anthem and swing in the air.",
+  "hint": "Play Glorious Anthem first so both flying Wind Drakes become 3/3s (6 damage) and finish with Shock!",
+  "you": {
+   "life": 20,
+   "hand": [
+    "Glorious Anthem",
+    "Shock"
+   ],
+   "battlefield": [
+    "Wind Drake",
+    "Wind Drake",
+    "Plains",
+    "Plains",
+    "Plains",
+    "Mountain"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 8,
+   "hand": [],
+   "battlefield": [
+    "Wall of Wood"
+   ],
+   "graveyard": [],
+   "library": []
+  }
+ },
+ {
+  "id": "lifelink-race-lethal",
+  "name": "Dragon Firebreathing",
+  "text": "Your opponent is at 9 life behind ground blockers. Use Shivan Dragon's firebreathing for exact lethal.",
+  "hint": "Attack with Shivan Dragon (5 power) and activate its +1/+0 ability four times with your Mountains!",
+  "you": {
+   "life": 20,
+   "hand": [],
+   "battlefield": [
+    "Shivan Dragon",
+    "Mountain",
+    "Mountain",
+    "Mountain",
+    "Mountain"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 9,
+   "hand": [],
+   "battlefield": [
+    "Craw Wurm",
+    "Craw Wurm"
+   ],
+   "graveyard": [],
+   "library": []
+  }
+ },
+ {
+  "id": "double-bolt-stack",
+  "name": "Instant-Speed Finish",
+  "text": "Your opponent is at 8 life with a Serra Angel ready to block. Win this turn.",
+  "hint": "Cast both Lightning Bolts and Shock straight at your opponent for 8 direct damage!",
+  "you": {
+   "life": 20,
+   "hand": [
+    "Lightning Bolt",
+    "Lightning Bolt",
+    "Shock"
+   ],
+   "battlefield": [
+    "Mountain",
+    "Mountain",
+    "Mountain"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 8,
+   "hand": [],
+   "battlefield": [
+    "Serra Angel"
+   ],
+   "graveyard": [],
+   "library": []
+  }
+ },
+ {
+  "id": "sliver-lord-lethal",
+  "name": "Hive Synergy",
+  "text": "Your opponent is at 9 life behind two 2/2 ground blockers. Drop your Winged Sliver and fly over!",
+  "hint": "Cast Winged Sliver so every Sliver gains flying; your three 3/3 lords swing unblocked in the air for 9.",
+  "you": {
+   "life": 20,
+   "hand": [
+    "Winged Sliver"
+   ],
+   "battlefield": [
+    "Muscle Sliver",
+    "Predatory Sliver",
+    "Sinew Sliver",
+    "Island",
+    "Island"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 9,
+   "hand": [],
+   "battlefield": [
+    "Grizzly Bears",
+    "Grizzly Bears"
+   ],
+   "graveyard": [],
+   "library": []
+  }
  }
 ]

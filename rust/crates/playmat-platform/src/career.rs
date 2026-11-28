@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use sqlx::sqlite::SqliteConnection;
 use sqlx::Row;
 
-pub const CAREER_METHODS: [&str; 18] = [
+pub const CAREER_METHODS: [&str; 19] = [
     "careerCollection",
     "careerDeck",
     "careerGameResult",
@@ -27,6 +27,7 @@ pub const CAREER_METHODS: [&str; 18] = [
     "careerRerollQuest",
     "careerMachines",
     "careerBuyTokens",
+    "careerBuyCosmetic",
     "careerPull",
 ];
 
@@ -161,6 +162,41 @@ impl CareerContent {
     }
 }
 
+/// `CareerCosmetics.effectivePrice`: 20% off for up to 6 deterministic Curator's Picks each UTC ISO week.
+fn effective_cosmetic_price(cosmetics: &[Value], kind: &str, id: &str, base_price: i64, now_millis: i64) -> i64 {
+    if base_price <= 0 {
+        return 0;
+    }
+    let (_, week_str) = utc_day_and_week(now_millis);
+    let (year, week) = week_str
+        .split_once("-W")
+        .and_then(|(y, w)| Some((y.parse::<i64>().ok()?, w.parse::<i64>().ok()?)))
+        .unwrap_or((2026, 1));
+    let week_num = year * 53 + week;
+    let priced: Vec<(&str, &str)> = cosmetics
+        .iter()
+        .filter(|entry| entry["price"].as_i64().unwrap_or(0) > 0)
+        .filter_map(|entry| Some((entry["kind"].as_str()?, entry["id"].as_str()?)))
+        .collect();
+    let n = priced.len();
+    if n == 0 {
+        return base_price;
+    }
+    let limit = n.min(6);
+    let mut picked = std::collections::HashSet::with_capacity(limit);
+    for i in 0..limit {
+        let mut idx = (week_num * 7 + (i as i64) * 5).rem_euclid(n as i64) as usize;
+        while !picked.insert(priced[idx]) {
+            idx = (idx + 1) % n;
+        }
+    }
+    if picked.contains(&(kind, id)) {
+        (base_price * 4) / 5
+    } else {
+        base_price
+    }
+}
+
 /// `CareerRules.xpForLevel`
 pub(crate) fn xp_for_level(level: i64) -> i64 {
     250 + 50 * (level - 1)
@@ -231,7 +267,36 @@ impl AdminStores {
                 stored(deck)
             }
             "careerGameResult" => {
-                let key = opt_string(&request.params, 0)?.unwrap_or_default();
+                let mut key = opt_string(&request.params, 0)?.unwrap_or_default();
+                if !key.is_empty() {
+                    // a ranked table's rewards are its latest game's (RankedService.lastGame, kept in ranked_games)
+                    let ranked: Option<String> =
+                        sqlx::query_scalar("SELECT game_id FROM ranked_games WHERE table_id = ?")
+                            .bind(&key)
+                            .fetch_optional(&mut *db)
+                            .await
+                            .ok()
+                            .flatten();
+                    if let Some(game) = ranked {
+                        key = format!("{game}/{user}");
+                    }
+                    // a payout the gateway makes lands a moment after the game (CareerPayouts.awaitPayout)
+                    let event = key.split('/').next().unwrap_or_default().to_string();
+                    let until = std::time::Instant::now() + std::time::Duration::from_millis(5000);
+                    while std::time::Instant::now() < until {
+                        let pending: Option<i64> =
+                            sqlx::query_scalar("SELECT 1 FROM payout_events WHERE key = ? AND state = 'pending'")
+                                .bind(&event)
+                                .fetch_optional(&mut *db)
+                                .await
+                                .ok()
+                                .flatten();
+                        if pending.is_none() {
+                            break;
+                        }
+                        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    }
+                }
                 let details: Option<String> = if key.is_empty() {
                     sqlx::query_scalar(
                         "SELECT details FROM progress_games WHERE user = ? AND details IS NOT NULL ORDER BY at DESC LIMIT 1",
@@ -373,10 +438,21 @@ impl AdminStores {
                             return Err(crate::admin::invalid("The weekly quest can't be swapped."));
                         }
                         let present = rows.into_iter().map(|(_, quest)| quest).collect();
-                        let Some(next) = crate::payouts::pick_quest(
+                        let quest_pref: String =
+                            sqlx::query_scalar::<_, Option<String>>("SELECT quest_pref FROM profile WHERE user = ?")
+                                .bind(&user)
+                                .fetch_optional(&mut *db)
+                                .await
+                                .ok()
+                                .flatten()
+                                .flatten()
+                                .filter(|p| p == "commander" || p == "constructed")
+                                .unwrap_or_else(|| "any".to_owned());
+                        let Some(next) = crate::payouts::pick_quest_pref(
                             &book,
                             &present,
                             false,
+                            &quest_pref,
                             &format!("reroll/{user}/{today}/{slot}"),
                         ) else {
                             return Err(crate::admin::invalid("There's no other quest to swap in."));
@@ -423,6 +499,76 @@ impl AdminStores {
                     return Err(Stop::Decline);
                 };
                 self.capsules(request, &user, content, &machines, db).await
+            }
+            "careerBuyCosmetic" => {
+                let (Some(content), Some(cosmetics)) =
+                    (&self.career_content, self.career_views.as_ref().and_then(|views| views.view("cosmetics")))
+                else {
+                    return Err(Stop::Decline);
+                };
+                let (Some(Value::String(kind)), Some(Value::String(id))) =
+                    (request.params.first(), request.params.get(1))
+                else {
+                    return Err(Stop::Decline);
+                };
+                let Some(item) = cosmetics
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|entry| entry["kind"].as_str() == Some(kind) && entry["id"].as_str() == Some(id))
+                else {
+                    return Err(crate::admin::invalid("Unknown cosmetic."));
+                };
+                let base_price = item["price"].as_i64().unwrap_or(0);
+                if base_price <= 0 {
+                    return Err(crate::admin::invalid("That cosmetic isn't sold for coins."));
+                }
+                let now = crate::admin::now_millis();
+                let price = effective_cosmetic_price(cosmetics.as_array().map(Vec::as_slice).unwrap_or(&[]), kind, id, base_price, now);
+                sqlx::query("INSERT OR IGNORE INTO profile (user, created, starter, coins) VALUES (?, ?, '', 0)")
+                    .bind(&user)
+                    .bind(now)
+                    .execute(&mut *db)
+                    .await?;
+                let free = item["free"].as_bool().unwrap_or(false);
+                let already: Option<i64> =
+                    sqlx::query_scalar("SELECT 1 FROM unlocks WHERE user = ? AND kind = ? AND item = ?")
+                        .bind(&user)
+                        .bind(kind)
+                        .bind(id)
+                        .fetch_optional(&mut *db)
+                        .await?;
+                if free || already.is_some() {
+                    return Err(crate::admin::invalid("You already own that cosmetic."));
+                }
+                let coins: i64 = sqlx::query_scalar("SELECT coins FROM profile WHERE user = ?")
+                    .bind(&user)
+                    .fetch_one(&mut *db)
+                    .await?;
+                if coins < price {
+                    let name = item["name"].as_str().unwrap_or(id);
+                    return Err(crate::admin::invalid(format!("{name} costs {price} coins; you have {coins}.")));
+                }
+                sqlx::query("UPDATE profile SET coins = coins - ? WHERE user = ?")
+                    .bind(price)
+                    .bind(&user)
+                    .execute(&mut *db)
+                    .await?;
+                sqlx::query("INSERT OR IGNORE INTO unlocks (user, kind, item, at) VALUES (?, ?, ?, ?)")
+                    .bind(&user)
+                    .bind(kind)
+                    .bind(id)
+                    .bind(now)
+                    .execute(&mut *db)
+                    .await?;
+                sqlx::query(
+                    "INSERT INTO stats (user, counter, value) VALUES (?, 'cosmetics_bought', 1) \
+                     ON CONFLICT (user, counter) DO UPDATE SET value = value + 1",
+                )
+                .bind(&user)
+                .execute(&mut *db)
+                .await?;
+                Ok(profile(db, &user, content).await?.unwrap_or(Value::Null))
             }
             "careerEquipStyle" => {
                 let Some(styles) = self.career_views.as_ref().and_then(|views| views.view("styles")) else {
@@ -596,8 +742,19 @@ impl AdminStores {
                         .await?
                         .rows_affected()
                         == 1;
+                let is_commander = known
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .any(|s| s["id"] == json!(starter) && s["track"] == json!("commander"));
                 if !opened {
                     return Err(crate::admin::invalid("You already have a Career."));
+                }
+                if is_commander {
+                    let _ = sqlx::query("UPDATE profile SET quest_pref = 'commander' WHERE user = ?")
+                        .bind(&user)
+                        .execute(&mut *db)
+                        .await;
                 }
                 for card in cards {
                     let text = |field: &str| card[field].as_str().ok_or(Stop::Decline);
@@ -1237,6 +1394,8 @@ mod tests {
             "INSERT INTO decks VALUES ('neri', '{\"name\":\"Red\",\"cards\":[{\"cardName\":\"Zap\",\"amount\":3}]}', 1)",
             "INSERT INTO progress_games VALUES ('t1', 'neri', 10, '{\"coins\":25}'), ('g2/neri', 'neri', 20, '{\"coins\":5}'), \
              ('t3', 'neri', 30, NULL)",
+            "CREATE TABLE ranked_games (table_id TEXT PRIMARY KEY, game_id TEXT NOT NULL, at INTEGER NOT NULL)",
+            "INSERT INTO ranked_games VALUES ('r1', 'g2', 25)",
         ] {
             sqlx::query(sql).execute(&mut db).await.unwrap();
         }
@@ -1267,6 +1426,8 @@ mod tests {
         assert_eq!(call("careerGameResult", json!(["t1"])).await, json!({"coins": 25}));
         assert_eq!(call("careerGameResult", json!(["g2"])).await, json!({"coins": 5}));
         assert_eq!(call("careerGameResult", json!(["t3"])).await, Value::Null);
+        // a ranked table's key: its latest game's result (RankedService.lastGame)
+        assert_eq!(call("careerGameResult", json!(["r1"])).await, json!({"coins": 5}));
 
         // progression: the profile is made on the first ask
         assert_eq!(call("careerLevels", json!([])).await, Value::Null);
@@ -1294,6 +1455,40 @@ mod tests {
         std::fs::write(&views, r#"{"starters":[{"id":"blue"}],"cosmetics":[{"kind":"avatar"}]}"#).unwrap();
         assert_eq!(call("careerStarters", json!([])).await, json!([{"id": "blue"}]));
         assert_eq!(call("careerCosmetics", json!([])).await, json!([{"kind": "avatar"}]));
+
+        // Coin Cosmetics Boutique purchase (careerBuyCosmetic)
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS stats (user TEXT NOT NULL, counter TEXT NOT NULL, value INTEGER NOT NULL, PRIMARY KEY (user, counter))",
+        )
+        .execute(&mut db)
+        .await
+        .unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        std::fs::write(
+            &views,
+            json!({
+                "starters": [{"id": "blue"}],
+                "cosmetics": [
+                    {"kind": "playmat", "id": "velvet-command", "name": "Command Table Velvet", "price": 450},
+                    {"kind": "avatar", "id": "owl", "name": "Owl", "price": 0}
+                ]
+            })
+            .to_string(),
+        )
+        .unwrap();
+        sqlx::query("UPDATE profile SET coins = 500 WHERE user = 'neri'").execute(&mut db).await.unwrap();
+        let bought = call("careerBuyCosmetic", json!(["playmat", "velvet-command"])).await;
+        // single priced item is automatically in this week's Curator's Picks (20% off: 450 -> 360)
+        assert_eq!(bought["coins"], json!(140));
+        // already owned or not for sale is refused
+        assert!(matches!(
+            stores.call(&neri, &request("careerBuyCosmetic", json!(["playmat", "velvet-command"])), true).await,
+            Outcome::Error { .. }
+        ));
+        assert!(matches!(
+            stores.call(&neri, &request("careerBuyCosmetic", json!(["avatar", "owl"])), true).await,
+            Outcome::Error { .. }
+        ));
 
         // the roster: Java's views with neri's wins and nemesis (solo.db, under the name as signed in)
         std::thread::sleep(std::time::Duration::from_millis(20));

@@ -11,9 +11,10 @@ import { useCareerState } from './careerData';
 import { GameResult, OpponentCard, Recent, Standing } from './CareerRankedScreen';
 import { PackReveal } from './PackReveal';
 import { Pips } from './Portraits';
-import { leagueFormat, startReady, toggleStarter } from './leagueModel';
+import { leagueFormat, requiredStarters, startReady, toggleStarter } from './leagueModel';
 import { openLeaguePack, playLeague, startLeague, useLeagueDecks, useLeagueSets, useLeagueState } from './leagueData';
 import { useRankedOpponent, useRankedState } from './rankedData';
+import { formatKey, titleWords } from './rankedModel';
 import { SeasonBoards } from './SeasonBoards';
 import { Versus } from './Versus';
 import modes from './CareerModes.module.css';
@@ -84,7 +85,7 @@ export function CareerLeagueScreen() {
 type Translate = ReturnType<typeof useT>;
 
 function formatName(t: Translate, format: string | undefined): string {
-  return t(`career.ranked.format.${format === 'pioneer' ? 'pioneer' : 'standard'}`);
+  return t(formatKey(format));
 }
 
 function StartLeague({ league, state }: { league: LeagueFormat; state: LeagueState }) {
@@ -93,6 +94,7 @@ function StartLeague({ league, state }: { league: LeagueFormat; state: LeagueSta
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const format = league.format ?? '';
+  const required = requiredStarters(league);
   const wildcards = state.startWildcards;
 
   async function start() {
@@ -110,7 +112,7 @@ function StartLeague({ league, state }: { league: LeagueFormat; state: LeagueSta
   return (
     <section className={styles.start} aria-labelledby="league-start">
       <h2 id="league-start" className={modes.subhead}>{t('league.start.title', { format: formatName(t, format) })}</h2>
-      <p className={modes.small}>{t('league.start.lead')}</p>
+      <p className={modes.small}>{t(required === 1 ? 'league.start.leadOne' : 'league.start.lead')}</p>
       <ul className={styles.starters} aria-label={t('league.start.pick')}>
         {(league.starters ?? []).map((starter) => {
           const on = picked.includes(starter.id ?? '');
@@ -120,7 +122,7 @@ function StartLeague({ league, state }: { league: LeagueFormat; state: LeagueSta
                 type="button"
                 className={[styles.starter, on ? styles.starterOn : ''].join(' ')}
                 aria-pressed={on}
-                onClick={() => setPicked((current) => toggleStarter(current, starter.id ?? ''))}
+                onClick={() => setPicked((current) => toggleStarter(current, starter.id ?? '', required))}
                 data-nav
               >
                 <Pips colors={starter.colors} size="sm" />
@@ -132,7 +134,7 @@ function StartLeague({ league, state }: { league: LeagueFormat; state: LeagueSta
         })}
       </ul>
       <ul className={modes.lines} aria-label={t('league.start.gives')}>
-        <li>{t('league.start.decks')}</li>
+        <li>{t(required === 1 ? 'league.start.deckOne' : 'league.start.decks')}</li>
         <li>{t('league.start.packs', { count: league.startPacks ?? 0, format: formatName(t, format) })}</li>
         {state.first && wildcards && (
           <li>{t('league.start.wildcards', { common: wildcards.common ?? 0, uncommon: wildcards.uncommon ?? 0, rare: wildcards.rare ?? 0 })}</li>
@@ -140,8 +142,8 @@ function StartLeague({ league, state }: { league: LeagueFormat; state: LeagueSta
       </ul>
       {error && <p className={modes.error} role="alert">{error}</p>}
       <div className={modes.actions}>
-        <Button variant="decision" size="lg" disabled={!startReady(picked) || busy} onClick={() => void start()} data-nav>
-          {t(startReady(picked) ? 'league.start.go' : 'league.start.pickTwo')}
+        <Button variant="decision" size="lg" disabled={!startReady(picked, required) || busy} onClick={() => void start()} data-nav>
+          {t(startReady(picked, required) ? 'league.start.go' : required === 1 ? 'league.start.pickOne' : 'league.start.pickTwo')}
         </Button>
       </div>
     </section>
@@ -176,6 +178,8 @@ function Queue({ format, state }: { format: string; state: LadderState }) {
   const opponent = useRankedOpponent(format, true, 'league');
   const decks = useLeagueDecks(format);
   const busy = usePlay((play) => play.phase !== 'idle');
+  const isCommander = format === 'commander';
+  const [pod, setPod] = useState(isCommander);
   const [deckId, setDeckId] = useState<string | null>(null);
   const [versus, setVersus] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -190,6 +194,30 @@ function Queue({ format, state }: { format: string; state: LadderState }) {
       {opponent.isPending && <p className={modes.note}>{t('career.loading')}</p>}
       {opponent.isError && <p className={modes.error} role="alert">{t('career.failed')}</p>}
       {them && <OpponentCard opponent={them} />}
+      {isCommander && (
+        <div className={ranked.formats} role="tablist" aria-label={t('career.ranked.queues')}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!pod}
+            className={[ranked.format, !pod ? ranked.formatOn : ''].join(' ')}
+            onClick={() => setPod(false)}
+            data-nav
+          >
+            {t('career.ranked.queue.duel')}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={pod}
+            className={[ranked.format, pod ? ranked.formatOn : ''].join(' ')}
+            onClick={() => setPod(true)}
+            data-nav
+          >
+            {t('career.ranked.queue.pod')}
+          </button>
+        </div>
+      )}
       <label className={ranked.field}>
         <span>{t('league.deck')}</span>
         <select value={deck?.id ?? ''} onChange={(event) => setDeckId(event.target.value)} disabled={decks.isPending} data-nav>
@@ -203,7 +231,7 @@ function Queue({ format, state }: { format: string; state: LadderState }) {
       {error && <p className={modes.error} role="alert">{error}</p>}
       <div className={modes.actions}>
         <Button variant="decision" size="lg" icon={<Swords size={18} />} disabled={!ready || !them || busy || !!state.playing} onClick={() => setVersus(true)} data-nav>
-          {t('league.play')}
+          {t(isCommander && pod ? 'league.playPod' : 'league.play')}
         </Button>
       </div>
       {state.playing && <p className={modes.small}>{t('career.ranked.playingNow')}</p>}
@@ -211,17 +239,22 @@ function Queue({ format, state }: { format: string; state: LadderState }) {
         <li>{t('league.rule.owned')}</li>
         <li>{t('career.ranked.ruleNoAssists')}</li>
         <li>{t('league.rule.pays')}</li>
+        {isCommander && pod && <li>{t('career.ranked.rulePod')}</li>}
       </ul>
       {versus && them && deck && (
         <Versus
-          kicker={`${t('league.title')} · ${state.label ?? ''}`}
-          opponent={{ name: them.name ?? '', colors: them.colors, tagline: them.deckName }}
+          kicker={`${t('league.title')}${isCommander && pod ? ` · ${t('career.ranked.queue.pod')}` : ''} · ${state.label ?? ''}`}
+          opponent={{
+            name: isCommander && pod ? t('career.ranked.podTableTitle', { lead: them.name ?? '' }) : (them.name ?? ''),
+            avatar: them.avatar,
+            tagline: them.title ? titleWords(them.title) : undefined,
+          }}
           deck={{ name: deck.name ?? '' }}
-          stakes={[t('career.ranked.stakeWin'), t('league.stakeTier')]}
+          stakes={[t(isCommander && pod ? 'career.ranked.stakePod' : 'career.ranked.stakeWin'), t('league.stakeTier')]}
           onFight={async () => {
             setError(null);
             try {
-              await playLeague(format, deck.id ?? '');
+              await playLeague(format, deck.id ?? '', isCommander && pod);
             } catch (failure) {
               setError(failure instanceof Error ? failure.message : String(failure));
               throw failure;

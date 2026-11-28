@@ -1,0 +1,19 @@
+# name: Train450 mono-b-control-7
+# archetype: control
+# colors: B
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abstruse Interference
+2 Angel of Suffering
+2 Black Sun's Twilight
+1 Deadly Embrace
+2 Flesh to Dust
+2 Gruesome Fate
+3 Horribly Awry
+2 Morkrut Behemoth
+2 Path of Peril
+4 Tragedy Feaster
+3 Ultimate Price
+3 Vayne's Treachery
+3 Visions of Villainy
+3 Warping Wail
+26 Swamp

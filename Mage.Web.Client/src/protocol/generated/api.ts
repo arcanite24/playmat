@@ -137,6 +137,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('hostGameEnded', gameId, token, winnerId, turns, reason, timeLeft, summary),
     hostGameTurn: (gameId: UUID, token: string, turn: number, activePlayerId: string | null, line: unknown) =>
       rpc.call('hostGameTurn', gameId, token, turn, activePlayerId, line),
+    hostGameAssisted: (gameId: UUID, token: string, what: string) =>
+      rpc.call('hostGameAssisted', gameId, token, what),
     gameResync: (gameId: UUID) =>
       rpc.call('gameResync', gameId, SESSION),
     gameStateResync: (gameId: UUID) =>
@@ -377,14 +379,18 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerStarters'),
     careerStart: (starterId: string) =>
       rpc.call('careerStart', starterId),
+    careerAcquirePrecon: (starterId: string) =>
+      rpc.call('careerAcquirePrecon', starterId),
+    careerSetQuestPref: (pref: string) =>
+      rpc.call('careerSetQuestPref', pref),
     careerDeck: () =>
       rpc.call('careerDeck'),
     careerSaveDeck: (deck: DeckCardLists) =>
       rpc.call('careerSaveDeck', deck),
     careerDecks: () =>
       rpc.call('careerDecks'),
-    careerSaveNamedDeck: (id: string | null, name: string, deck: DeckCardLists, activate?: boolean | null) =>
-      rpc.call('careerSaveNamedDeck', id, name, deck, activate),
+    careerSaveNamedDeck: (id: string | null, name: string, deck: DeckCardLists, activate?: boolean | null, format?: string | null) =>
+      rpc.call('careerSaveNamedDeck', id, name, deck, activate, format),
     careerSelectDeck: (id: string) =>
       rpc.call('careerSelectDeck', id),
     careerDeleteDeck: (id: string) =>
@@ -393,8 +399,12 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerCollection'),
     careerOpponents: () =>
       rpc.call('careerOpponents'),
+    careerCommanderOpponents: () =>
+      rpc.call('careerCommanderOpponents'),
     careerPlay: (opponentId: string, deck: DeckCardLists, adaptive?: boolean | null) =>
       rpc.call('careerPlay', opponentId, deck, adaptive),
+    careerCommanderPlay: (opponentId: string, deck: DeckCardLists, adaptive?: boolean | null) =>
+      rpc.call('careerCommanderPlay', opponentId, deck, adaptive),
     careerShop: () =>
       rpc.call('careerShop'),
     careerBuyPack: (setCode: string) =>
@@ -411,10 +421,14 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('ladderOpponent', format, queue),
     ladderPlay: (format: string, deck: DeckCardLists, queue?: string | null) =>
       rpc.call('ladderPlay', format, deck, queue),
-    leaguePlay: (format: string, deckId: string) =>
-      rpc.call('leaguePlay', format, deckId),
+    leaguePlay: (format: string, deckId: string, pod?: boolean | null) =>
+      rpc.call('leaguePlay', format, deckId, pod),
     ladderResult: (tableId: string) =>
       rpc.call('ladderResult', tableId),
+    ladderGameDeck: (gameId: string) =>
+      rpc.call('ladderGameDeck', gameId),
+    ladderMythicStandings: (format: string, queue?: string | null, includeBots?: boolean | null) =>
+      rpc.call('ladderMythicStandings', format, queue, includeBots),
     leagueState: () =>
       rpc.call('leagueState'),
     leagueStart: (format: string, starters: string[]) =>
@@ -467,12 +481,20 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerMachines'),
     careerBuyTokens: (count: number) =>
       rpc.call('careerBuyTokens', count),
+    careerBuyCosmetic: (kind: string, id: string) =>
+      rpc.call('careerBuyCosmetic', kind, id),
+    careerRedeemSwarmCredits: (workerToken: string) =>
+      rpc.call('careerRedeemSwarmCredits', workerToken),
     careerPull: (machine: string, count: number) =>
       rpc.call('careerPull', machine, count),
     careerEquipStyle: (card: string, item?: string | null) =>
       rpc.call('careerEquipStyle', card, item),
     careerHall: () =>
       rpc.call('careerHall'),
+    careerPets: () =>
+      rpc.call('careerPets'),
+    careerSetPetStyle: (petId: string, style?: string | null) =>
+      rpc.call('careerSetPetStyle', petId, style),
     gameEmote: (gameId: UUID, emote: string) =>
       rpc.call('gameEmote', gameId, emote),
     careerCampaigns: () =>
@@ -499,8 +521,16 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerMinedPuzzlePlay', puzzleId),
     careerHordes: () =>
       rpc.call('careerHordes'),
-    careerHordePlay: (hordeId: string, deckFile: string) =>
-      rpc.call('careerHordePlay', hordeId, deckFile),
+    careerHordePlay: (hordeId: string, deckFile?: string | null, deck?: DeckCardLists | null, endless?: boolean | null) =>
+      rpc.call('careerHordePlay', hordeId, deckFile, deck, endless),
+    careerArchenemy: () =>
+      rpc.call('careerArchenemy'),
+    careerArchenemyPlay: (encounterId: string, deckFile?: string | null, deck?: DeckCardLists | null, planeChase?: boolean | null) =>
+      rpc.call('careerArchenemyPlay', encounterId, deckFile, deck, planeChase),
+    careerThg: () =>
+      rpc.call('careerThg'),
+    careerThgPlay: (pairId: string, partnerId: string, deckFile?: string | null, deck?: DeckCardLists | null, planeChase?: boolean | null) =>
+      rpc.call('careerThgPlay', pairId, partnerId, deckFile, deck, planeChase),
     metaLibrary: () =>
       rpc.call('metaLibrary'),
     careerChallenge: () =>

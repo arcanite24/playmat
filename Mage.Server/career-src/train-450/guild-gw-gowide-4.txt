@@ -1,0 +1,22 @@
+# name: Train450 guild-gw-gowide-4
+# archetype: gowide
+# colors: GW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Angelic Ascension
+2 Bloated Contaminator
+4 Civic Gardener
+3 Dauntless Bodyguard
+2 Dust Animus
+4 Gene Pollinator
+2 Hound Tamer
+3 Lambholt Pacifist
+1 Lumaret's Favor
+4 Nylea, God of the Hunt
+3 Savannah Lions
+3 Soul Partition
+3 Sundial, Dawn Tyrant
+3 Tail Swipe
+4 Creosote Heath
+8 Forest
+4 Horizon Canopy
+6 Plains

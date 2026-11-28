@@ -1,0 +1,20 @@
+{
+  "$comment": "NB 2.1 art spec for the Coin Cosmetics Boutique sleeves. Paint with: node art/wavespeed.mjs boutique-sleeve --backend gemini",
+  "out": "public/career-art/sleeve",
+  "lead": "Paint the back of a fantasy trading card, portrait orientation, filling edge to edge.",
+  "house": false,
+  "series": false,
+  "aspect": "3:4",
+  "size": "540x756",
+  "refs": ["mps/24", "dmu/295"],
+  "style": "Symmetrical ornamental card-back painting in oil and gouache with crisp hand-painted filigree and rich lacquered pigments.",
+  "rules": "Paint the BACK of a playing card: a symmetrical ornamental design (looks right-side-up from both top and bottom) with a central emblem framed by a painted border; no text, no logo, no oval, no five dots, no lettering.",
+  "items": [
+    { "id": "guild-azorius", "subject": "symmetrical marble-and-sapphire geometric filigree card back with interlocking white-gold scales and soaring bird-wing arches" },
+    { "id": "guild-rakdos", "subject": "symmetrical crimson velvet and wrought-iron scrollwork card back with stylized flame motifs and burnished bronze diamonds" },
+    { "id": "guild-golgari", "subject": "symmetrical deep moss-green and dark slate botanical card back with woven fern fronds, mushrooms and carved stone knots" },
+    { "id": "guild-izzet", "subject": "symmetrical cobalt-and-copper artificer coil card back with sweeping brass arcs, balanced lightning filaments and enamel panels" },
+    { "id": "dragon-scales", "subject": "symmetrical overlapping burnished crimson-and-bronze dragon scales framed by dark forged iron filigree" },
+    { "id": "celestial-astrolabe", "subject": "symmetrical midnight-blue astronomical astrolabe card back with fine gold-leaf rings, crescent moons and compass stars" }
+  ]
+}

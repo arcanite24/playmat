@@ -64,7 +64,11 @@ room_check() {
     (( size > biggest )) && biggest=$size
   done
   need=$(( need + biggest + BACKUP_MIN_FREE_MB * 1024 * 1024 ))
-  free=$(df -P -B1 "$BACKUP_DIR" | awk 'NR == 2 { print $4 }')
+  if [[ -n ${BACKUP_FREE_BYTES:-} ]]; then
+    free=$BACKUP_FREE_BYTES
+  else
+    free=$(df -P -B1 "$BACKUP_DIR" | awk 'NR == 2 { print $4 }')
+  fi
   if [[ ! $free =~ ^[0-9]+$ ]] || (( free < need )); then
     log "not enough disk for a backup: $(( ${free:-0} / 1048576 )) MB free, $(( need / 1048576 )) MB needed" \
       "(lower BACKUP_KEEP or remove old backups)"
@@ -80,10 +84,11 @@ backup_once() {
   # leftovers of interrupted runs first: a run that died of a full disk leaves its partial copy behind
   find "$BACKUP_DIR" -maxdepth 1 -name '.partial-*' -mmin +120 -exec rm -rf {} +
   room_check
-  h2=$(h2_jar)
+  h2=
   mkdir -p "$tmp"
   for db in "${H2_DBS[@]}"; do
     [[ -e $DB_DIR/$db.mv.db ]] || continue
+    [[ -n $h2 ]] || h2=$(h2_jar)
     # With the server running, AUTO_SERVER hands the SCRIPT command to the server's process, which writes the file in
     # its own container. So the dump goes to the db volume both containers mount, at the same path, then moves here.
     local dump=$DB_DIR/.backup-$db.sql
@@ -133,13 +138,15 @@ restore() {
   local name=${1:?usage: xmage-backup restore NAME}
   local src=$BACKUP_DIR/$name h2
   [[ -d $src ]] || { echo "xmage-backup: no backup named $name (see: xmage-backup list)" >&2; exit 1; }
-  if (exec 3<>/dev/tcp/xmage/17172) 2>/dev/null; then
+  local server_host=${BACKUP_SERVER_HOST:-xmage}
+  if (exec 3<>"/dev/tcp/$server_host/17172") 2>/dev/null; then
     echo "xmage-backup: the xmage server is running; stop it first: docker compose stop xmage" >&2
     exit 1
   fi
-  h2=$(h2_jar)
+  h2=
   for db in "${H2_DBS[@]}"; do
     [[ -f $src/$db.sql.gz ]] || continue
+    [[ -n $h2 ]] || h2=$(h2_jar)
     rm -f "$DB_DIR/$db".*.db
     gunzip -c "$src/$db.sql.gz" > "/tmp/$db.sql"
     java -Xmx256m -cp "$h2" org.h2.tools.RunScript \

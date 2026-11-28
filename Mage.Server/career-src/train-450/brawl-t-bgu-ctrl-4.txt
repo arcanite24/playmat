@@ -1,0 +1,53 @@
+# name: Train450 brawl-t-bgu-ctrl-4
+# archetype: brawl_ctrl
+# colors: BGU
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+1 Assassin's Trophy
+1 Assimilate Essence
+1 Cabaretti Initiate
+1 Deliberate
+1 Dimir Charm
+1 Drown in the Loch
+1 Drownyard Explorers
+1 Frilled Cave-Wurm
+1 Gingerbread Hunter
+1 Gix's Command
+1 Gluttonous Troll
+1 Grotesque Demise
+1 Hardy Veteran
+1 Hour of Need
+1 Ingenious Skaab
+1 Jolrael, Voice of Zhalfir
+1 Lotus Path Djinn
+1 Metallic Rebuke
+1 Mind Transfer Protocol
+1 Mugato
+1 Old Fat Spider
+1 Pestilent Spirit
+1 Planar Incision
+1 Render Inert
+1 Revolutionary Rebuff
+1 Rocksteady, Crash Courser
+1 Scatter Ray
+1 Shredder's Technique
+1 Soul of the Harvest
+1 Species Gorger
+1 Teferi's Protege
+1 Wail of the Forgotten
+1 Warg Tactics
+1 Wild Onslaught
+1 Blooming Marsh
+1 Dimir Guildgate
+1 Earth, Sector 001
+4 Forest
+1 Foul Orchard
+6 Island
+1 Lakeside Shack
+1 Lush Oasis
+1 Paradox Gardens
+1 Restless Reef
+1 Restless Vinestalk
+1 Serpent's Pass
+4 Swamp
+1 Temple of Deceit
+1 Woodland Stream

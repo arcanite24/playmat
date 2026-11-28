@@ -1,0 +1,21 @@
+# name: Train200 guild-rw-bigmana-7
+# archetype: bigmana
+# colors: RW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+2 Battlewise Valor
+4 Bonehoard Dracosaur
+4 Daredevil, Man Without Fear
+3 Daring Buccaneer
+3 Goblin Guide
+2 Gold-Forged Sentinel
+4 Kree Sentinel
+3 Penance Stare
+3 Ravenous Giant
+1 Shatterskull Charger
+1 Sire of Seven Deaths
+3 Unsubtle Mockery
+2 Warcry Phoenix
+13 Mountain
+4 Plains
+4 Sunbaked Canyon
+4 Wind-Scarred Crag

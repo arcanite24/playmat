@@ -1,0 +1,23 @@
+# name: Train450 tri-urw-midrange-2
+# archetype: midrange
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Adeliz, the Cinder Wind
+2 Alabaster Kirin
+4 Cloudshift
+2 Elite Guardmage
+4 Fatehold Charm
+4 Gearsmith Prodigy
+2 Joshua, Phoenix's Dominant
+3 Phyrexian Missionary
+4 Plunder the Trollshaws
+2 Saheeli, Consul of Oversight
+1 Stormchaser Mage
+2 Thunder Brute
+4 Wanderlight Spirit
+5 Island
+4 Meticulous Archive
+2 Mountain
+5 Plains
+4 Prismari Campus
+4 Raugrin Triome

@@ -1,0 +1,23 @@
+# name: Train450 guild-ur-midrange-7
+# archetype: midrange
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Byway Barterer
+3 Channeled Dragonfire
+3 Chilling Trap
+1 Demon Bolt
+1 Galestrike
+2 Glamermite
+2 Hobgoblin, Mantled Marauder
+4 Humbling Elder
+2 Knightfisher
+2 Lavaleaper
+2 Lightning Stormkin
+3 Mardu Blazebringer
+2 Reality Smasher
+4 Rending Flame
+3 Stormcaller of Keranos
+4 Eroded Canyon
+4 Fiery Islet
+6 Island
+10 Mountain

@@ -106,9 +106,6 @@ public class GameState implements Serializable, Copyable<GameState> {
     private Map<UUID, MageObjectAttribute> mageObjectAttribute = new HashMap<>();
     private Map<UUID, Integer> zoneChangeCounter = new HashMap<>();
     private Map<UUID, Card> copiedCards = new HashMap<>();
-    // Card copies that remain in a nonstandard zone while a source permanent exists.
-    // The normal state-based action removes all other card copies outside the stack/battlefield.
-    private Map<UUID, UUID> persistentCardCopySources = new HashMap<>();
     private int permanentOrderNumber;
     private final Map<UUID, FilterCreaturePermanent> usePowerInsteadOfToughnessForDamageLethalityFilters = new HashMap<>();
     private Set<MageObjectReference> commandersToStay = new HashSet<>(); // commanders that do not go back to command zone
@@ -187,7 +184,6 @@ public class GameState implements Serializable, Copyable<GameState> {
         this.mageObjectAttribute = CardUtil.deepCopyObject(state.mageObjectAttribute);
         this.zoneChangeCounter.putAll(state.zoneChangeCounter);
         this.copiedCards.putAll(state.copiedCards);
-        this.persistentCardCopySources.putAll(state.persistentCardCopySources);
         this.permanentOrderNumber = state.permanentOrderNumber;
         this.applyEffectsCounter = state.applyEffectsCounter;
         state.usePowerInsteadOfToughnessForDamageLethalityFilters.forEach((uuid, filter)
@@ -234,9 +230,36 @@ public class GameState implements Serializable, Copyable<GameState> {
         zones.clear();
         simultaneousEvents.clear();
         copiedCards.clear();
-        persistentCardCopySources.clear();
         usePowerInsteadOfToughnessForDamageLethalityFilters.clear();
         permanentOrderNumber = 0;
+    }
+
+    /**
+     * Seats the players as they sat in {@code saved} (the same players, by id): its table order and its turn order.
+     * A game carried on from a snapshot starts at a new table, whose match shuffles the seats; without this the
+     * resumed game would play its turns in another order.
+     *
+     * @return false when the players aren't the same, and nothing changed
+     */
+    public boolean seatLike(GameState saved) {
+        List<UUID> tableOrder = new ArrayList<>(saved.players.keySet());
+        List<UUID> turnOrder = new ArrayList<>(saved.playerList);
+        if (!new HashSet<>(tableOrder).equals(players.keySet()) || !new HashSet<>(turnOrder).equals(new HashSet<>(playerList))
+                || tableOrder.size() != players.size() || turnOrder.size() != playerList.size()) {
+            return false;
+        }
+        Map<UUID, Player> byId = new HashMap<>(players);
+        players.clear();
+        for (UUID playerId : tableOrder) {
+            players.put(playerId, byId.get(playerId));
+        }
+        UUID current = playerList.get();
+        playerList.clear();
+        playerList.addAll(0, turnOrder);
+        if (current != null) {
+            playerList.setCurrent(current);
+        }
+        return true;
     }
 
     public void restoreForRollBack(GameState state) {
@@ -296,7 +319,6 @@ public class GameState implements Serializable, Copyable<GameState> {
         this.mageObjectAttribute = state.mageObjectAttribute;
         this.zoneChangeCounter = state.zoneChangeCounter;
         this.copiedCards = state.copiedCards;
-        this.persistentCardCopySources = state.persistentCardCopySources;
         this.permanentOrderNumber = state.permanentOrderNumber;
         this.applyEffectsCounter = state.applyEffectsCounter;
         state.usePowerInsteadOfToughnessForDamageLethalityFilters.forEach((uuid, filter)
@@ -712,6 +734,7 @@ public class GameState implements Serializable, Copyable<GameState> {
             player.reset();
         }
         this.reset();
+        effects.removeInactiveEffects(game);
         battlefield.reset(game);
         combat.reset(game);
         effects.apply(game);
@@ -1570,19 +1593,6 @@ public class GameState implements Serializable, Copyable<GameState> {
 
     public Collection<Card> getCopiedCards() {
         return copiedCards.values();
-    }
-
-    public void keepCardCopyWhileSourceExists(UUID cardId, UUID sourcePermanentId) {
-        // Some rules create persistent card copies that are exempt from the normal copy cleanup SBA.
-        persistentCardCopySources.put(cardId, sourcePermanentId);
-    }
-
-    public void stopKeepingCardCopy(UUID cardId) {
-        persistentCardCopySources.remove(cardId);
-    }
-
-    public UUID getPersistentCardCopySource(UUID cardId) {
-        return persistentCardCopySources.get(cardId);
     }
 
     /**

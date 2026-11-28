@@ -1,0 +1,22 @@
+# name: Train200 guild-rg-bigmana-7
+# archetype: bigmana
+# colors: RG
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Ball Lightning
+2 Cactuar
+1 Hallar, the Firefletcher
+2 Lathnu Hellion
+3 Lightning Bolt
+4 Lightning Shrieker
+4 Lupine Prototype
+3 Migloz, Maze Crusher
+1 Raging Swordtooth
+1 Return to Nature
+2 Savage Land Dinosaur
+2 Tread Upon
+2 Unnatural Aggression
+4 Vorinclex
+8 Forest
+4 Karplusan Forest
+9 Mountain
+4 Stomping Ground

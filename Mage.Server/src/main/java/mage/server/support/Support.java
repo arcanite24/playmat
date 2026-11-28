@@ -102,6 +102,11 @@ public final class Support {
         default java.util.Map<String, String> careerCardStyles(String account) {
             return Collections.emptyMap();
         }
+
+        /** the account's bond progress for a pet, or null before any games with it (Phase 6) */
+        default CareerStore.PetProgressRow careerPetBond(String account, String petId) {
+            return null;
+        }
     }
 
     /** The public thank-you post (Discord). */
@@ -592,9 +597,18 @@ public final class Support {
         look.cloth = cloth != null && (FREE_CLOTHS.contains(cloth) || owned.contains("playmat:" + cloth)) ? cloth : null;
         look.avatar = owned(owned, "avatar", wanted.avatar);
         look.frame = owned(owned, "frame", wanted.frame);
+        look.commandFrame = owned(owned, "cmdframe", wanted.commandFrame);
         look.title = owned(owned, "title", wanted.title);
         look.flair = owned(owned, "flair", wanted.flair);
         look.pet = owned(owned, "pet", wanted.pet);
+        if (look.pet != null) {
+            CareerStore.PetProgressRow bond = accounts.careerPetBond(account, look.pet);
+            if (bond != null) {
+                int tier = Math.max(1, bond.tier);
+                look.petTier = tier;
+                look.petStyle = mage.server.career.CareerPets.validStyleForTier(bond.style, tier) ? bond.style : null;
+            }
+        }
         look.arrow = owned(owned, "arrow", wanted.arrow);
         look.spark = owned(owned, "spark", wanted.spark);
         look.stamp = owned(owned, "stamp", wanted.stamp);
@@ -1056,6 +1070,15 @@ public final class Support {
                     return mage.server.career.CareerCapsules.get().worn(account);
                 } catch (SQLException | RuntimeException e) {
                     return Collections.emptyMap();
+                }
+            }
+
+            @Override
+            public CareerStore.PetProgressRow careerPetBond(String account, String petId) {
+                try {
+                    return mage.server.career.CareerPets.get().bondOf(account, petId);
+                } catch (SQLException | RuntimeException e) {
+                    return null;
                 }
             }
         };

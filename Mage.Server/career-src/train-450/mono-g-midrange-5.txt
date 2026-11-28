@@ -1,0 +1,17 @@
+# name: Train450 mono-g-midrange-5
+# archetype: midrange
+# colors: G
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+3 Ashnod's Harvester
+2 Bristlebud Farmer
+4 Confront the Unknown
+2 Edge Rover
+4 Herald of Kozilek
+4 Lasyd Prowler
+3 Old-Growth Dryads
+4 Over the Edge
+2 Professor of Zoomancy
+2 Savage Stomp
+4 Spider-Rex, Daring Dino
+2 Titanic Brawl
+24 Forest

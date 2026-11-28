@@ -8,7 +8,7 @@ pub const HANDLERS: &[Handler] = &[Handler::effect("InThePresenceOfAges.InThePre
 /// The reveal, then `choose(TargetCardAndOrCardInLibrary(CREATURE, LAND))`: one `HumanPlayer.choose`, a pick at a time
 /// among the cards that still leave a creature role and a land role apart (`hasSharedRoles`), until two are chosen or
 /// none is left; the chosen cards to the hand, the rest to the graveyard
-fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
+pub(super) fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let you = cx.controller();
     let cards: Vec<ObjId> = game.player(you).library.iter().take(4).copied().collect();
     if !cards.is_empty() {
@@ -20,6 +20,27 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             cards: cards.iter().map(|c| (*c, Zone::Library)).collect(),
         });
     }
+    let chosen = choose_creature_and_or_land(game, d, you, &cards)?;
+    for c in &chosen {
+        game.move_to(*c, Zone::Hand);
+    }
+    for c in cards {
+        if !chosen.contains(&c) && game.obj(c).zone == Zone::Library {
+            game.move_to(c, Zone::Graveyard);
+        }
+    }
+    Some(())
+}
+
+/// `TargetCardAndOrCardInLibrary(CREATURE, LAND)` (or `CreatureAndOrLandInHandTarget`) chosen with one
+/// `HumanPlayer.choose`: a pick at a time among `cards` that still leave a creature role and a land role apart
+/// (`hasSharedRoles`), until two are chosen or none is left
+pub(super) fn choose_creature_and_or_land(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    you: Seat,
+    cards: &[ObjId],
+) -> Option<Vec<ObjId>> {
     let creature = |game: &Game, c: ObjId| game.obj(c).def.types.contains(&CardType::Creature);
     let land = |game: &Game, c: ObjId| game.obj(c).def.types.contains(&CardType::Land);
     let fits = |game: &Game, set: &[ObjId]| match set {
@@ -63,13 +84,5 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             return None;
         }
     }
-    for c in &chosen {
-        game.move_to(*c, Zone::Hand);
-    }
-    for c in cards {
-        if !chosen.contains(&c) && game.obj(c).zone == Zone::Library {
-            game.move_to(c, Zone::Graveyard);
-        }
-    }
-    Some(())
+    Some(chosen)
 }

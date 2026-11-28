@@ -1,0 +1,35 @@
+# name: Train450 lim-g-br-aggro-1
+# archetype: limited_aggro
+# colors: BR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Abnormal Endurance
+1 Archetype of Aggression
+1 Bartizan Bats
+2 Bombur, Gentle Dreamer
+1 Cabal Evangel
+1 Demonic Gifts
+1 Dwarven Forge-Chanter
+1 Genesis Effect
+2 Ghastly Gloomhunter
+1 Goblin Smuggler
+1 Grim Initiate
+1 Hellkite Tyrant
+2 Hired Hexblade
+2 Human Torch, Johnny Storm
+1 Insolent Neonate
+1 Khenra Scrapper
+1 Magda, the Hoardmaster
+1 Massacre Wurm
+2 Nahiri's Warcrafting
+2 Ob Nixilis, Captive Kingpin
+1 Pumpkin Bombardment
+2 Rakdos Charm
+1 Spike Jester
+2 Stinging Hivemaster
+1 Tin Street Dodger
+2 Torch Courier
+1 Toxic Abomination
+4 Bloodfell Caves
+8 Mountain
+4 Razortrap Gorge
+7 Swamp

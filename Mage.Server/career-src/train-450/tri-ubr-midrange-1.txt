@@ -1,0 +1,24 @@
+# name: Train450 tri-ubr-midrange-1
+# archetype: midrange
+# colors: UBR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Baleful Ammit
+3 Broadside Barrage
+2 Cobbled Lancer
+2 Dragonlord Kolaghan
+3 Ember Swallower
+2 Glorybringer
+3 Krenko's Buzzcrusher
+4 Leering Onlooker
+2 Order of Midnight
+3 Plasma Cascade
+2 Shatter
+1 Splash Portal
+2 Squee, Dubious Monarch
+3 Unholy Heat
+4 Dimir Guildgate
+2 Island
+6 Mountain
+4 Qo'noS
+4 Sinister Hideout
+4 Swamp

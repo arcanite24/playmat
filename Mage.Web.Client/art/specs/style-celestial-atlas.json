@@ -1,0 +1,49 @@
+{
+  "$comment": "Card styles of the Celestial Atlas set (Planar Horizons capsule machine), written by art/machine-specs.mjs from career/machines/planar-horizons.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/celestial-atlas",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [
+    "thb/250",
+    "thb/252",
+    "thb/254"
+  ],
+  "style": "Astronomical watercolour and gold-ink landscape painting: twilight skies filled with subtle painted nebulae and brass-thin star arcs over calm silhouetted terrain.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: wide pale chalk downs and a lone standing stone beneath a sweeping arc of golden morning stars",
+  "items": [
+    {
+      "id": "plains",
+      "subject": "wide pale chalk downs and a lone standing stone beneath a sweeping arc of golden morning stars"
+    },
+    {
+      "id": "island",
+      "subject": "a mirror-still lagoon reflecting towering star-strewn clouds and a quiet coral atoll"
+    },
+    {
+      "id": "swamp",
+      "subject": "black mirror peat pools reflecting faint violet constellations between skeletal bog cypresses"
+    },
+    {
+      "id": "mountain",
+      "subject": "jagged basalt spires silhouetted against a blazing meteor shower and warm crimson horizon"
+    },
+    {
+      "id": "forest",
+      "subject": "ancient silver-barked redwood giants parting overhead to frame a glowing emerald aurora"
+    },
+    {
+      "id": "set-celestial-atlas",
+      "out": "public/career-art/sleeve/set-celestial-atlas.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

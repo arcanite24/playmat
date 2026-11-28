@@ -1,0 +1,22 @@
+# name: Train200 guild-gw-bigmana-6
+# archetype: bigmana
+# colors: GW
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+1 Blazing Hope
+2 Duel for Dominance
+3 Edge Rover
+2 Elesh Norn, Mother of Machines
+3 Galewind Moose
+3 Holy Cow
+3 Kellan's Lightblades
+2 Loyal Gryff
+1 Resplendent Angel
+3 Saber-Tooth Moose-Lion
+4 Spider-Man, To the Rescue
+3 Stampeding Elk Herd
+3 Technodrome
+2 You're Ambushed on the Road
+4 Birnin Zana Plaza
+8 Forest
+9 Plains
+4 Windurst, Federation Center

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Benchmarks · Playmat</title>
+  <meta name="description" content="Public Archbench leaderboard for Playmat's neural and search MTG AIs alongside an independent survey of other Magic: The Gathering engines, RL bots, and frontier LLMs.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Playmat AI Benchmarks &amp; MTG AI Leaderboard">
+  <meta property="og:description" content="Archbench Elo ratings, zero-shot unseen-deck performance, tactical suites, and how Playmat's models compare with Forge, XMage, Magarena, MageZero, and frontier LLMs.">
+  <meta property="og:url" content="https://arcanite24.github.io/playmat/benchmarks/">
+  <meta property="og:image" content="https://arcanite24.github.io/playmat/assets/og.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="benchmarks.css">
+  <script src="benchmarks.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="../docs/">Docs</a></li>
+          <li><a href="../rust/">Rust port</a></li>
+          <li><a href="./" aria-current="page">Benchmarks</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="bm-hero">
+      <div class="wrap bm-hero-copy">
+        <p class="bm-kicker">Archbench &amp; MTG AI Landscape</p>
+        <h1>AI benchmarks &amp; leaderboard.</h1>
+        <p class="lede">Playmat measures every search change and self-play neural network on fixed, seeded Magic: The
+          Gathering duels and tactical suites under <a href="https://github.com/arcanite24/playmat/tree/master/archbench">Archbench</a>.
+          Below are our recorded model standings, our zero-shot results on unseen decks, and a research comparison with
+          the strongest other Magic AIs out there: rules-engine bots, open-source RL projects, and frontier LLMs.</p>
+        <p class="bm-callout">Different engines and benchmarks use different decks and rating pools. Where AIs have not
+          played on the same board, we keep their rating pools separate and state the harness plainly instead of
+          merging incompatible numbers.</p>
+        <p class="bm-stamp small" id="stamp">Loading recorded numbers from benchmarks.json...</p>
+      </div>
+    </section>
+
+    <noscript>
+      <div class="wrap"><p class="note">This page draws its tables and charts with JavaScript. The raw benchmark data
+        lives in <a href="benchmarks.json">benchmarks.json</a> and in
+        <a href="https://github.com/arcanite24/playmat/tree/master/archbench">archbench/</a>.</p></div>
+    </noscript>
+
+    <section class="bm-section" aria-labelledby="h-kpi">
+      <div class="wrap">
+        <h2 id="h-kpi" class="visually-hidden">Headline benchmark numbers</h2>
+        <ul class="bm-stats" id="stats"></ul>
+      </div>
+    </section>
+
+    <section class="bm-section" id="leaderboard" aria-labelledby="h-board">
+      <div class="wrap">
+        <div class="bm-head">
+          <h2 id="h-board">Leaderboards</h2>
+          <p>Switch between Playmat's fair imperfect-information neural gauntlets, full deep-search lineage, tactical
+            decision suites, external MTG engines, and frontier LLMs evaluated on real XMage games.</p>
+        </div>
+
+        <div class="bm-tabs" role="tablist" aria-label="Benchmark leaderboards" id="tabs">
+          <button class="bm-tab" role="tab" id="tab-gauntlet" aria-selected="true" aria-controls="panel-gauntlet" data-tab="gauntlet">Playmat Fair Gauntlet</button>
+          <button class="bm-tab" role="tab" id="tab-adapter-runs" aria-selected="false" aria-controls="panel-adapter-runs" data-tab="adapter-runs">Same-Board Cross-AI Runs</button>
+          <button class="bm-tab" role="tab" id="tab-lineage" aria-selected="false" aria-controls="panel-lineage" data-tab="lineage">Deep Search &amp; Lineage</button>
+          <button class="bm-tab" role="tab" id="tab-tactics" aria-selected="false" aria-controls="panel-tactics" data-tab="tactics">Tactics &amp; Pro Suites</button>
+          <button class="bm-tab" role="tab" id="tab-engines" aria-selected="false" aria-controls="panel-engines" data-tab="engines">Other MTG AIs</button>
+          <button class="bm-tab" role="tab" id="tab-llms" aria-selected="false" aria-controls="panel-llms" data-tab="llms">Frontier LLMs (mage-bench)</button>
+        </div>
+
+        <div class="bm-panel zone" role="tabpanel" id="panel-gauntlet" aria-labelledby="tab-gauntlet"></div>
+        <div class="bm-panel zone" role="tabpanel" id="panel-adapter-runs" aria-labelledby="tab-adapter-runs" hidden></div>
+        <div class="bm-panel zone" role="tabpanel" id="panel-lineage" aria-labelledby="tab-lineage" hidden></div>
+        <div class="bm-panel zone" role="tabpanel" id="panel-tactics" aria-labelledby="tab-tactics" hidden></div>
+        <div class="bm-panel zone" role="tabpanel" id="panel-engines" aria-labelledby="tab-engines" hidden></div>
+        <div class="bm-panel zone" role="tabpanel" id="panel-llms" aria-labelledby="tab-llms" hidden></div>
+      </div>
+    </section>
+
+    <section class="bm-section" id="progression" aria-labelledby="h-prog">
+      <div class="wrap">
+        <div class="bm-head">
+          <h2 id="h-prog">Strength progression</h2>
+          <p>How Playmat's AI climbed on <code>constructed@2</code> from uniform random play (1000) past our shipped
+            omniscient Rust search (<code>host@s6</code>, ~1437) to fair imperfect-information neural ISMCTS models
+            trained on 5.77M self-play decisions.</p>
+        </div>
+        <div class="bm-chart-card zone" id="prog-chart"></div>
+      </div>
+    </section>
+
+    <section class="bm-section" id="stress" aria-labelledby="h-stress">
+      <div class="wrap">
+        <div class="bm-head">
+          <h2 id="h-stress">Archetype stress check</h2>
+          <p>To prevent blind spots in high-variance or slow archetypes, Phase 4 stress-tested
+            <code>phase4-final-5m-v4-soup@256</code> (fair <code>hide=1</code>) across four archetype subsets against
+            omniscient <code>host@s6</code> (40 duplicate games each).</p>
+        </div>
+        <div class="bm-stress-grid" id="stress-grid"></div>
+      </div>
+    </section>
+
+    <section class="bm-section" id="efficiency" aria-labelledby="h-eff">
+      <div class="wrap">
+        <div class="bm-head">
+          <h2 id="h-eff">Speed, cost &amp; Java XMage comparison</h2>
+          <p>Strength is only half the story for a playable Magic server. Dedicated Rust search and local neural models
+            cost $0 per game and think in milliseconds to seconds; frontier LLMs can read any card text zero-shot, at
+            10 to 28 minutes of thinking time and $0.44 to $8.93 per game.</p>
+        </div>
+        <div class="bm-two">
+          <div class="bm-card zone" id="eff-box"></div>
+          <div class="bm-card zone" id="java-box"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bm-section" id="suites" aria-labelledby="h-suites">
+      <div class="wrap">
+        <div class="bm-head">
+          <h2 id="h-suites">Archbench suites &amp; methodology</h2>
+          <p>Every suite in <code>archbench/</code> is content-locked with deck fingerprints. Changing a deck, deal
+            order, mulligan rule or turn cap creates a new version, never an edit, so older ratings stay comparable.</p>
+        </div>
+        <div class="bm-suites" id="suites-grid"></div>
+        <div class="bm-method zone">
+          <div class="bm-method-col">
+            <h3>How we measure fairly</h3>
+            <ul>
+              <li><strong>Duplicate seat-swapped deals:</strong> each deal is played twice per pair of entrants with
+                seats swapped so shuffle luck cancels out.</li>
+              <li><strong>Strict imperfect information (<code>hide=1</code>):</strong> neural entrants never see the
+                opponent's hand or library order. An automated leakage test resamples all hidden cards at hundreds of
+                decisions and asserts the observation tensor is bit-identical.</li>
+              <li><strong>Bradley-Terry MLE ratings:</strong> ratings on the Elo scale (400 / ln 10) with observed
+                Fisher information 95% confidence intervals, plus trinomial SPRT gates for promotions.</li>
+              <li><strong>Strictly unseen OOD decks:</strong> <code>constructed-ood@1</code> (38 Modern, Limited and
+                Brawl decks) was held 100% out of all 18 Phase 4 self-play rounds to measure genuine generalization.</li>
+            </ul>
+          </div>
+          <div class="bm-method-col">
+            <h3>Adapters &amp; cross-AI harness</h3>
+            <ul>
+              <li><strong>Universal external protocol (<code>playmat-ext-v1</code>):</strong>
+                <code>PolicyKind::External</code> streams zero-leakage board state and legal choices over NDJSON TCP or
+                subprocess stdio (<code>ext:tcp://...</code>, <code>ext:cmd:...</code>), with optional <code>?obs=1</code>
+                numeric tensors for neural models.</li>
+              <li><strong>Jev &amp; frontier/open-weight LLMs:</strong> Ready-to-run adapters in
+                <code>rust/rl/adapters/</code> cover TypeSafe AI's <strong>Jev</strong> (OpenRouter Decisions API),
+                OpenRouter/OpenAI/Anthropic/Gemini models, and <code>$0</code> local Ollama/vLLM models, tracking
+                latency, tokens, USD cost, and fallback rate.</li>
+              <li><strong>Open MTG AIs &amp; harnesses:</strong> Includes ONNX Runtime (<code>onnx:</code>), Python
+                plugins for MageZero / MTG-Causal-RL (<code>python:</code>), Forge-style heuristics
+                (<code>open:forge-heuristic</code>), HTTP agents, mage-bench-style MCP bridges, and Forge/XMage CLI
+                wrappers.</li>
+              <li><strong>One-command benchmarking:</strong> <code>rust/rl/benchmark_harness.py</code> runs any mix of
+                Playmat models and external adapters on <code>constructed@2</code>, <code>constructed-ood@1</code>, and
+                <code>pro-decisions@1</code>, with <code>--publish-to-site</code> to update this page.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bm-section" aria-labelledby="h-links">
+      <div class="wrap">
+        <div class="bm-head">
+          <h2 id="h-links">Weights, data &amp; code</h2>
+        </div>
+        <ul class="bm-links">
+          <li><a class="zone" href="https://huggingface.co/nerijs/playmat-ai-checkpoints"><strong>Model checkpoints</strong><span>Open MIT-licensed .pmnet and PyTorch weights on Hugging Face.</span></a></li>
+          <li><a class="zone" href="https://huggingface.co/nerijs/playmat-ai-selfplay"><strong>Self-play dataset</strong><span>235,387 games and 5.77M compacted decisions archived publicly.</span></a></li>
+          <li><a class="zone" href="https://github.com/arcanite24/playmat/blob/master/docs/rust/Adapters.md"><strong>AI adapters &amp; harness</strong><span>Plug in Jev, LLMs, Ollama, ONNX, MCP, or custom MTG bots.</span></a></li>
+          <li><a class="zone" href="https://playmat.deimos.studio/swarm/networks"><strong>Mana@Home swarm</strong><span>Live distributed self-play tracker, SPRT gates, and network lineage.</span></a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>Playmat numbers come from <a href="benchmarks.json">benchmarks.json</a>, built by
+        <a href="https://github.com/arcanite24/playmat/blob/master/rust/tools/benchmarks.py">rust/tools/benchmarks.py</a>.
+        External LLM numbers are cited from <a href="https://mage-bench.com">mage-bench</a> (Season 1, 208 games).</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by
+        Wizards. Portions of the materials used are property of Wizards of the Coast. &copy;Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

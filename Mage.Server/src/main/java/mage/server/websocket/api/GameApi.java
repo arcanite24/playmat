@@ -65,6 +65,14 @@ final class GameApi {
                         .handler(call -> mage.server.RustHost.turn(call.uuid(0), call.string(1), call.integer(2),
                                 call.optString(3, ""), call.jsonObject(4))),
 
+                RpcMethod.named("hostGameAssisted")
+                        .publicAccess()
+                        .params(gameId(), of("token", STRING), of("what", STRING))
+                        .doc("The gateway only: the Rust host helped the player of a Career game it plays (what: hint), "
+                                + "counted as AdviceService counts a hint in a game Java plays (docs/rust/GameHost.md, Career "
+                                + "tables). Returns false for a game that isn't hosted.")
+                        .handler(call -> mage.server.RustHost.assisted(call.uuid(0), call.string(1), call.string(2))),
+
                 RpcMethod.named("gameResync")
                         .session(1)
                         .params(gameId(), of("sessionId", STRING))

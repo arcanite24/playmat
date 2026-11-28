@@ -10,7 +10,7 @@ import { CardFace } from '../ui/CardFace';
 import { useCareerSetProgress } from './careerData';
 import { PLAYSET } from './careerModel';
 import { ProgressBar } from './CareerScreen';
-import { binderCards, binderPages, collectionNames, newInBinder, readBinderSeen, writeBinderSeen, type BinderCard } from './binderModel';
+import { binderCards, binderPages, collectionNames, filterMissingPlayset, newInBinder, playsetProgress, readBinderSeen, writeBinderSeen, type BinderCard } from './binderModel';
 import { dealStyle } from './motion';
 import { fraction } from './progressModel';
 import motion from './motion.module.css';
@@ -87,10 +87,17 @@ function SetPages({ set, owned, fresh, onPick }: {
     staleTime: Infinity,
   });
   const cards = useMemo(() => binderCards(found.data ?? []), [found.data]);
-  const pages = useMemo(() => binderPages(cards), [cards]);
+  const [missingPlayset, setMissingPlayset] = useState(false);
+  const shown = useMemo(
+    () => (missingPlayset ? filterMissingPlayset(cards, owned) : cards),
+    [cards, owned, missingPlayset],
+  );
+  const pages = useMemo(() => binderPages(shown), [shown]);
   const [spread, setSpread] = useState(0);
   const spreads = Math.max(1, Math.ceil(pages.length / 2));
-  const have = cards.filter((card) => (owned.get(card.name.toLowerCase()) ?? 0) > 0).length;
+  const safeSpread = Math.min(spread, spreads - 1);
+  const have = useMemo(() => cards.filter((card) => (owned.get(card.name.toLowerCase()) ?? 0) > 0).length, [cards, owned]);
+  const { playsets } = useMemo(() => playsetProgress(cards, owned), [cards, owned]);
 
   // Page Up and Page Down turn the pages (the arrow keys move between pockets)
   useEffect(() => {
@@ -104,25 +111,41 @@ function SetPages({ set, owned, fresh, onPick }: {
     return () => window.removeEventListener('keydown', onKey);
   }, [spreads]);
 
-  const left = pages[spread * 2] ?? [];
-  const right = pages[spread * 2 + 1] ?? [];
+  const left = pages[safeSpread * 2] ?? [];
+  const right = pages[safeSpread * 2 + 1] ?? [];
   return (
     <section className={styles.book} aria-labelledby="binder-set">
       <header className={styles.bookHead}>
         <h2 id="binder-set">{set.name}</h2>
-        <span className={styles.complete}>{t('career.binder.complete', { have, total: cards.length })}</span>
+        <div className={styles.bookMeta}>
+          <span className={styles.complete}>{t('career.binder.complete', { have, total: cards.length })}</span>
+          <span className={styles.playsets}>{t('career.binder.playsets', { have: playsets, total: cards.length })}</span>
+          <label className={styles.toggle}>
+            <input
+              type="checkbox"
+              checked={missingPlayset}
+              onChange={(event) => {
+                setMissingPlayset(event.target.checked);
+                setSpread(0);
+              }}
+            />
+            {t('career.collection.missingPlayset')}
+          </label>
+        </div>
         <ProgressBar value={fraction(have, cards.length)} label={set.name ?? code} done={cards.length > 0 && have === cards.length} />
       </header>
-      {found.isPending ? <p className={styles.note}>{t('career.loading')}</p> : found.isError ? <p className={styles.note} role="alert">{t('career.failed')}</p> : (
-        <div className={[styles.spread, motion.scene].join(' ')} key={spread}>
+      {found.isPending ? <p className={styles.note}>{t('career.loading')}</p> : found.isError ? <p className={styles.note} role="alert">{t('career.failed')}</p> : shown.length === 0 && missingPlayset ? (
+        <p className={styles.note}>{t('career.binder.playsetComplete')}</p>
+      ) : (
+        <div className={[styles.spread, motion.scene].join(' ')} key={`${missingPlayset ? 'm' : 'a'}-${safeSpread}`}>
           <Page cards={left} owned={owned} fresh={fresh} onPick={onPick} first={0} />
           {right.length > 0 && <Page cards={right} owned={owned} fresh={fresh} onPick={onPick} first={left.length} />}
         </div>
       )}
       <footer className={styles.turn}>
-        <IconButton label={t('career.binder.previous')} icon={<ChevronLeft size={20} />} disabled={spread === 0} onClick={() => setSpread(spread - 1)} />
-        <span>{t('career.binder.page', { page: spread + 1, pages: spreads })}</span>
-        <IconButton label={t('career.binder.next')} icon={<ChevronRight size={20} />} disabled={spread >= spreads - 1} onClick={() => setSpread(spread + 1)} />
+        <IconButton label={t('career.binder.previous')} icon={<ChevronLeft size={20} />} disabled={safeSpread === 0} onClick={() => setSpread(safeSpread - 1)} />
+        <span>{t('career.binder.page', { page: safeSpread + 1, pages: spreads })}</span>
+        <IconButton label={t('career.binder.next')} icon={<ChevronRight size={20} />} disabled={safeSpread >= spreads - 1} onClick={() => setSpread(safeSpread + 1)} />
       </footer>
     </section>
   );

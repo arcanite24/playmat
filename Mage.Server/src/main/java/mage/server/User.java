@@ -544,6 +544,8 @@ public class User {
     }
 
     public void removeUserFromAllTables(DisconnectReason reason) {
+        // the Rust host's games first, while their tables are there to record the end
+        RustHost.userLeft(userId);
         logger.trace("REMOVE " + userName + " Draft sessions " + draftSessions.size());
         for (DraftSession draftSession : draftSessions.values()) {
             draftSession.setKilled();

@@ -290,6 +290,123 @@ public class RankedServiceTest {
         RankedService.gameEnded(other, UUID.randomUUID());
         assertNull(RankedService.lastGame(other.toString()), "only ranked tables");
         assertNull(RankedService.lastGame("not-a-table"));
+        // kept in the Career store too: after a restart, and for the Rust platform's careerGameResult
+        assertEquals(second.toString(), career.rankedGame(table.toString()));
+        assertNull(career.rankedGame(other.toString()));
+    }
+
+    @Test
+    void losingAlwaysRotatesToADifferentDeckEvenAcrossSkillClones() throws Exception {
+        // Two decks, each cloned at two skills (4 bots total): losing to deck A at s7 must rotate to deck B, never deck A s5
+        String json = "{\"anchors\":{\"standard\":\"a-s5\"},\"bots\":["
+                + "{\"id\":\"a-s5\",\"format\":\"standard\",\"deck\":\"standard/deck-a.dck\",\"archetype\":\"aggro\",\"skill\":5,\"prior\":1200,\"rating\":1200,\"rd\":40,\"games\":40,\"persona\":{\"name\":\"A5\"}},"
+                + "{\"id\":\"a-s7\",\"format\":\"standard\",\"deck\":\"standard/deck-a.dck\",\"archetype\":\"aggro\",\"skill\":7,\"prior\":1220,\"rating\":1220,\"rd\":40,\"games\":40,\"persona\":{\"name\":\"A7\"}},"
+                + "{\"id\":\"b-s5\",\"format\":\"standard\",\"deck\":\"standard/deck-b.dck\",\"archetype\":\"control\",\"skill\":5,\"prior\":1210,\"rating\":1210,\"rd\":40,\"games\":40,\"persona\":{\"name\":\"B5\"}},"
+                + "{\"id\":\"b-s7\",\"format\":\"standard\",\"deck\":\"standard/deck-b.dck\",\"archetype\":\"control\",\"skill\":7,\"prior\":1230,\"rating\":1230,\"rd\":40,\"games\":40,\"persona\":{\"name\":\"B7\"}}"
+                + "]}";
+        BotRoster twoDeckRoster = new BotRoster(new StringReader(json));
+        RankedService service = RankedService.forTests(store, twoDeckRoster);
+        String prevDeck = null;
+        for (int i = 0; i < 8; i++) {
+            BotRoster.Bot bot = service.pick("neri", "standard", RankedService.OPEN, NOW + i);
+            if (prevDeck != null) {
+                assertFalse(prevDeck.equals(bot.deck), "game " + i + " repeated just-lost deck " + prevDeck + " via " + bot.id);
+            }
+            prevDeck = bot.deck;
+            UUID table = UUID.randomUUID();
+            service.register(table, "neri", "standard", RankedService.OPEN, bot, "My Deck", NOW + i);
+            service.matchEnded(table, 0, NOW + i, 7, null);
+        }
+    }
+
+    @Test
+    void lostDeckStaysOnCooldownAcrossMultipleGames() throws Exception {
+        StringBuilder bots = new StringBuilder();
+        for (int i = 0; i < 6; i++) {
+            if (i > 0) bots.append(',');
+            bots.append("{\"id\":\"bot-").append(i)
+                    .append("\",\"format\":\"standard\",\"deck\":\"standard/deck-").append(i)
+                    .append(".dck\",\"archetype\":\"midrange\",\"skill\":5,\"prior\":1200,\"rating\":").append(1180 + i * 10)
+                    .append(",\"rd\":40,\"games\":40,\"persona\":{\"name\":\"Bot ").append(i).append("\"}}");
+        }
+        BotRoster sixDeckRoster = new BotRoster(new StringReader("{\"anchors\":{\"standard\":\"bot-0\"},\"bots\":[" + bots + "]}"));
+        RankedService service = RankedService.forTests(store, sixDeckRoster);
+
+        // Lose game 0 to first bot
+        BotRoster.Bot lostBot = service.pick("neri", "standard", RankedService.OPEN, NOW);
+        UUID t0 = UUID.randomUUID();
+        service.register(t0, "neri", "standard", RankedService.OPEN, lostBot, "My Deck", NOW);
+        service.matchEnded(t0, 0, NOW);
+
+        // Over the next 4 games, the lost deck must stay excluded while 5 other decks exist
+        for (int i = 1; i <= 4; i++) {
+            BotRoster.Bot next = service.pick("neri", "standard", RankedService.OPEN, NOW + i);
+            assertFalse(lostBot.deck.equals(next.deck), "lost deck reappeared on game " + i);
+            UUID t = UUID.randomUUID();
+            service.register(t, "neri", "standard", RankedService.OPEN, next, "My Deck", NOW + i);
+            service.matchEnded(t, 1, NOW + i);
+        }
+    }
+
+    @Test
+    void pickedOpponentPersistsAcrossServerRestart() throws Exception {
+        BotRoster.Bot first = ranked.pick("neri", "standard", RankedService.OPEN, NOW);
+        // Simulate a server restart with a new RankedService over the same LadderStore
+        RankedService restarted = RankedService.forTests(store, roster());
+        BotRoster.Bot afterRestart = restarted.pick("neri", "standard", RankedService.OPEN, NOW + 100);
+        assertEquals(first.id, afterRestart.id, "unplayed pick survives restart");
+    }
+
+    @Test
+    void commanderPodPicksThreeDistinctDecksProtectsBronzeFromMetaAndRecordsPlacement() throws Exception {
+        StringBuilder bots = new StringBuilder();
+        String[][] entries = {
+                {"c-starter-1", "commander/a.dck", "starter", "1000"},
+                {"c-starter-2", "commander/b.dck", "starter", "1060"},
+                {"c-budget-1", "commander/c.dck", "budget", "1140"},
+                {"c-budget-2", "commander/d.dck", "budget", "1200"},
+                {"c-meta-1", "commander/e.dck", "meta", "1220"},
+                {"c-meta-2", "commander/f.dck", "meta", "1240"}
+        };
+        for (int i = 0; i < entries.length; i++) {
+            if (i > 0) bots.append(',');
+            String[] e = entries[i];
+            bots.append("{\"id\":\"").append(e[0])
+                    .append("\",\"format\":\"commander\",\"deck\":\"").append(e[1])
+                    .append("\",\"tier\":\"").append(e[2])
+                    .append("\",\"skill\":3,\"prior\":").append(e[3])
+                    .append(",\"rating\":").append(e[3])
+                    .append(",\"rd\":120,\"games\":1,\"ai\":\"java-mad\",\"persona\":{\"name\":\"Cmdr ").append(i).append("\"}}");
+        }
+        BotRoster cmdrRoster = new BotRoster(new StringReader("{\"anchors\":{\"commander\":\"c-starter-1\"},\"bots\":[" + bots + "]}"));
+        RankedService service = RankedService.forTests(store, cmdrRoster);
+
+        // Bronze player gets 3 distinct Commander decks and no meta-tier combo decks
+        List<BotRoster.Bot> pod = service.pickPod("neri", "commander", RankedService.POD, NOW);
+        assertEquals(3, pod.size());
+        Set<String> decks = new HashSet<>();
+        for (BotRoster.Bot b : pod) {
+            assertTrue(decks.add(b.deck), "pod decks must be distinct: " + b.deck);
+            assertFalse("meta".equalsIgnoreCase(b.tier), "Bronze pod should not include meta tier bot: " + b.id);
+        }
+
+        UUID table = UUID.randomUUID();
+        service.registerPod(table, "neri", "commander", RankedService.POD, pod, "Meren", NOW);
+        RankedService.Result firstPlace = service.matchEndedPod(table, 1, NOW, null);
+        assertNotNull(firstPlace);
+        assertEquals(Integer.valueOf(1), firstPlace.placement);
+        assertEquals("won", firstPlace.status);
+        assertEquals(0, firstPlace.stepBefore);
+        assertEquals(2, firstPlace.stepAfter, "1st place in a 4-player pod awards +2 pips");
+
+        // 2nd place in Bronze awards +1 pip
+        List<BotRoster.Bot> pod2 = service.pickPod("neri", "commander", RankedService.POD, NOW + 1);
+        UUID table2 = UUID.randomUUID();
+        service.registerPod(table2, "neri", "commander", RankedService.POD, pod2, "Meren", NOW + 1);
+        RankedService.Result secondPlace = service.matchEndedPod(table2, 2, NOW + 1, null);
+        assertNotNull(secondPlace);
+        assertEquals(Integer.valueOf(2), secondPlace.placement);
+        assertEquals(3, secondPlace.stepAfter, "2nd place in Bronze awards +1 pip");
     }
 
     static BotRoster roster() {
@@ -302,7 +419,7 @@ public class RankedServiceTest {
                 bots.append(',');
             }
             bots.append("{\"id\":\"").append(b[1]).append("\",\"format\":\"").append(b[0])
-                    .append("\",\"deck\":\"standard/starter.dck\",\"skill\":5,\"prior\":1200,\"rating\":").append(b[2])
+                    .append("\",\"deck\":\"standard/").append(b[1]).append(".dck\",\"skill\":5,\"prior\":1200,\"rating\":").append(b[2])
                     .append(",\"rd\":60,\"games\":40,\"persona\":{\"name\":\"").append(b[1]).append("\"}}");
         }
         return new BotRoster(new StringReader("{\"anchors\":{\"standard\":\"weak\",\"pioneer\":\"p-weak\"},\"bots\":[" + bots + "]}"));

@@ -1,0 +1,36 @@
+# name: Train450 lim-g-ur-mid-4
+# archetype: limited_mid
+# colors: UR
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 A.I.M. Scientists
+2 Academy Loremaster
+1 Akki Scrapchomper
+1 Bonehoard Dracosaur
+1 Catacomb Sifter
+1 Conduct Electricity
+2 Crookclaw Transmuter
+1 Discerning Peddler
+2 Dream Strix
+1 Fading Hope
+1 Forgehammer Centurion
+1 Furious Bellow
+1 Goblin Tomb Raider
+2 Grave Birthing
+2 Impossible Inferno
+1 Iymrith, Desert Doom
+2 Kragma Butcher
+1 Lord of Atlantis
+1 Lupine Prototype
+1 Mistral Singer
+1 Nebelgast Herald
+1 Nimble Birdsticker
+1 North Pole Patrol
+2 Pearl Lake Ancient
+1 Quaketusk Boar
+1 Skirk Prospector
+1 Triton Tactics
+1 Violent Echoes
+4 Airship Engine Room
+8 Island
+8 Mountain
+4 Spirebluff Canal

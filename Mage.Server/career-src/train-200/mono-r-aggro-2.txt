@@ -1,0 +1,19 @@
+# name: Train200 mono-r-aggro-2
+# archetype: aggro
+# colors: R
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+3 Burst Lightning
+3 Dragon's Approach
+2 Geistblast
+3 Harried Spearguard
+4 Kolaghan Stormsinger
+3 Leyline Tyrant
+4 Merchant's Dockhand
+1 Phoenix of Ash
+3 Rouse the Mob
+3 Scuzzback Scrounger
+2 Smaug the Magnificent
+2 Spit Flame
+2 Tin Street Dodger
+4 Trailblazing Historian
+21 Mountain

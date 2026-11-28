@@ -1,0 +1,23 @@
+# name: Train450 tri-brg-aggro-7
+# archetype: aggro
+# colors: BRG
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Blur of Blades
+1 Daring Buccaneer
+3 Dwarven Mauler
+4 Hexing Squelcher
+4 Kalastria Highborn
+3 Lightning Bolt
+4 Moonshadow
+3 Radiating Lightning
+3 Reaper of the Wilds
+4 Skarrg Guildmage
+3 Solphim, Mayhem Dominus
+2 Supernatural Stamina
+1 Tethermage's Advantage
+1 Forest
+4 Karplusan Forest
+5 Mountain
+4 Rootbound Crag
+4 Strangled Cemetery
+3 Swamp

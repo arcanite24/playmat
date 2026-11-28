@@ -1,0 +1,20 @@
+{
+  "$comment": "NB 2.1 art spec for the Coin Cosmetics Boutique playmats. Paint with: node art/wavespeed.mjs boutique-playmat --backend gemini --image-size 2K",
+  "out": "public/career-art/playmat",
+  "lead": "Paint a wide landscape tabletop playmat seen from directly overhead.",
+  "house": false,
+  "series": false,
+  "aspect": "16:9",
+  "size": "1600x900",
+  "refs": [],
+  "style": "Top-down atmospheric tabletop playmat illustration in oil and gouache: calm, low-contrast centre field so playing cards placed on top stay crisp and legible, richest ornamental detail pushed subtly toward the outer edges, matte cloth weave texture, muted controlled values.",
+  "rules": "Keep the central 65% calm, evenly lit and uncluttered so tabletop cards remain easy to read. No text, letters, numbers, borders, logos or card outlines anywhere.",
+  "items": [
+    { "id": "velvet-command", "subject": "an overhead view of deep royal emerald velvet table cloth with subtle antique gold corner filigree and dark shadowed mahogany table grain along the outer border" },
+    { "id": "starlit-orrery", "subject": "a calm midnight-indigo star-chart tapestry with delicate pale gold astronomical arcs and brass compass corners framing a quiet dark-blue centre" },
+    { "id": "obsidian-forge", "subject": "dark matte volcanic slate surface with subtle glowing ember veins only along the far perimeter and calm charcoal-grey stone across the middle" },
+    { "id": "sunken-reef", "subject": "tranquil deep sea-teal water seen from straight above, faint sunlit caustics and quiet coral silhouettes near the edges" },
+    { "id": "lotus-pond", "subject": "serene dark jade garden pond seen from above, floating lily pads and a few pale lotus blossoms resting gently near the corners, calm mirrored water in the centre" },
+    { "id": "tavern-oak", "subject": "warm seasoned tavern oak wood planks seen from directly above, subtle brass inlay corners and soft candlelight warmth across quiet wood grain" }
+  ]
+}

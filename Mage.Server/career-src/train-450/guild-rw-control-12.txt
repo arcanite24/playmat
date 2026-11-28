@@ -1,0 +1,22 @@
+# name: Train450 guild-rw-control-12
+# archetype: control
+# colors: RW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+4 Galvanize
+2 Glorybringer
+2 Goblin Surveyor
+3 Horribly Awry
+2 Impetuous Devils
+2 Lathliss, Dragon Queen
+2 Lightning Bolt
+2 Price of Freedom
+2 Risk Factor
+4 Smash to Dust
+4 Spell Shrivel
+3 Spit Flame
+1 Trick Shot
+1 Warping Wail
+4 Clifftop Retreat
+17 Mountain
+4 Needle Spires
+1 Plains

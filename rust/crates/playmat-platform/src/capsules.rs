@@ -21,13 +21,22 @@ fn items(machine: &Value) -> impl Iterator<Item = (&Value, &Value)> {
         .flat_map(|set| set["items"].as_array().into_iter().flatten().map(move |item| (set, item)))
 }
 
-/// `CareerCapsules.owned`: every machine item the account has, as unlocks of its machine's kind, in their order
+/// `CareerCapsules.itemKind`
+fn item_kind<'a>(machine: &'a Value, item: &'a Value) -> &'a str {
+    item["kind"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .or_else(|| machine["kind"].as_str())
+        .unwrap_or_default()
+}
+
+/// `CareerCapsules.owned`: every machine item the account has, as unlocks of its item's kind, in their order
 async fn owned(db: &mut SqliteConnection, user: &str, machines: &Value) -> Result<Vec<String>, Stop> {
     let mut kinds = std::collections::HashMap::new();
     for machine in machines.as_array().into_iter().flatten() {
         for (_, item) in items(machine) {
             if let Some(id) = item["id"].as_str() {
-                kinds.insert(id.to_owned(), machine["kind"].as_str().unwrap_or_default().to_owned());
+                kinds.insert(id.to_owned(), item_kind(machine, item).to_owned());
             }
         }
     }
@@ -190,11 +199,12 @@ impl AdminStores {
                 let secret = AdminStores::career_secret(db).await?;
                 let mut draw = crate::dice::roll(&secret, &format!("pull/{user}/{id}/{pulled}"));
                 add_tokens(db, user, -pulls, &format!("pull {id}"), now).await?;
-                let kind = machine["kind"].as_str().unwrap_or_default();
+                let machine_kind = machine["kind"].as_str().unwrap_or_default();
                 let mut results = Vec::new();
                 for _ in 0..pulls {
                     let (set, item) = left.remove(draw.next_int(left.len() as i32) as usize);
                     let item_id = item["id"].as_str().unwrap_or_default();
+                    let kind = item_kind(machine, item);
                     add_unlock(db, user, &json!({"kind": kind, "id": item_id}), now).await?;
                     sqlx::query("INSERT INTO pulls (user, machine, item, at) VALUES (?, ?, ?, ?)")
                         .bind(user)
@@ -207,7 +217,14 @@ impl AdminStores {
                     let mut pull = serde_json::Map::new();
                     pull.insert("item".into(), json!(item_id));
                     pull.insert("set".into(), set["id"].clone());
-                    pull.insert("card".into(), item["card"].clone());
+                    if !item["card"].is_null() {
+                        pull.insert("card".into(), item["card"].clone());
+                    }
+                    if machine_kind == "mixed" {
+                        pull.insert("kind".into(), json!(kind));
+                        let display = item["name"].as_str().or_else(|| item["card"].as_str()).unwrap_or(item_id);
+                        pull.insert("name".into(), json!(display));
+                    }
                     let set_done = set["items"]
                         .as_array()
                         .into_iter()

@@ -1,0 +1,20 @@
+# name: Train200 guild-ur-control-8
+# archetype: control
+# colors: UR
+# source: synthetic-train-200 (disjoint from constructed-ood-1)
+4 Ambling Stormshell
+4 Bring the Ending
+3 Countersculpt
+1 Fleeting Distraction
+2 Giant-Sized Flying Ant
+4 Kozilek's Return
+4 Psychic Rebuttal
+2 Purphoros, God of the Forge
+2 Redcap Melee
+3 Release to the Wind
+3 Select for Inspection
+2 Untimely Malfunction
+4 Eroded Canyon
+14 Island
+4 Mountain
+4 Wandering Fumarole

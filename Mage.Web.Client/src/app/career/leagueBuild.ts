@@ -19,6 +19,9 @@ export const useLeagueBuild = create<LeagueBuildState>(() => ({ view: null, erro
 
 /** XMage's deck type of a League format */
 export function deckTypeOf(format: string): string {
+  if (format === 'commander') return 'Variant Magic - Commander';
+  if (format === 'brawl') return 'Variant Magic - Brawl';
+  if (format === 'pauper') return 'Constructed - Pauper';
   return format === 'pioneer' ? 'Constructed - Pioneer' : 'Constructed - Standard';
 }
 

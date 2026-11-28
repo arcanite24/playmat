@@ -1,0 +1,24 @@
+# name: Train450 tri-urw-bigmana-6
+# archetype: bigmana
+# colors: URW
+# source: synthetic-train-450 (disjoint from constructed-ood-1)
+2 Allied Assault
+3 Breakneck Berserker
+2 Burdened Stoneback
+3 Depths of Desire
+4 Desperate Futurescribe
+3 Ezrim, Agency Chief
+3 Flameblade Angel
+1 Justiciar's Portal
+2 Ral's Outburst
+2 Ranger's Hawk
+3 Starnheim Courser
+4 Subjugator Angel
+1 Tiger-Tribe Hunter
+2 Weapons Trainer
+3 Island
+4 Lonely Arroyo
+3 Mountain
+7 Plains
+4 Rabanastre, Royal City
+4 Restless Bivouac

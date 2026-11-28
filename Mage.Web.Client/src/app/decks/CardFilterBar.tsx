@@ -1,8 +1,11 @@
-import { Search, SlidersHorizontal, X } from 'lucide-react';
-import { useId, useState, type ReactNode } from 'react';
+import { Calendar, Search, SlidersHorizontal, X } from 'lucide-react';
+import { useId, useMemo, useState, type ReactNode } from 'react';
 import type { CardType, Rarity } from '../../protocol/generated/views';
 import styles from './DeckBuilder.module.css';
-import { EMPTY_FILTERS, isFiltered, type CardFilters } from './filters';
+import {
+  EMPTY_FILTERS, ERA_PRESETS, formatEraSummary, hasSetOrEraFilter, isFiltered, setReleaseYear, setsMatchingEra,
+  type CardFilters, type SetOption,
+} from './filters';
 
 const COLORS: { key: string; symbol: string; label: string }[] = [
   { key: 'white', symbol: 'w', label: 'White' },
@@ -41,13 +44,23 @@ export function CardFilterBar({ filters, onChange, toggles, sets }: {
   filters: CardFilters;
   onChange(filters: CardFilters): void;
   toggles?: ReactNode;
-  sets?: { setCode?: string; name?: string }[] | null;
+  sets?: SetOption[] | null;
 }) {
   const set = (patch: Partial<CardFilters>) => onChange({ ...filters, ...patch });
   // on a phone the filters fold away behind a button (the CSS shows them everywhere else): only the search stays out
   const [open, setOpen] = useState(false);
+  const [eraOpen, setEraOpen] = useState(false);
   const bodyId = useId();
-  const active = filters.colors.length + (filters.onlyColors && filters.colors.length > 0 ? 1 : 0) + (filters.manaValue !== null ? 1 : 0) + (filters.type ? 1 : 0) + (filters.rarity ? 1 : 0) + (filters.set ? 1 : 0) + (filters.anyText ? 1 : 0);
+  const eraPanelId = useId();
+  const hasReleaseDates = useMemo(() => (sets ?? []).some((item) => setReleaseYear(item) !== null), [sets]);
+  const eraActive = hasSetOrEraFilter(filters);
+  const active = filters.colors.length
+    + (filters.onlyColors && filters.colors.length > 0 ? 1 : 0)
+    + (filters.manaValue !== null ? 1 : 0)
+    + (filters.type ? 1 : 0)
+    + (filters.rarity ? 1 : 0)
+    + (eraActive ? 1 : 0)
+    + (filters.anyText ? 1 : 0);
   return (
     <div className={styles.filters}>
       <label className={styles.search}>
@@ -117,13 +130,203 @@ export function CardFilterBar({ filters, onChange, toggles, sets }: {
       <select className={styles.select} value={filters.rarity} onChange={(event) => set({ rarity: event.target.value as Rarity | '' })} aria-label="Rarity">
         {RARITIES.map((rarity) => <option key={rarity.value} value={rarity.value}>{rarity.label}</option>)}
       </select>
-      {sets && (
+      {sets && !hasReleaseDates && (
         <select className={[styles.select, styles.setSelect].join(' ')} value={filters.set} onChange={(event) => set({ set: event.target.value })} aria-label="Set">
           <option value="">All sets</option>
           {sets.map((item) => <option key={item.setCode} value={item.setCode}>{item.name} ({item.setCode})</option>)}
         </select>
       )}
+      {sets && hasReleaseDates && (
+        <button
+          type="button"
+          className={[styles.eraButton, eraActive ? styles.eraButtonOn : ''].join(' ')}
+          aria-expanded={eraOpen}
+          aria-controls={eraPanelId}
+          onClick={() => setEraOpen((was) => !was)}
+        >
+          <Calendar size={15} aria-hidden="true" />
+          <span>{formatEraSummary(filters, sets)}</span>
+        </button>
+      )}
       {isFiltered(filters) && <button type="button" className={styles.reset} onClick={() => onChange(EMPTY_FILTERS)}>Reset</button>}
+      </div>
+      {sets && hasReleaseDates && eraOpen && (
+        <EraSetPanel id={eraPanelId} filters={filters} sets={sets} onChange={set} onClose={() => setEraOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+function parseYear(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(parsed) || parsed < 1990 || parsed > 2100) return null;
+  return parsed;
+}
+
+function EraSetPanel({ id, filters, sets, onChange, onClose }: {
+  id: string;
+  filters: CardFilters;
+  sets: SetOption[];
+  onChange(patch: Partial<CardFilters>): void;
+  onClose(): void;
+}) {
+  const [setQuery, setSetQuery] = useState('');
+  const [fromText, setFromText] = useState(filters.yearFrom != null ? String(filters.yearFrom) : '');
+  const [toText, setToText] = useState(filters.yearTo != null ? String(filters.yearTo) : '');
+  const picked = useMemo(() => new Set((filters.sets ?? []).filter(Boolean)), [filters.sets]);
+  const eraSets = useMemo(() => setsMatchingEra(sets, filters.yearFrom, filters.yearTo), [sets, filters.yearFrom, filters.yearTo]);
+  const shownSets = useMemo(() => {
+    const needle = setQuery.trim().toLowerCase();
+    if (!needle) return eraSets;
+    return eraSets.filter((item) =>
+      (item.name ?? '').toLowerCase().includes(needle)
+      || (item.setCode ?? '').toLowerCase().includes(needle)
+      || String(setReleaseYear(item) ?? '').includes(needle));
+  }, [eraSets, setQuery]);
+
+  function applyYears(yearFrom: number | null, yearTo: number | null) {
+    setFromText(yearFrom != null ? String(yearFrom) : '');
+    setToText(yearTo != null ? String(yearTo) : '');
+    // prune any explicitly checked sets that fall outside the new era
+    const allowed = new Set(setsMatchingEra(sets, yearFrom, yearTo).map((item) => item.setCode).filter(Boolean));
+    const nextSets = (filters.sets ?? []).filter((code) => allowed.has(code));
+    onChange({ yearFrom, yearTo, set: '', sets: nextSets });
+  }
+
+  function toggleSet(code: string) {
+    const next = new Set(picked);
+    if (next.has(code)) next.delete(code);
+    else next.add(code);
+    onChange({ set: '', sets: [...next] });
+  }
+
+  return (
+    <div id={id} className={styles.eraPanel} role="region" aria-label="Era and set filters">
+      <div className={styles.eraTop}>
+        <div className={styles.eraPresets} role="group" aria-label="Era presets">
+          <button
+            type="button"
+            className={filters.yearFrom == null && filters.yearTo == null ? styles.eraChipOn : styles.eraChip}
+            onClick={() => applyYears(null, null)}
+          >
+            All eras
+          </button>
+          {ERA_PRESETS.map((preset) => {
+            const on = (filters.yearFrom ?? null) === preset.yearFrom && (filters.yearTo ?? null) === preset.yearTo;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                className={on ? styles.eraChipOn : styles.eraChip}
+                aria-pressed={on}
+                onClick={() => applyYears(preset.yearFrom, preset.yearTo)}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+        <button type="button" className={styles.eraClose} onClick={onClose} aria-label="Close era and set filters">
+          <X size={16} aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className={styles.eraYears}>
+        <label className={styles.eraYearField}>
+          <span>From year</span>
+          <input
+            type="number"
+            min={1993}
+            max={2035}
+            placeholder="1993"
+            value={fromText}
+            onChange={(event) => {
+              const raw = event.target.value;
+              setFromText(raw);
+              if (raw.trim() === '' || raw.trim().length === 4) {
+                onChange({ yearFrom: parseYear(raw), set: '' });
+              }
+            }}
+          />
+        </label>
+        <label className={styles.eraYearField}>
+          <span>To year</span>
+          <input
+            type="number"
+            min={1993}
+            max={2035}
+            placeholder="2005"
+            value={toText}
+            onChange={(event) => {
+              const raw = event.target.value;
+              setToText(raw);
+              if (raw.trim() === '' || raw.trim().length === 4) {
+                onChange({ yearTo: parseYear(raw), set: '' });
+              }
+            }}
+          />
+        </label>
+        <span className={styles.eraCount}>
+          {eraSets.length} {eraSets.length === 1 ? 'set' : 'sets'} in era
+          {picked.size > 0 ? ` · ${picked.size} selected` : ''}
+        </span>
+        {(picked.size > 0 || filters.yearFrom != null || filters.yearTo != null || filters.set) && (
+          <button
+            type="button"
+            className={styles.reset}
+            onClick={() => {
+              setFromText('');
+              setToText('');
+              setSetQuery('');
+              onChange({ set: '', sets: [], yearFrom: null, yearTo: null });
+            }}
+          >
+            Clear era &amp; sets
+          </button>
+        )}
+      </div>
+
+      <div className={styles.eraSetTools}>
+        <label className={styles.eraSearch}>
+          <Search size={14} aria-hidden="true" />
+          <input
+            value={setQuery}
+            onChange={(event) => setSetQuery(event.target.value)}
+            placeholder="Filter sets by name, code or year…"
+            aria-label="Filter sets"
+          />
+        </label>
+        {picked.size > 0 && (
+          <button type="button" className={styles.reset} onClick={() => onChange({ set: '', sets: [] })}>
+            Clear checked ({picked.size})
+          </button>
+        )}
+      </div>
+
+      <div className={styles.eraSetList} role="group" aria-label="Specific sets">
+        {shownSets.slice(0, 120).map((item) => {
+          const code = item.setCode ?? '';
+          const year = setReleaseYear(item);
+          return (
+            <label key={code} className={styles.eraSetRow}>
+              <input
+                type="checkbox"
+                checked={picked.has(code)}
+                onChange={() => toggleSet(code)}
+              />
+              <span className={styles.eraSetName}>{item.name}</span>
+              <span className={styles.eraSetMeta}>{code}{year ? ` · ${year}` : ''}</span>
+            </label>
+          );
+        })}
+        {shownSets.length > 120 && (
+          <p className={styles.eraHint}>Showing 120 of {shownSets.length} sets. Narrow by year or search above.</p>
+        )}
+        {shownSets.length === 0 && (
+          <p className={styles.eraHint}>No sets match that year range or search.</p>
+        )}
       </div>
     </div>
   );

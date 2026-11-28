@@ -463,13 +463,13 @@ public class SupportTest {
         // as a version 1 database left it: no pet column, no pet perk
         try (java.sql.Connection raw = java.sql.DriverManager.getConnection(url); java.sql.Statement sql = raw.createStatement()) {
             sql.execute("ALTER TABLE looks DROP COLUMN pet");
-            for (String column : new String[]{"arrow", "spark", "stamp", "lands", "badges", "tokens", "deck_tokens"}) {
+            for (String column : new String[]{"arrow", "spark", "stamp", "lands", "badges", "tokens", "deck_tokens", "command_frame"}) {
                 sql.execute("ALTER TABLE looks DROP COLUMN " + column);
             }
             sql.execute("UPDATE schema_version SET version = 1");
         }
         try (SupportStore migrated = new SupportStore(url)) {
-            assertThat(migrated.schemaVersion()).isEqualTo(4);
+            assertThat(migrated.schemaVersion()).isEqualTo(5);
             assertThat(migrated.perks("old").stream().map(perk -> perk.kind + ":" + perk.item + ":" + perk.paymentId))
                     .contains("pet:party-corgi:7");
         }
